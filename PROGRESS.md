@@ -2,6 +2,37 @@
 
 ## Stand
 
+**Quellenbasiertes Ersetzen bei erneutem Import (fertig)**
+- Grund: Re-Importieren derselben Quelle (Extraktion ist nicht
+  deterministisch, siehe polygraph/PROGRESS.md) liess pro Lauf zwischen 0
+  und N neue Knoten/Kanten entstehen, weil `add_triple`s Dedup nur exakt
+  identische (Subjekt, Objekt, Relation) erkennt - eine leicht anders
+  formulierte, aber inhaltlich gleiche Aussage aus demselben Artikel wurde
+  einfach zusaetzlich eingefuegt statt die veraltete Version zu ersetzen.
+- Jede Kante bekommt jetzt optional ein `source`-Feld (z.B. die Artikel-URL
+  oder der Dateipfad). `POST /triples` mit `source` im Body loescht zuerst
+  ALLE Kanten mit genau diesem `source`-Wert (`GraphStore.remove_edges_by_
+  source`, entfernt danach auch verwaiste Knoten) und fuegt erst dann die
+  neuen Tripel ein - so bleibt ein erneuter Import derselben Quelle
+  idempotent, egal wie stark sich die Extraktion im Detail unterscheidet.
+- `source` steht bewusst an der KANTE, nicht am Knoten: ein Knoten wie
+  "Muskeln" kann aus vielen Quellen stammen, eine einzelne Aussage
+  ("sekretiert IL-6") stammt aus genau einer.
+- `_find_edge_key` dedupliziert jetzt nur noch innerhalb derselben Quelle
+  (gleiche Relation UND gleicher `source`). Behauptet eine ANDERE Quelle
+  (oder Tripel ohne `source`) dieselbe Relation zwischen denselben Knoten,
+  bleibt das eine eigene Kante - keine Duplizierung, sondern zwei
+  unabhaengige Belegstellen fuer dieselbe Aussage.
+- Getestet (ueber `polygraph/build_graph.py --source ...`): 1. Import mit
+  Quelle X -> 0 entfernt (korrekt, erster Import). 2. und 3. Import
+  derselben Datei mit derselben Quelle X -> jeweils exakt dieselben 19
+  Kanten/2 Knoten vorher entfernt, Graph bleibt stabil bei 122/147 -
+  idempotent bei wiederholtem Import bestaetigt.
+- Bekannte Einschraenkung: Kanten aus Importen VOR dieser Aenderung haben
+  kein `source`-Feld und werden beim erneuten Import derselben Quelle nicht
+  rueckwirkend erkannt/entfernt (bewusst so - lieber nichts faelschlich
+  loeschen als raten). Ab jetzt getaggte Importe funktionieren korrekt.
+
 **Aus polygraph ausgelagert (fertig)**
 - Grund: zweiter echter Nutzer (Kollege mit eigenem Graph), Graph soll
   wachsen koennen, beide wollen ihre Graphen getrennt aber gemeinsam

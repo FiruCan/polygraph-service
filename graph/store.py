@@ -32,13 +32,15 @@ class GraphStore:
         """
         Legt Subjekt- und Objekt-Knoten an (falls noch nicht vorhanden) und
         fuegt eine Kante mit allen Zusatzfeldern (relation, value, condition,
-        evidence_level, confidence, ...) als Properties hinzu.
+        evidence_level, confidence, source, ...) als Properties hinzu.
 
         Existiert zwischen Subjekt und Objekt bereits eine Kante mit
-        derselben Relation (z.B. weil derselbe Text zweimal extrahiert oder
-        sich zwei Dokumente ueberlappen), wird diese Kante aktualisiert statt
-        eine zusaetzliche parallele Kante anzulegen - sonst sammeln sich bei
-        wiederholter Ingestion unbegrenzt Duplikate an.
+        derselben Relation UND demselben "source" (z.B. weil dieselbe Quelle
+        zweimal importiert wurde), wird diese Kante aktualisiert statt eine
+        zusaetzliche parallele Kante anzulegen. Behauptet eine ANDERE Quelle
+        (oder keine) dieselbe Relation zwischen denselben Knoten, bleibt das
+        eine eigene Kante - das ist keine Duplizierung, sondern zwei
+        Belegstellen fuer dieselbe Aussage.
         """
         self.graph.add_node(triple["subject"], type=triple.get("subject_type"))
         self.graph.add_node(triple["object"], type=triple.get("object_type"))
@@ -50,20 +52,39 @@ class GraphStore:
             and v is not None
         }
 
-        existing_key = self._find_edge_key(triple["subject"], triple["object"], triple.get("relation"))
+        existing_key = self._find_edge_key(
+            triple["subject"], triple["object"], triple.get("relation"), triple.get("source")
+        )
         if existing_key is not None:
             self.graph.edges[triple["subject"], triple["object"], existing_key].update(edge_props)
         else:
             self.graph.add_edge(triple["subject"], triple["object"], **edge_props)
 
-    def _find_edge_key(self, u: str, v: str, relation):
-        """Key der Kante u->v mit gegebener Relation, falls vorhanden, sonst None."""
+    def _find_edge_key(self, u: str, v: str, relation, source=None):
+        """Key der Kante u->v mit gegebener Relation UND Quelle, falls vorhanden, sonst None."""
         if not self.graph.has_edge(u, v):
             return None
         for key, data in self.graph[u][v].items():
-            if data.get("relation") == relation:
+            if data.get("relation") == relation and data.get("source") == source:
                 return key
         return None
+
+    def remove_edges_by_source(self, source: str):
+        """
+        Entfernt alle Kanten mit diesem 'source'-Wert (fuer erneuten Import
+        derselben Quelle: erst loeschen, dann frisch extrahierte Kanten
+        einfuegen, statt veraltete Kanten aus einem frueheren Extraktions-
+        Lauf stehen zu lassen). Knoten, die dadurch keine Kanten mehr haben,
+        werden mit entfernt.
+        """
+        to_remove = [
+            (u, v, k) for u, v, k, data in self.graph.edges(keys=True, data=True)
+            if data.get("source") == source
+        ]
+        self.graph.remove_edges_from(to_remove)
+
+        isolated = [n for n in self.graph.nodes if self.graph.degree(n) == 0]
+        self.graph.remove_nodes_from(isolated)
 
     def known_entities(self) -> list[str]:
         return list(self.graph.nodes)
@@ -112,6 +133,7 @@ class GraphStore:
                     "condition": data.get("condition"),
                     "evidence_level": data.get("evidence_level"),
                     "confidence": data.get("confidence"),
+                    "source": data.get("source"),
                 }
                 for u, v, data in self.graph.edges(data=True)
             ],

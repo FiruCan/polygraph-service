@@ -16,6 +16,7 @@ Start: uvicorn app:app --reload --port 8000
 
 import os
 import threading
+from typing import Optional
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -36,6 +37,7 @@ if os.path.exists(DATA_PATH):
 
 class TriplesIn(BaseModel):
     triples: list[dict]
+    source: Optional[str] = None
 
 
 class QuestionIn(BaseModel):
@@ -61,12 +63,23 @@ def get_graph():
 @app.post("/triples")
 def add_triples(body: TriplesIn):
     with store_lock:
+        removed_nodes_before = store.graph.number_of_nodes()
+        removed_edges_before = store.graph.number_of_edges()
+        if body.source:
+            store.remove_edges_by_source(body.source)
+        removed = {
+            "nodes": removed_nodes_before - store.graph.number_of_nodes(),
+            "edges": removed_edges_before - store.graph.number_of_edges(),
+        }
+
         merges = []
         for triple in body.triples:
             normalized = normalize_triple(triple, store.known_entities(), store.known_relations())
             for field in ("subject", "object", "relation"):
                 if normalized[field] != triple[field]:
                     merges.append([field, triple[field], normalized[field]])
+            if body.source:
+                normalized["source"] = body.source
             store.add_triple(normalized)
 
         os.makedirs(os.path.dirname(DATA_PATH), exist_ok=True)
@@ -74,6 +87,7 @@ def add_triples(body: TriplesIn):
 
         return {
             "added": len(body.triples),
+            "removed_from_source": removed if body.source else None,
             "merges": merges,
             "nodes": store.graph.number_of_nodes(),
             "edges": store.graph.number_of_edges(),
