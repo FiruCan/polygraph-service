@@ -67,6 +67,10 @@ function renderGraph(graphData, highlight = []) {
   };
   if (network) network.destroy();
   network = new vis.Network(container, { nodes, edges }, options);
+  // Physik bleibt nach der Stabilisierung sonst dauerhaft an und bei kleinen
+  // Teilgraphen kann das System dann in einer stabilen Rotation haengen
+  // bleiben, statt zu stoppen - deshalb hier abschalten, sobald stabil.
+  network.once("stabilizationIterationsDone", () => network.setOptions({ physics: false }));
 
   const legend = document.getElementById("legend");
   legend.innerHTML = Object.entries(colors)
