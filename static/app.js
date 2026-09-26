@@ -106,8 +106,9 @@ async function askQuestion() {
   document.getElementById("answer").textContent = data.answer;
   document.getElementById("belege").innerHTML = data.triples
     .map(t => {
-      const extra = [t.value, t.condition, t.evidence_level, t.confidence]
-        .filter(v => v != null).join(" | ");
+      const extra = [["value", t.value], ["condition", t.condition],
+                      ["evidence", t.evidence_level], ["confidence", t.confidence]]
+        .filter(([, v]) => v != null).map(([label, v]) => `${label}: ${v}`).join(" | ");
       return `<div>[${t.n}] ${t.subject} --${t.relation}--> ${t.object}${extra ? " | " + extra : ""}</div>`;
     }).join("");
 
