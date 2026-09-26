@@ -146,6 +146,7 @@ def ask(graph, question: str) -> dict:
             "n": i, "subject": u, "relation": data.get("relation"), "object": v,
             "value": data.get("value"), "condition": data.get("condition"),
             "evidence_level": data.get("evidence_level"), "confidence": data.get("confidence"),
+            "origin": data.get("origin"),
         })
 
     subgraph_store = GraphStore()

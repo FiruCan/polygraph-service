@@ -34,7 +34,8 @@ function edgeLabel(e) {
 function edgeTooltip(e) {
   const parts = [e.relation || ""];
   for (const [key, label] of [["value", "value"], ["condition", "condition"],
-                               ["evidence_level", "evidence"], ["confidence", "confidence"]]) {
+                               ["evidence_level", "evidence"], ["confidence", "confidence"],
+                               ["origin", "Quelle"]]) {
     if (e[key] != null) parts.push(`${label}: ${e[key]}`);
   }
   return parts.join("\n");
@@ -109,7 +110,8 @@ async function askQuestion() {
       const extra = [["value", t.value], ["condition", t.condition],
                       ["evidence", t.evidence_level], ["confidence", t.confidence]]
         .filter(([, v]) => v != null).map(([label, v]) => `${label}: ${v}`).join(" | ");
-      return `<div>[${t.n}] ${t.subject} --${t.relation}--> ${t.object}${extra ? " | " + extra : ""}</div>`;
+      const origin = t.origin ? `<div class="origin">Quelle: ${t.origin}</div>` : "";
+      return `<div>[${t.n}] ${t.subject} --${t.relation}--> ${t.object}${extra ? " | " + extra : ""}${origin}</div>`;
     }).join("");
 
   if (data.graph.nodes.length) renderGraph(data.graph, data.selected_nodes);

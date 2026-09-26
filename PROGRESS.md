@@ -2,6 +2,13 @@
 
 ## Stand
 
+**Quellenangabe (origin) im Frontend sichtbar (fertig)**
+- `origin` stand schon in `GraphStore.to_json()`, wurde aber nirgends
+  angezeigt. `graph/ask.py::ask()` gibt jetzt `origin` pro Tripel in der
+  API-Antwort mit. `static/app.js`: Kanten-Tooltip im Graphen zeigt jetzt
+  "Quelle: ..."; die Beleg-Liste bei Antworten zeigt die Quelle unter
+  jedem zitierten Tripel (eigene, dezente Zeile).
+
 **Kandidaten-Verdraengung bei der Normalisierung behoben + atomares Speichern (fertig)**
 - Grund: "MS" und "Multiple Sklerose" blieben trotz Normalisierung als
   zwei getrennte Knoten im Graphen stehen - obwohl `find_match('MS', ...)`
