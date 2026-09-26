@@ -2,6 +2,32 @@
 
 ## Stand
 
+**Gekennzeichnete Ableitung bei Fragen, die ueber den Graphen hinausgehen (fertig)**
+- Grund: Frage "Wenn ein MS-Patient eine Nacht schlecht schlaeft, wie
+  wirkt sich das auf seine Fatigue aus?" wurde trotz vorhandener,
+  thematisch naher Fakten (Fatigue ist Symptom von MS) immer mit "Das
+  steht nicht im Graphen" beantwortet - obwohl eine vorsichtige Ableitung
+  aus Graph-Fakt + Fachwissen moeglich gewesen waere.
+- Ursache gefunden durch isolierten Test mit `think=True`: das Modell
+  KONNTE die Ableitung korrekt herleiten, sobald es einen Denkschritt
+  bekam. `graph/ask.py::_chat` rief die Antwort-Generierung bisher aber
+  immer mit `think=False` auf - ohne Denkschritt fiel das Modell
+  reflexhaft auf die sichere Ablehnung zurueck.
+- `prompts/ask_answer.md` erlaubt jetzt zwei klar getrennte Aussagearten:
+  "BELEGTE FAKTEN" (wie bisher, mit Tripel-Nummer als Beleg) und
+  "Vermutung (nicht im Graphen belegt):" als eigener, deutlich markierter
+  Abschnitt - nur wenn eine plausible Ableitung aus vorhandenen Fakten +
+  etabliertem Fachwissen moeglich ist, keine erfundenen Zahlen/Studien.
+- `graph/ask.py::ask()` ruft die Antwort jetzt mit `think=True` und
+  `num_predict=6000` auf (select_nodes bleibt bei `think=False` - einfache
+  Auswahlaufgabe, kein Denkschritt noetig).
+- Getestet: MS/Schlaf-Frage liefert jetzt "BELEGTE FAKTEN: ... [21]" plus
+  "Vermutung (nicht im Graphen belegt): Schlechter Schlaf... kann die
+  Fatigue... voraussichtlich verstaerken." Regressionsgetestet, dass die
+  Sicherheit erhalten bleibt: eine unsinnige Frage (Apple-Aktienkurs vs.
+  MS-Fatigue) bekommt weiterhin "Das steht nicht im Graphen" ohne
+  erzwungene Ableitung.
+
 **Quellenbasiertes Ersetzen bei erneutem Import (fertig)**
 - Grund: Re-Importieren derselben Quelle (Extraktion ist nicht
   deterministisch, siehe polygraph/PROGRESS.md) liess pro Lauf zwischen 0

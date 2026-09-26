@@ -32,10 +32,16 @@ class GraphStore:
         """
         Legt Subjekt- und Objekt-Knoten an (falls noch nicht vorhanden) und
         fuegt eine Kante mit allen Zusatzfeldern (relation, value, condition,
-        evidence_level, confidence, source, ...) als Properties hinzu.
+        evidence_level, confidence, origin, ...) als Properties hinzu.
+
+        Ein optionales "source"-Feld im Tripel (z.B. die Artikel-URL) wird
+        intern als Kanten-Attribut "origin" gespeichert, NICHT als "source":
+        GML (unser Speicherformat, siehe save()/load()) behandelt "source"
+        als reserviertes Schluesselwort fuer den Kanten-Startknoten und
+        wirft ein gleichnamiges Attribut beim Schreiben stillschweigend weg.
 
         Existiert zwischen Subjekt und Objekt bereits eine Kante mit
-        derselben Relation UND demselben "source" (z.B. weil dieselbe Quelle
+        derselben Relation UND demselben "origin" (z.B. weil dieselbe Quelle
         zweimal importiert wurde), wird diese Kante aktualisiert statt eine
         zusaetzliche parallele Kante anzulegen. Behauptet eine ANDERE Quelle
         (oder keine) dieselbe Relation zwischen denselben Knoten, bleibt das
@@ -48,9 +54,11 @@ class GraphStore:
         edge_props = {
             k: v
             for k, v in triple.items()
-            if k not in ("subject", "subject_type", "object", "object_type")
+            if k not in ("subject", "subject_type", "object", "object_type", "source")
             and v is not None
         }
+        if triple.get("source") is not None:
+            edge_props["origin"] = triple["source"]
 
         existing_key = self._find_edge_key(
             triple["subject"], triple["object"], triple.get("relation"), triple.get("source")
@@ -61,17 +69,17 @@ class GraphStore:
             self.graph.add_edge(triple["subject"], triple["object"], **edge_props)
 
     def _find_edge_key(self, u: str, v: str, relation, source=None):
-        """Key der Kante u->v mit gegebener Relation UND Quelle, falls vorhanden, sonst None."""
+        """Key der Kante u->v mit gegebener Relation UND Quelle ("origin"), falls vorhanden, sonst None."""
         if not self.graph.has_edge(u, v):
             return None
         for key, data in self.graph[u][v].items():
-            if data.get("relation") == relation and data.get("source") == source:
+            if data.get("relation") == relation and data.get("origin") == source:
                 return key
         return None
 
     def remove_edges_by_source(self, source: str):
         """
-        Entfernt alle Kanten mit diesem 'source'-Wert (fuer erneuten Import
+        Entfernt alle Kanten mit diesem "origin"-Wert (fuer erneuten Import
         derselben Quelle: erst loeschen, dann frisch extrahierte Kanten
         einfuegen, statt veraltete Kanten aus einem frueheren Extraktions-
         Lauf stehen zu lassen). Knoten, die dadurch keine Kanten mehr haben,
@@ -79,7 +87,7 @@ class GraphStore:
         """
         to_remove = [
             (u, v, k) for u, v, k, data in self.graph.edges(keys=True, data=True)
-            if data.get("source") == source
+            if data.get("origin") == source
         ]
         self.graph.remove_edges_from(to_remove)
 
@@ -133,7 +141,7 @@ class GraphStore:
                     "condition": data.get("condition"),
                     "evidence_level": data.get("evidence_level"),
                     "confidence": data.get("confidence"),
-                    "source": data.get("source"),
+                    "origin": data.get("origin"),
                 }
                 for u, v, data in self.graph.edges(data=True)
             ],

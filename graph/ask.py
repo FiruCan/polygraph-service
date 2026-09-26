@@ -30,12 +30,12 @@ def _load_prompt(name: str) -> str:
         return f.read()
 
 
-def _chat(prompt: str) -> str:
+def _chat(prompt: str, think: bool = False, num_predict: int = 4000) -> str:
     response = ollama.chat(
         model=MODEL,
         messages=[{"role": "user", "content": prompt}],
-        think=False,
-        options={"num_predict": 4000},
+        think=think,
+        options={"num_predict": num_predict},
     )
     return response["message"]["content"].strip()
 
@@ -129,9 +129,14 @@ def ask(graph, question: str) -> dict:
         }
 
     triple_lines = [format_triple(i, graph, e) for i, e in enumerate(edges, 1)]
+    # think=True fuer die Antwort (anders als select_nodes): das Modell muss
+    # abwaegen, ob sich aus den Tripeln + Fachwissen eine gekennzeichnete
+    # Ableitung ziehen laesst (siehe ask_answer.md) - ohne den Denkschritt
+    # fiel es sonst reflexhaft auf "Das steht nicht im Graphen" zurueck,
+    # auch wenn eine plausible Ableitung moeglich gewesen waere.
     answer = _chat(_load_prompt("ask_answer.md").format(
         triples="\n".join(triple_lines), question=question
-    ))
+    ), think=True, num_predict=6000)
 
     triples = []
     for i, e in enumerate(edges, 1):
