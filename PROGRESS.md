@@ -2,6 +2,40 @@
 
 ## Stand
 
+**Kandidaten-Verdraengung bei der Normalisierung behoben + atomares Speichern (fertig)**
+- Grund: "MS" und "Multiple Sklerose" blieben trotz Normalisierung als
+  zwei getrennte Knoten im Graphen stehen - obwohl `find_match('MS', ...)`
+  in einem kleinen Test isoliert korrekt funktionierte.
+- Ursache gefunden am echten, gewachsenen Graphen (340 Knoten): die
+  Kandidatensuche schnitt zuerst auf `MAX_CANDIDATES=5` ab und filterte
+  danach nach Schwellenwert. "Multiple Sklerose" hatte einen validen Score
+  (0.587, über der Schwelle 0.55), landete aber auf Rang 13 - verdraengt
+  von 12 Begriffen, die "MS" als Textbaustein enthalten ("MS-Risikogene",
+  "progrediente MS", "MS-Schuebe", ...) und dadurch hoeher scoren, obwohl
+  sie NICHT dieselbe Entitaet sind. Der echte Treffer erreichte den LLM-
+  Richter also nie.
+- `find_match` filtert jetzt ERST nach Schwellenwert, DANACH erst auf
+  `MAX_JUDGE_CANDIDATES` (auf 20 erhoeht) begrenzt - nicht umgekehrt.
+  Verifiziert direkt am echten Graphen: `find_match('MS', ...)` findet
+  jetzt korrekt "Multiple Sklerose". Regressionsgetestet: "IL-8"/"IL-15",
+  "IL-8"/"Interleukin-6", "Typ-I-"/"Typ-II-Diabetes" verschmelzen weiterhin
+  nicht faelschlich.
+- **Waehrend der manuellen Reparatur des bestehenden "MS"-Knotens im Graphen
+  ist ein echter Datenverlust passiert**: `GraphStore.save()` schrieb bisher
+  direkt auf `data/graph.gml`; ein nicht-serialisierbarer Wert (None) liess
+  `nx.write_gml` mitten im Schreiben abstuerzen und eine abgeschnittene,
+  kaputte Datei zuruecklassen (nur 37 von 340 Knoten, 0 Kanten). Kein
+  Backup vorhanden, Graph musste aus den Originalquellen neu aufgebaut
+  werden (technisch vollstaendig, aber vermeidbarer Zeitverlust).
+  `save()` schreibt jetzt in eine temporaere Datei und benennt sie erst
+  danach atomar um (`os.replace`) - ein Absturz mitten im Schreiben kann
+  die vorherige gueltige Datei nicht mehr zerstoeren.
+- Zugrunde liegende Ursache des Absturzes ebenfalls behoben:
+  `add_triple` ueberschrieb den Typ eines bereits bekannten Knotens
+  bedingungslos, auch mit `None`, wenn ein spaeteres Tripel keinen Typ
+  mitgab. `_add_or_update_node` aktualisiert den Typ jetzt nur, wenn ein
+  echter (nicht-None) Wert vorliegt.
+
 **Gekennzeichnete Ableitung bei Fragen, die ueber den Graphen hinausgehen (fertig)**
 - Grund: Frage "Wenn ein MS-Patient eine Nacht schlecht schlaeft, wie
   wirkt sich das auf seine Fatigue aus?" wurde trotz vorhandener,

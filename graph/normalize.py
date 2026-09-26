@@ -33,7 +33,7 @@ import ollama
 EMBED_MODEL = "bge-m3"
 JUDGE_MODEL = "gemma4:26b"
 CANDIDATE_THRESHOLD = 0.55
-MAX_CANDIDATES = 5
+MAX_JUDGE_CANDIDATES = 20
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "normalize_judge.md")
 
 
@@ -90,7 +90,14 @@ def find_match(term: str, known_terms: list) -> Optional[str]:
 
     term_vec = _embed(term)
     scored = _top_matches(term_vec, known_terms)
-    candidates = tuple(k for score, k in scored[:MAX_CANDIDATES] if score >= CANDIDATE_THRESHOLD)
+    # Erst nach Schwellenwert filtern, DANACH auf MAX_JUDGE_CANDIDATES
+    # begrenzen (nicht umgekehrt): bei einem grossen Graphen koennen viele
+    # lexikalisch aehnliche, aber inhaltlich andere Begriffe (z.B.
+    # "MS-Risikogene", "progrediente MS") den echten Treffer ("Multiple
+    # Sklerose", nur 0.587 - keine Textueberlappung mit "MS") aus den
+    # Top-N verdraengen, wenn man zuerst kappt und erst dann filtert.
+    above_threshold = [k for score, k in scored if score >= CANDIDATE_THRESHOLD]
+    candidates = tuple(above_threshold[:MAX_JUDGE_CANDIDATES])
     if not candidates:
         return None
     return _judge(term, candidates)

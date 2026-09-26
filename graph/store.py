@@ -8,6 +8,7 @@ unveraendert).
 """
 
 import json
+import os
 
 import networkx as nx
 
@@ -48,8 +49,8 @@ class GraphStore:
         eine eigene Kante - das ist keine Duplizierung, sondern zwei
         Belegstellen fuer dieselbe Aussage.
         """
-        self.graph.add_node(triple["subject"], type=triple.get("subject_type"))
-        self.graph.add_node(triple["object"], type=triple.get("object_type"))
+        self._add_or_update_node(triple["subject"], triple.get("subject_type"))
+        self._add_or_update_node(triple["object"], triple.get("object_type"))
 
         edge_props = {
             k: v
@@ -67,6 +68,20 @@ class GraphStore:
             self.graph.edges[triple["subject"], triple["object"], existing_key].update(edge_props)
         else:
             self.graph.add_edge(triple["subject"], triple["object"], **edge_props)
+
+    def _add_or_update_node(self, node: str, node_type):
+        """
+        Legt den Knoten an (mit node_type, auch wenn None - fuer einen neuen
+        Knoten ist "noch kein Typ bekannt" ok) oder aktualisiert einen
+        bestehenden NUR, wenn node_type nicht None ist. Verhindert, dass ein
+        bereits bekannter, echter Typ durch ein spaeteres Tripel ohne
+        Typangabe stillschweigend mit None ueberschrieben wird.
+        """
+        if self.graph.has_node(node):
+            if node_type is not None:
+                self.graph.nodes[node]["type"] = node_type
+        else:
+            self.graph.add_node(node, type=node_type)
 
     def _find_edge_key(self, u: str, v: str, relation, source=None):
         """Key der Kante u->v mit gegebener Relation UND Quelle ("origin"), falls vorhanden, sonst None."""
@@ -120,7 +135,18 @@ class GraphStore:
         return list(self.graph.neighbors(node))
 
     def save(self, path: str):
-        nx.write_gml(self.graph, path)
+        """
+        Schreibt in eine temporaere Datei im selben Verzeichnis und benennt
+        sie erst danach atomar auf den Zielpfad um (os.replace). Schreiben
+        direkt auf den Zielpfad wuerde bei einem Absturz/Fehler mitten im
+        Schreiben (z.B. ein nicht serialisierbarer Attributwert) eine
+        abgeschnittene, kaputte Datei zuruecklassen und den vorherigen,
+        gueltigen Stand zerstoeren - das ist real passiert, nicht nur
+        theoretisch.
+        """
+        tmp_path = f"{path}.tmp"
+        nx.write_gml(self.graph, tmp_path)
+        os.replace(tmp_path, path)
 
     def load(self, path: str):
         self.graph = nx.read_gml(path)
