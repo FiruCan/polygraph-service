@@ -30,9 +30,15 @@ class GraphStore:
 
     def add_triple(self, triple: dict):
         """
-        Legt Subjekt- und Objekt-Knoten an (falls noch nicht vorhanden)
-        und fuegt eine Kante mit allen Zusatzfeldern (relation, value,
-        condition, evidence_level, confidence, ...) als Properties hinzu.
+        Legt Subjekt- und Objekt-Knoten an (falls noch nicht vorhanden) und
+        fuegt eine Kante mit allen Zusatzfeldern (relation, value, condition,
+        evidence_level, confidence, ...) als Properties hinzu.
+
+        Existiert zwischen Subjekt und Objekt bereits eine Kante mit
+        derselben Relation (z.B. weil derselbe Text zweimal extrahiert oder
+        sich zwei Dokumente ueberlappen), wird diese Kante aktualisiert statt
+        eine zusaetzliche parallele Kante anzulegen - sonst sammeln sich bei
+        wiederholter Ingestion unbegrenzt Duplikate an.
         """
         self.graph.add_node(triple["subject"], type=triple.get("subject_type"))
         self.graph.add_node(triple["object"], type=triple.get("object_type"))
@@ -43,7 +49,21 @@ class GraphStore:
             if k not in ("subject", "subject_type", "object", "object_type")
             and v is not None
         }
-        self.graph.add_edge(triple["subject"], triple["object"], **edge_props)
+
+        existing_key = self._find_edge_key(triple["subject"], triple["object"], triple.get("relation"))
+        if existing_key is not None:
+            self.graph.edges[triple["subject"], triple["object"], existing_key].update(edge_props)
+        else:
+            self.graph.add_edge(triple["subject"], triple["object"], **edge_props)
+
+    def _find_edge_key(self, u: str, v: str, relation):
+        """Key der Kante u->v mit gegebener Relation, falls vorhanden, sonst None."""
+        if not self.graph.has_edge(u, v):
+            return None
+        for key, data in self.graph[u][v].items():
+            if data.get("relation") == relation:
+                return key
+        return None
 
     def known_entities(self) -> list[str]:
         return list(self.graph.nodes)

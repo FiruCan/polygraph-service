@@ -13,14 +13,21 @@ Zwei Stufen, komplett lokal ueber Ollama:
 2. Entscheidung durch das LLM (prompts/normalize_judge.md): dieselbe Entitaet
    oder nur verwandt? Nur bei "gleich" wird auf den bekannten Begriff gemappt.
 
+Die Kandidatensuche vergleicht den neuen Begriff gegen ALLE bekannten
+Begriffe - bei wachsendem Graphen also O(N) Vergleiche pro Tripel-Feld.
+Die Kosinus-Berechnung selbst laeuft deshalb ueber NumPy (ein Matrix-Vektor-
+Produkt statt einer Python-Schleife pro Begriffspaar) - das verschiebt die
+Schmerzgrenze um Groessenordnungen nach hinten, macht das grundsaetzliche
+O(N)-Wachstum aber nicht weg (siehe PROGRESS.md fuer den Stand dazu).
+
 Voraussetzung: 'ollama pull bge-m3'.
 """
 
-import math
 import os
 from functools import lru_cache
 from typing import Optional
 
+import numpy as np
 import ollama
 
 EMBED_MODEL = "bge-m3"
@@ -30,17 +37,25 @@ MAX_CANDIDATES = 5
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "normalize_judge.md")
 
 
-def _cosine_similarity(a, b) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = math.sqrt(sum(x * x for x in a))
-    norm_b = math.sqrt(sum(x * x for x in b))
-    return dot / (norm_a * norm_b) if norm_a and norm_b else 0.0
-
-
 @lru_cache(maxsize=4096)
-def _embed(text: str) -> tuple:
+def _embed(text: str) -> np.ndarray:
     """Embeddet einen Begriff, gecacht damit jeder Begriff nur einmal berechnet wird."""
-    return tuple(ollama.embed(model=EMBED_MODEL, input=text)["embeddings"][0])
+    vec = ollama.embed(model=EMBED_MODEL, input=text)["embeddings"][0]
+    return np.array(vec, dtype=np.float32)
+
+
+def _top_matches(term_vec: np.ndarray, known_terms: list) -> list:
+    """
+    Kosinus-Aehnlichkeit von term_vec gegen alle known_terms, vektorisiert:
+    ein Matrix-Vektor-Produkt statt einer Python-Schleife mit sum()/sqrt()
+    pro Begriffspaar. Gibt (score, term) absteigend sortiert zurueck.
+    """
+    matrix = np.stack([_embed(k) for k in known_terms])  # (N, D)
+    term_norm = term_vec / (np.linalg.norm(term_vec) + 1e-12)
+    matrix_norm = matrix / (np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-12)
+    scores = matrix_norm @ term_norm  # (N,) - eine Matrixmultiplikation statt N Python-Schleifen
+    order = np.argsort(-scores)
+    return [(float(scores[i]), known_terms[i]) for i in order]
 
 
 @lru_cache(maxsize=4096)
@@ -70,11 +85,11 @@ def find_match(term: str, known_terms: list) -> Optional[str]:
     if term.lower().strip() in lowered:
         return lowered[term.lower().strip()]
 
+    if not known_terms:
+        return None
+
     term_vec = _embed(term)
-    scored = sorted(
-        ((_cosine_similarity(term_vec, _embed(k)), k) for k in known_terms),
-        reverse=True,
-    )
+    scored = _top_matches(term_vec, known_terms)
     candidates = tuple(k for score, k in scored[:MAX_CANDIDATES] if score >= CANDIDATE_THRESHOLD)
     if not candidates:
         return None
