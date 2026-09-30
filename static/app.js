@@ -145,10 +145,27 @@ function renderGraph(graphData, highlight = []) {
         if (!visibleNodes.has(n)) { visibleNodes.add(n); newNodeIds.add(n); }
       }
     });
-    newNodeIds.forEach(id => nodes.add(nodeVisual(nodeById.get(id))));
+    // Neue Knoten direkt neben dem angeklickten Knoten starten lassen, statt
+    // alle uebereinander bei (0,0) - sonst schleudert die Abstossungskraft
+    // sie beim naechsten Stabilisieren explosionsartig auseinander, und
+    // dieser Ruck bringt den ganzen (auch laengst eingependelten) Graphen
+    // ins Rotieren.
+    const clickedPos = network.getPositions([clickedId])[clickedId] || { x: 0, y: 0 };
+    newNodeIds.forEach(id => nodes.add({
+      ...nodeVisual(nodeById.get(id)),
+      x: clickedPos.x + (Math.random() - 0.5) * 60,
+      y: clickedPos.y + (Math.random() - 0.5) * 60,
+    }));
     expandedBy.set(clickedId, toReveal);
     // Betroffene Knoten neu zeichnen, da sich ihre "versteckte Kanten"-Anzahl aendert.
     new Set([clickedId, ...newNodeIds]).forEach(id => nodes.update(nodeVisual(nodeById.get(id))));
+
+    // Nur die neu aufgedeckten Knoten von der Physik bewegen lassen - bereits
+    // eingependelte Knoten bleiben fest, statt bei jedem Klick den ganzen
+    // Graphen neu durcheinanderzuwirbeln.
+    visibleNodes.forEach(id => {
+      if (!newNodeIds.has(id)) nodes.update({ id, physics: false });
+    });
     resettle();
   }
 
@@ -163,12 +180,12 @@ function renderGraph(graphData, highlight = []) {
       return;
     }
     // Hatte dieser Knoten selbst etwas aufgedeckt: das zuerst rekursiv einklappen.
-    if (expandedBy.has(nodeId)) collapseNode(nodeId, { resettleAfter: false });
+    if (expandedBy.has(nodeId)) collapseNode(nodeId);
     visibleNodes.delete(nodeId);
     nodes.remove(nodeId);
   }
 
-  function collapseNode(clickedId, { resettleAfter = true } = {}) {
+  function collapseNode(clickedId) {
     const edgesToHide = expandedBy.get(clickedId);
     if (!edgesToHide) return;
     expandedBy.delete(clickedId);
@@ -185,7 +202,9 @@ function renderGraph(graphData, highlight = []) {
     touched.forEach(maybeRemoveNode);
 
     if (nodes.get(clickedId)) nodes.update(nodeVisual(nodeById.get(clickedId)));
-    if (resettleAfter) resettle();
+    // Kein resettle() hier: beim Zuklappen kommt nichts Neues hinzu, die
+    // verbleibenden Knoten sollen einfach an Ort und Stelle bleiben statt
+    // dass die Physik-Simulation (mit ihrem Rotationsrisiko) erneut anspringt.
   }
 
   if (progressive) {
