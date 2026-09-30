@@ -44,18 +44,67 @@ function edgeTooltip(e) {
 function renderGraph(graphData, highlight = []) {
   const highlightSet = new Set(highlight);
   const colors = typeColors(graphData.nodes);
+  const nodeById = new Map(graphData.nodes.map(n => [n.id, n]));
 
-  const nodes = new vis.DataSet(graphData.nodes.map(n => ({
-    id: n.id, label: n.id, title: `${n.id}\nTyp: ${n.type}`,
-    color: colors[n.type] || UNKNOWN_COLOR,
-    borderWidth: highlightSet.has(n.id) ? 5 : 1,
-    font: { size: 16 },
-  })));
-  const edges = new vis.DataSet(graphData.edges.map((e, i) => ({
-    id: i, from: e.source, to: e.target, arrows: "to",
-    label: edgeLabel(e), title: edgeTooltip(e),
-    font: { size: 12, align: "horizontal", background: "rgba(255,255,255,0.85)" },
-  })));
+  // Bei einer Frage (highlight gesetzt): nur die direkten Kanten der
+  // relevanten Knoten sofort zeigen, alles Weitere erst per Klick auf einen
+  // gestrichelten Knoten aufdecken - sonst ist der Teilgraph bei groesseren
+  // Fragen (viele 2-Hop-Kanten) sofort unuebersichtlich voll. Beim vollen
+  // Graphen (kein highlight) bleibt alles sofort sichtbar wie bisher.
+  const progressive = highlightSet.size > 0;
+
+  const edgesByNode = new Map();
+  graphData.edges.forEach((e, i) => {
+    for (const n of [e.source, e.target]) {
+      if (!edgesByNode.has(n)) edgesByNode.set(n, []);
+      edgesByNode.get(n).push(i);
+    }
+  });
+
+  const revealedEdges = new Set();
+  const visibleNodes = new Set();
+  if (progressive) {
+    graphData.edges.forEach((e, i) => {
+      if (highlightSet.has(e.source) || highlightSet.has(e.target)) {
+        revealedEdges.add(i);
+        visibleNodes.add(e.source);
+        visibleNodes.add(e.target);
+      }
+    });
+    highlightSet.forEach(n => visibleNodes.add(n)); // falls ganz ohne eigene Kante
+  } else {
+    graphData.edges.forEach((_, i) => revealedEdges.add(i));
+    graphData.nodes.forEach(n => visibleNodes.add(n.id));
+  }
+
+  function hiddenCount(nodeId) {
+    return (edgesByNode.get(nodeId) || []).filter(i => !revealedEdges.has(i)).length;
+  }
+
+  function nodeVisual(n) {
+    const extra = hiddenCount(n.id);
+    return {
+      id: n.id,
+      label: extra > 0 ? `${n.id}  (+${extra})` : n.id,
+      title: `${n.id}\nTyp: ${n.type}` + (extra > 0 ? `\nKlicken fuer ${extra} weitere Verbindung(en)` : ""),
+      color: colors[n.type] || UNKNOWN_COLOR,
+      borderWidth: highlightSet.has(n.id) ? 5 : 1,
+      shapeProperties: { borderDashes: extra > 0 ? [5, 3] : false },
+      font: { size: 16 },
+    };
+  }
+
+  function edgeVisual(i) {
+    const e = graphData.edges[i];
+    return {
+      id: i, from: e.source, to: e.target, arrows: "to",
+      label: edgeLabel(e), title: edgeTooltip(e),
+      font: { size: 12, align: "horizontal", background: "rgba(255,255,255,0.85)" },
+    };
+  }
+
+  const nodes = new vis.DataSet([...visibleNodes].map(id => nodeVisual(nodeById.get(id))));
+  const edges = new vis.DataSet([...revealedEdges].map(edgeVisual));
 
   const container = document.getElementById("graph");
   const options = {
@@ -73,9 +122,35 @@ function renderGraph(graphData, highlight = []) {
   // bleiben, statt zu stoppen - deshalb hier abschalten, sobald stabil.
   network.once("stabilizationIterationsDone", () => network.setOptions({ physics: false }));
 
+  if (progressive) {
+    network.on("click", params => {
+      if (!params.nodes.length) return;
+      const clickedId = params.nodes[0];
+      const toReveal = (edgesByNode.get(clickedId) || []).filter(i => !revealedEdges.has(i));
+      if (!toReveal.length) return;
+
+      const newNodeIds = new Set();
+      toReveal.forEach(i => {
+        revealedEdges.add(i);
+        edges.add(edgeVisual(i));
+        const e = graphData.edges[i];
+        for (const n of [e.source, e.target]) {
+          if (!visibleNodes.has(n)) { visibleNodes.add(n); newNodeIds.add(n); }
+        }
+      });
+      newNodeIds.forEach(id => nodes.add(nodeVisual(nodeById.get(id))));
+      // Betroffene Knoten neu zeichnen, da sich ihre "versteckte Kanten"-Anzahl aendert.
+      new Set([clickedId, ...newNodeIds]).forEach(id => nodes.update(nodeVisual(nodeById.get(id))));
+
+      network.setOptions({ physics: true });
+      network.once("stabilizationIterationsDone", () => network.setOptions({ physics: false }));
+    });
+  }
+
   const legend = document.getElementById("legend");
   legend.innerHTML = Object.entries(colors)
-    .map(([t, c]) => `<div><span class="dot" style="background:${c}"></span>${t}</div>`).join("");
+    .map(([t, c]) => `<div><span class="dot" style="background:${c}"></span>${t}</div>`).join("")
+    + (progressive ? '<div style="margin-top:6px;color:#888">Gestrichelte Knoten: anklicken fuer weitere Verbindungen</div>' : "");
 }
 
 async function loadFullGraph() {
