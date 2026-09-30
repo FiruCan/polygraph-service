@@ -76,6 +76,11 @@ function renderGraph(graphData, highlight = []) {
     graphData.edges.forEach((_, i) => revealedEdges.add(i));
     graphData.nodes.forEach(n => visibleNodes.add(n.id));
   }
+  // Knoten aus der ersten Ansicht bleiben immer sichtbar (nur ihre extra
+  // Kanten werden auf-/zugeklappt). Erst per Klick dazugekommene Knoten
+  // koennen beim Zuklappen komplett wieder verschwinden.
+  const rootNodes = new Set(visibleNodes);
+  const expandedBy = new Map(); // Knoten-Id -> Liste der durch ihn aufgedeckten Kanten-Indizes
 
   function hiddenCount(nodeId) {
     return (edgesByNode.get(nodeId) || []).filter(i => !revealedEdges.has(i)).length;
@@ -122,35 +127,80 @@ function renderGraph(graphData, highlight = []) {
   // bleiben, statt zu stoppen - deshalb hier abschalten, sobald stabil.
   network.once("stabilizationIterationsDone", () => network.setOptions({ physics: false }));
 
+  function resettle() {
+    network.setOptions({ physics: true });
+    network.once("stabilizationIterationsDone", () => network.setOptions({ physics: false }));
+  }
+
+  function expandNode(clickedId) {
+    const toReveal = (edgesByNode.get(clickedId) || []).filter(i => !revealedEdges.has(i));
+    if (!toReveal.length) return;
+
+    const newNodeIds = new Set();
+    toReveal.forEach(i => {
+      revealedEdges.add(i);
+      edges.add(edgeVisual(i));
+      const e = graphData.edges[i];
+      for (const n of [e.source, e.target]) {
+        if (!visibleNodes.has(n)) { visibleNodes.add(n); newNodeIds.add(n); }
+      }
+    });
+    newNodeIds.forEach(id => nodes.add(nodeVisual(nodeById.get(id))));
+    expandedBy.set(clickedId, toReveal);
+    // Betroffene Knoten neu zeichnen, da sich ihre "versteckte Kanten"-Anzahl aendert.
+    new Set([clickedId, ...newNodeIds]).forEach(id => nodes.update(nodeVisual(nodeById.get(id))));
+    resettle();
+  }
+
+  function maybeRemoveNode(nodeId) {
+    if (rootNodes.has(nodeId)) { nodes.update(nodeVisual(nodeById.get(nodeId))); return; }
+    const stillVisible = (edgesByNode.get(nodeId) || []).some(i => revealedEdges.has(i));
+    if (stillVisible) {
+      // Bleibt sichtbar, aber die Anzahl seiner versteckten Kanten kann sich
+      // geaendert haben (z.B. eine Kante, die durch den Elternknoten gezeigt
+      // wurde, ist jetzt wieder versteckt) - Label/Rahmen neu berechnen.
+      nodes.update(nodeVisual(nodeById.get(nodeId)));
+      return;
+    }
+    // Hatte dieser Knoten selbst etwas aufgedeckt: das zuerst rekursiv einklappen.
+    if (expandedBy.has(nodeId)) collapseNode(nodeId, { resettleAfter: false });
+    visibleNodes.delete(nodeId);
+    nodes.remove(nodeId);
+  }
+
+  function collapseNode(clickedId, { resettleAfter = true } = {}) {
+    const edgesToHide = expandedBy.get(clickedId);
+    if (!edgesToHide) return;
+    expandedBy.delete(clickedId);
+
+    const touched = new Set();
+    edgesToHide.forEach(i => {
+      revealedEdges.delete(i);
+      edges.remove(i);
+      const e = graphData.edges[i];
+      touched.add(e.source);
+      touched.add(e.target);
+    });
+    touched.delete(clickedId);
+    touched.forEach(maybeRemoveNode);
+
+    if (nodes.get(clickedId)) nodes.update(nodeVisual(nodeById.get(clickedId)));
+    if (resettleAfter) resettle();
+  }
+
   if (progressive) {
     network.on("click", params => {
       if (!params.nodes.length) return;
       const clickedId = params.nodes[0];
-      const toReveal = (edgesByNode.get(clickedId) || []).filter(i => !revealedEdges.has(i));
-      if (!toReveal.length) return;
-
-      const newNodeIds = new Set();
-      toReveal.forEach(i => {
-        revealedEdges.add(i);
-        edges.add(edgeVisual(i));
-        const e = graphData.edges[i];
-        for (const n of [e.source, e.target]) {
-          if (!visibleNodes.has(n)) { visibleNodes.add(n); newNodeIds.add(n); }
-        }
-      });
-      newNodeIds.forEach(id => nodes.add(nodeVisual(nodeById.get(id))));
-      // Betroffene Knoten neu zeichnen, da sich ihre "versteckte Kanten"-Anzahl aendert.
-      new Set([clickedId, ...newNodeIds]).forEach(id => nodes.update(nodeVisual(nodeById.get(id))));
-
-      network.setOptions({ physics: true });
-      network.once("stabilizationIterationsDone", () => network.setOptions({ physics: false }));
+      if (expandedBy.has(clickedId)) collapseNode(clickedId);
+      else expandNode(clickedId);
     });
   }
 
   const legend = document.getElementById("legend");
   legend.innerHTML = Object.entries(colors)
     .map(([t, c]) => `<div><span class="dot" style="background:${c}"></span>${t}</div>`).join("")
-    + (progressive ? '<div style="margin-top:6px;color:#888">Gestrichelte Knoten: anklicken fuer weitere Verbindungen</div>' : "");
+    + (progressive ? '<div style="margin-top:6px;color:#888">Gestrichelte Knoten: anklicken zum Auf-/Zuklappen</div>' : "");
 }
 
 async function loadFullGraph() {
