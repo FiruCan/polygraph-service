@@ -111,7 +111,11 @@ async function askQuestion() {
                       ["evidence", t.evidence_level], ["confidence", t.confidence]]
         .filter(([, v]) => v != null).map(([label, v]) => `${label}: ${v}`).join(" | ");
       const origin = t.origin ? `<div class="origin">Quelle: ${t.origin}</div>` : "";
-      return `<div>[${t.n}] ${t.subject} --${t.relation}--> ${t.object}${extra ? " | " + extra : ""}${origin}</div>`;
+      // Niedrige confidence graut aus, hohe wird fett - macht auf einen
+      // Blick sichtbar, wie gut ein Beleg abgesichert ist, ohne die Zahl
+      // lesen zu muessen.
+      const confClass = t.confidence == null ? "" : t.confidence >= 0.9 ? "conf-high" : t.confidence < 0.7 ? "conf-low" : "";
+      return `<div><span class="${confClass}">[${t.n}] ${t.subject} --${t.relation}--> ${t.object}${extra ? " | " + extra : ""}</span>${origin}</div>`;
     }).join("");
 
   if (data.graph.nodes.length) renderGraph(data.graph, data.selected_nodes);
