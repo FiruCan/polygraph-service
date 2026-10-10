@@ -21,12 +21,19 @@
   #legend { margin-top: 14px; font-size: 12px; }
   #legend div { margin-bottom: 3px; }
   .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  #service { display: flex; gap: 6px; margin-bottom: 12px; }
+  #service input { flex: 1; padding: 4px; font-size: 12px; }
+  #service button { margin-top: 0; }
   #status { color: #888; font-size: 12px; margin-top: 6px; }
 </style>
 </head>
 <body>
 <div id="layout">
   <div id="sidebar">
+    <div id="service">
+      <input id="serviceUrl" placeholder="Service-URL (leer = dieser Server)">
+      <button id="serviceBtn">Verbinden</button>
+    </div>
     <input id="question" placeholder="Frage an den Graphen..." autofocus>
     <button id="askBtn">Fragen</button>
     <button id="fullBtn">Ganzer Graph</button>

@@ -11,6 +11,11 @@ gleichzeitigen Requests (z.B. zwei Clients, oder du + ein Skript) wuerden
 sonst mehrere Threads denselben NetworkX-Graphen gleichzeitig mutieren, was
 NetworkX nicht absichert. store_lock serialisiert deshalb jeden Zugriff.
 
+CORS: Ein Frontend auf einem anderen Port (z.B. deine Oberflaeche auf 8000
+fragt die Kollegen-Instanz auf 8001 ab) braucht die Erlaubnis des
+abgefragten Service. Standard: jede Seite von localhost/127.0.0.1, beliebiger
+Port. Andere Herkuenfte per Umgebungsvariable POLYGRAPH_CORS_ORIGIN_REGEX.
+
 Start: uvicorn app:app --reload --port 8000
 """
 
@@ -19,6 +24,7 @@ import threading
 from typing import Optional
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -29,6 +35,12 @@ from graph.store import GraphStore
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "graph.gml")
 
 app = FastAPI(title="polygraph-service")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=os.environ.get("POLYGRAPH_CORS_ORIGIN_REGEX", r"https?://(localhost|127\.0\.0\.1)(:\d+)?"),
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 store = GraphStore()
 store_lock = threading.Lock()
 if os.path.exists(DATA_PATH):

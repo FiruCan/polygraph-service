@@ -2,6 +2,55 @@
 
 ## Stand
 
+**Frontend: Service-URL umschaltbar (fertig)**
+- Grund: eigenes Frontend soll auch die Kollegen-Instanz bedienen koennen -
+  nacheinander, nicht gleichzeitig (gleichzeitig = offener Punkt 1).
+- `static/index.html`/`app.js`: Feld "Service-URL" + "Verbinden" oben in
+  der Seitenleiste; `/graph` und `/ask` gehen an diese URL (leer = eigener
+  Server). Wird in localStorage gemerkt. Nicht erreichbarer Service ->
+  Hinweis in der Statuszeile statt stillem Fehler.
+- `app.py`: CORS-Middleware, sonst blockiert der Browser die Anfrage an
+  einen anderen Port. Standard: localhost/127.0.0.1 beliebiger Port,
+  anderes per `POLYGRAPH_CORS_ORIGIN_REGEX`.
+- Daten fremder Instanzen werden vor `innerHTML` escaped (Belege, Quelle,
+  Legende).
+- Getestet: 2 CORS-Tests in `test_app.py`; im Browser Frontend auf 8010
+  -> Kollegen-Testinstanz auf 8011 (Graph geladen), nicht erreichbare URL
+  (Hinweis), zurueck auf leer (eigener Graph).
+- Hinweis Ports: 8000 = eigener Service, 8001 ist lokal schon von
+  `ingest_app` belegt - Kollegen-Instanz z.B. auf 8002.
+
+**Frage-Agent: Antwortgeber darf Tripel nachladen (fertig)**
+- Grund: `ask()` war eine feste Pipeline - Knoten waehlen, 2 Hops holen,
+  einmal antworten. Fehlte die passende Kante im Ausschnitt (Startknoten
+  verfehlt, Kette laenger als 2 Hops), konnte das Modell nicht nachfassen.
+  `store.py` hatte `neighbors`/`shortest_path` dafuer, ungenutzt.
+- `graph/ask.py::_agent_answer`: Antwortgeber bekommt die bisherigen
+  Start-Tripel und drei Werkzeuge (Ollama Tool Calling, gemma4:26b kann
+  das): `suche_knoten` (Teilstring), `kanten_von`, `pfad`. Max.
+  `MAX_TOOL_ROUNDS=4` Runden, danach eine letzte Runde ohne Werkzeuge.
+  Grenzen: 40 Tripel pro Aufruf, 250 insgesamt.
+- Belege bleiben eindeutig: `_Evidence` vergibt jeder Kante genau eine
+  Nummer; nachgeladene Tripel werden weiternummeriert, schon bekannte
+  behalten ihre Nummer.
+- Agent laeuft auch ohne Startknoten (findet Einstieg selbst per
+  `suche_knoten`) - vorher kam dann sofort "Kein passender Knoten".
+- API: `/ask` liefert zusaetzlich `steps` (Werkzeugaufrufe);
+  `selected_nodes` enthaelt jetzt auch die vom Agenten untersuchten
+  Knoten, aber nur solche im Teilgraphen (sonst Absturz im Frontend, das
+  sie als Startpunkte zeichnet). Bestehende Felder unveraendert.
+- `prompts/ask_answer.md`: neuer Abschnitt WERKZEUGE (erst nachladen,
+  wenn Tripel nicht reichen; nicht doppelt aufrufen).
+- Tests: `test/test_ask.py` (7, Ollama gemockt). Live am echten Graphen:
+  Fragen mit ausreichendem Ausschnitt -> 0 Werkzeugaufrufe, ~20 s wie
+  bisher. Mit absichtlich schwacher Startauswahl (HOPS=1) holte der Agent
+  per `pfad`/`kanten_von` die Kette Krafttraining -> Muskeln -> IL-6 ->
+  Entzuendungen selbst (4 Aufrufe, 82 s). Unsinnsfrage (Apple-Aktie):
+  4 erfolglose Suchen, dann weiterhin "Das steht nicht im Graphen."
+- Kosten: Unsinnsfragen dauern jetzt laenger (Agent sucht erst, ~18 s
+  statt sofortiger Absage); jede Werkzeug-Runde ist ein weiterer
+  LLM-Aufruf mit Denkschritt.
+
 **Tests + Normalisierungs-Richter verlaesslicher (fertig)**
 - Grund: der Service hatte keine Tests; beim Neuaufbau des Graphen
   (2026-10-08) fuehrte die Normalisierung "Glukose" mit "Blutzucker"
@@ -170,10 +219,21 @@
 
 ## Offene Punkte
 
-1. Noch nicht gebaut: mehrere Service-Instanzen (z.B. Kollegen-Graph) von
-   einer Oberflaeche gemeinsam abfragen. API ist dafuer ausgelegt
-   (`/graph`- und `/ask`-Antwortformat generisch), fehlt nur im Frontend.
-2. Kein Auth/Zugriffsschutz - bisher nur fuer lokalen Gebrauch gedacht.
+1. Noch nicht gebaut: mehrere Service-Instanzen GLEICHZEITIG von einer
+   Oberflaeche abfragen (Umschalten per Service-URL geht schon). API und
+   CORS sind dafuer bereit, fehlt nur im Frontend.
+2. **Freigabe an Kollegen (Netzwerk + Zugriffsschutz)**: Ziel ist, dass der
+   Kollege in SEINEM Frontend die URL MEINES Service eintraegt und meinen
+   Graphen sieht. CORS passt schon (sein Frontend laeuft bei ihm auf
+   localhost). Fehlt noch:
+   - Service mit `--host 0.0.0.0` starten (bisher 127.0.0.1, nur lokal
+     erreichbar); gleiches Netz -> lokale IP, sonst Tailscale (privat,
+     bevorzugt) oder Tunnel wie ngrok/Cloudflare (dann oeffentlich).
+   - Kein Auth: wer den Service erreicht, kann `POST /triples` aufrufen
+     (Tripel einspielen, per `source` ganze Quellen loeschen) und ueber
+     `/ask` mein Ollama nutzen. Vorschlag: Lesen (`/graph`, `/health`,
+     `/ask`) offen, Schreiben nur mit Token (`POLYGRAPH_WRITE_TOKEN`);
+     `polygraph` muesste den Token dann mitschicken.
 3. Bei sehr grossem Graphen wird `GET /graph` (kompletter Graph als JSON)
    und die Kraft-Layout-Physik im Frontend langsam; dann eher serverseitig
    filtern/paginieren statt immer alles zu laden.
@@ -184,13 +244,11 @@
    langsamer. Noch nicht behoben (aus dem Architektur-Review bewusst
    zurueckgestellt); Fix waere, Embeddings als Knoten-Attribut im Graphen
    selbst zu persistieren statt im Prozess-Cache.
-5. **Nicht-atomares Speichern**: `GraphStore.save` (`graph/store.py`)
-   schreibt `data/graph.gml` direkt an ihrem Zielpfad; ein Absturz mitten im
-   Schreiben wuerde die Datei beschaedigen. Noch nicht behoben; Fix waere
-   Schreiben in eine temporaere Datei + `os.replace`.
-6. Kein automatisierter Test fuer den API-Vertrag (`/health`, `/graph`,
-   `/triples`, `/ask`) - Schema-Drift zwischen dieser Instanz und der eines
-   Kollegen wuerde erst beim gemeinsamen Betrieb auffallen.
+5. Kein Test, der zwei Instanzen gegeneinander auf dasselbe API-Format
+   prueft - `test/test_app.py` deckt `/health`, `/graph`, `/triples`,
+   `/ask` nur fuer diese Instanz ab; Schema-Drift zu einer Kollegen-Instanz
+   faellt erst beim gemeinsamen Betrieb auf.
+6. Frontend zeigt die Agenten-Schritte (`steps` aus `/ask`) noch nicht an.
 
 ## Naechste Ausbaustufen
 

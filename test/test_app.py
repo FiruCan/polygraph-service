@@ -88,3 +88,13 @@ def test_ask_delegates_to_graphrag(client):
         r = client.post("/ask", json={"question": "Was senkt Krebs?"})
     assert r.json() == {"answer": "x"}
     assert ask.call_args.args[1] == "Was senkt Krebs?"
+
+
+def test_cors_allows_other_localhost_port(client):
+    r = client.get("/health", headers={"Origin": "http://localhost:8001"})
+    assert r.headers["access-control-allow-origin"] == "http://localhost:8001"
+
+
+def test_cors_rejects_foreign_origin(client):
+    r = client.get("/health", headers={"Origin": "https://evil.example"})
+    assert "access-control-allow-origin" not in r.headers

@@ -5,6 +5,36 @@ const UNKNOWN_COLOR = "#bab0ac";
 let network = null;
 let fullGraph = null; // letzte GET /graph-Antwort, fuer den "Ganzer Graph"-Button
 
+// Welcher polygraph-service abgefragt wird: leer = der Server, der diese
+// Seite ausliefert; sonst z.B. "http://localhost:8001" (Kollegen-Instanz).
+// Wird im Browser gemerkt, damit ein Reload beim gewaehlten Service bleibt.
+const SERVICE_KEY = "polygraph.serviceUrl";
+
+function serviceBase() {
+  return document.getElementById("serviceUrl").value.trim().replace(/\/+$/, "");
+}
+
+function rememberService() {
+  try { localStorage.setItem(SERVICE_KEY, serviceBase()); } catch {}
+}
+
+// Daten koennen jetzt von einem fremden Service kommen - vor innerHTML escapen.
+function esc(text) {
+  return String(text).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+async function fetchService(path, init) {
+  const url = serviceBase() + path;
+  let res;
+  try {
+    res = await fetch(url, init);
+  } catch {
+    throw new Error(`Service nicht erreichbar: ${serviceBase() || "dieser Server"}`);
+  }
+  if (!res.ok) throw new Error(`${url} antwortet mit ${res.status}`);
+  return res.json();
+}
+
 function typeColors(nodes) {
   const types = [...new Set(nodes.map(n => n.type).filter(Boolean))].sort();
   const colors = {};
@@ -218,16 +248,21 @@ function renderGraph(graphData, highlight = []) {
 
   const legend = document.getElementById("legend");
   legend.innerHTML = Object.entries(colors)
-    .map(([t, c]) => `<div><span class="dot" style="background:${c}"></span>${t}</div>`).join("")
+    .map(([t, c]) => `<div><span class="dot" style="background:${c}"></span>${esc(t)}</div>`).join("")
     + (progressive ? '<div style="margin-top:6px;color:#888">Gestrichelte Knoten: anklicken zum Auf-/Zuklappen</div>' : "");
 }
 
 async function loadFullGraph() {
-  const res = await fetch("/graph");
-  fullGraph = await res.json();
-  document.getElementById("status").textContent = `${fullGraph.nodes.length} Knoten, ${fullGraph.edges.length} Kanten`;
   document.getElementById("answer").textContent = "";
   document.getElementById("belege").innerHTML = "";
+  try {
+    fullGraph = await fetchService("/graph");
+  } catch (err) {
+    fullGraph = null;
+    document.getElementById("status").textContent = err.message;
+    return;
+  }
+  document.getElementById("status").textContent = `${fullGraph.nodes.length} Knoten, ${fullGraph.edges.length} Kanten`;
   renderGraph(fullGraph);
 }
 
@@ -239,12 +274,17 @@ async function askQuestion() {
   document.getElementById("answer").textContent = "";
   document.getElementById("belege").innerHTML = "";
 
-  const res = await fetch("/ask", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
-  });
-  const data = await res.json();
+  let data;
+  try {
+    data = await fetchService("/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+  } catch (err) {
+    document.getElementById("status").textContent = err.message;
+    return;
+  }
 
   document.getElementById("status").textContent = data.selected_nodes.length
     ? `Relevante Knoten: ${data.selected_nodes.join(", ")}` : "";
@@ -254,12 +294,12 @@ async function askQuestion() {
       const extra = [["value", t.value], ["condition", t.condition],
                       ["evidence", t.evidence_level], ["confidence", t.confidence]]
         .filter(([, v]) => v != null).map(([label, v]) => `${label}: ${v}`).join(" | ");
-      const origin = t.origin ? `<div class="origin">Quelle: ${t.origin}</div>` : "";
+      const origin = t.origin ? `<div class="origin">Quelle: ${esc(t.origin)}</div>` : "";
       // Niedrige confidence graut aus, hohe wird fett - macht auf einen
       // Blick sichtbar, wie gut ein Beleg abgesichert ist, ohne die Zahl
       // lesen zu muessen.
       const confClass = t.confidence == null ? "" : t.confidence >= 0.9 ? "conf-high" : t.confidence < 0.7 ? "conf-low" : "";
-      return `<div><span class="${confClass}">[${t.n}] ${t.subject} --${t.relation}--> ${t.object}${extra ? " | " + extra : ""}</span>${origin}</div>`;
+      return `<div><span class="${confClass}">[${t.n}] ${esc(`${t.subject} --${t.relation}--> ${t.object}${extra ? " | " + extra : ""}`)}</span>${origin}</div>`;
     }).join("");
 
   if (data.graph.nodes.length) renderGraph(data.graph, data.selected_nodes);
@@ -269,4 +309,10 @@ document.getElementById("askBtn").addEventListener("click", askQuestion);
 document.getElementById("question").addEventListener("keydown", e => { if (e.key === "Enter") askQuestion(); });
 document.getElementById("fullBtn").addEventListener("click", () => fullGraph ? renderGraph(fullGraph) : loadFullGraph());
 
+document.getElementById("serviceBtn").addEventListener("click", () => { rememberService(); fullGraph = null; loadFullGraph(); });
+document.getElementById("serviceUrl").addEventListener("keydown", e => {
+  if (e.key === "Enter") { rememberService(); fullGraph = null; loadFullGraph(); }
+});
+
+try { document.getElementById("serviceUrl").value = localStorage.getItem(SERVICE_KEY) || ""; } catch {}
 loadFullGraph();

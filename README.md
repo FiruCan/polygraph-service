@@ -37,6 +37,13 @@ Danach `http://localhost:8000` im Browser oeffnen (Frontend: Graph ansehen,
 Fragen stellen). Der Graph wird in `data/graph.gml` persistiert und beim
 Start automatisch geladen, falls vorhanden.
 
+Andere Instanz im eigenen Frontend ansehen (z.B. die eines Kollegen): oben
+in der Seitenleiste die Service-URL eintragen (z.B. `http://localhost:8002`)
+und "Verbinden" - Graph und Fragen laufen dann gegen diese Instanz. Leeres
+Feld = der eigene Server. Die abgefragte Instanz erlaubt per CORS
+standardmaessig jede Seite von localhost/127.0.0.1; fuer andere Rechner
+`POLYGRAPH_CORS_ORIGIN_REGEX` setzen.
+
 ## Tests
 
 ```bash
@@ -69,9 +76,11 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   Tripel gegen den aktuellen Graphen und fuegt es ein. Antwort:
   `{"added": N, "merges": [["subject"|"object"|"relation", "alt", "neu"], ...], "nodes": N, "edges": M}`
 - `POST /ask` Body `{"question": str}` -> GraphRAG: waehlt passende Knoten,
-  holt deren Kanten (bis 2 Hops), das LLM antwortet nur anhand dieser Tripel.
+  holt deren Kanten (bis 2 Hops), ein Agent antwortet nur anhand dieser
+  Tripel und darf bei Bedarf per Werkzeug (Knotensuche, Kanten eines
+  Knotens, Pfad zwischen zwei Knoten) weitere Tripel nachladen.
   Antwort:
-  `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}}`
+  `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}, "steps": [{"tool": str, "args": {...}, "new_triples": int}]}`
   `graph` ist der verwendete Teilgraph, im selben Format wie `GET /graph` -
   dieselbe Frontend-Logik zeichnet beides.
 
@@ -83,7 +92,7 @@ polygraph-service/
 ├── graph/
 │   ├── store.py        # NetworkX-Wrapper, to_json()/from_json() fuer die API
 │   ├── normalize.py    # Synonyme zusammenfuehren (bge-m3-Embedding + gemma4:26b-Pruefung)
-│   └── ask.py           # GraphRAG: Knoten waehlen -> Kanten holen -> LLM antwortet mit Belegen
+│   └── ask.py           # GraphRAG: Knoten waehlen -> Kanten holen -> Agent antwortet (laedt bei Bedarf nach)
 ├── prompts/             # ask_select.md, ask_answer.md, normalize_judge.md
 ├── test/                # Unit-Tests + Live-Test fuer den Normalisierungs-Richter
 ├── static/              # index.html + app.js (vis-network), eine dynamische Seite ohne Reload
