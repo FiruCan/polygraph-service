@@ -83,6 +83,14 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}, "steps": [{"tool": str, "args": {...}, "new_triples": int}]}`
   `graph` ist der verwendete Teilgraph, im selben Format wie `GET /graph` -
   dieselbe Frontend-Logik zeichnet beides.
+- `POST /entities/similar` Body `{"names": [str], "limit": 3}` ->
+  `{"matches": {name: [aehnliche bekannte Knoten]}}` - Embedding-Aehnlichkeit
+  ohne LLM, fuer Entity-Linking in polygraph vor der Extraktion. Namen, die
+  schon im Graphen stehen, bekommen keine Hinweise.
+- `POST /vocabulary/rename` Body `{"kind": "relation"|"type", "old": str, "new": str}`
+  -> `{"changed": N, ...}` - benennt eine Relation bzw. einen Knotentyp im
+  ganzen Graphen um (Vokabular-Steward in polygraph, nach Freigabe durch
+  einen Menschen).
 
 ## Projektstruktur
 

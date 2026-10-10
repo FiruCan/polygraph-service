@@ -98,3 +98,32 @@ def test_cors_allows_other_localhost_port(client):
 def test_cors_rejects_foreign_origin(client):
     r = client.get("/health", headers={"Origin": "https://evil.example"})
     assert "access-control-allow-origin" not in r.headers
+
+
+def test_entities_similar_uses_known_entities(client):
+    client.post("/triples", json={"triples": [triple(subject="Interleukin-6")]})
+    with patch("app.similar_entities", return_value={"IL6": ["Interleukin-6"]}) as sim:
+        r = client.post("/entities/similar", json={"names": ["IL6"]})
+    assert r.json() == {"matches": {"IL6": ["Interleukin-6"]}}
+    assert set(sim.call_args.args[1]) == {"Interleukin-6", "Krebs"}
+
+
+def test_vocabulary_rename_relation_persists(client):
+    client.post("/triples", json={"triples": [triple(relation="lowers")]})
+    r = client.post("/vocabulary/rename", json={"kind": "relation", "old": "lowers", "new": "reduces_risk_of"})
+    assert r.json()["changed"] == 1
+    assert client.get("/graph").json()["edges"][0]["relation"] == "reduces_risk_of"
+    reloaded = GraphStore()
+    reloaded.load(app_module.DATA_PATH)
+    assert reloaded.known_relations() == ["reduces_risk_of"]
+
+
+def test_vocabulary_rename_type(client):
+    client.post("/triples", json={"triples": [{**triple(), "object_type": "illness"}]})
+    r = client.post("/vocabulary/rename", json={"kind": "type", "old": "illness", "new": "disease"})
+    assert r.json()["changed"] == 1
+
+
+def test_vocabulary_rename_rejects_unknown_kind(client):
+    r = client.post("/vocabulary/rename", json={"kind": "entity", "old": "a", "new": "b"})
+    assert r.status_code == 422

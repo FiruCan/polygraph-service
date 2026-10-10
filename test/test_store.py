@@ -130,3 +130,23 @@ def test_load_graph_from_triples_json(tmp_path):
     path.write_text(json.dumps([triple()]), encoding="utf-8")
     store = load_graph(str(path))
     assert store.graph.has_edge("Krafttraining", "Krebs")
+
+
+def test_rename_relation_changes_all_edges_and_clears_is_new():
+    store = GraphStore()
+    store.add_triple(triple(relation="lowers", relation_is_new=True))
+    store.add_triple(triple(subject="Rauchen", relation="lowers"))
+    store.add_triple(triple(subject="Sport", relation="supports"))
+    assert store.rename_relation("lowers", "reduces") == 2
+    assert store.known_relations() == ["reduces", "supports"]
+    data = store.graph.get_edge_data("Krafttraining", "Krebs")[0]
+    assert "relation_is_new" not in data
+
+
+def test_retype_nodes():
+    store = GraphStore()
+    store.add_triple(triple())  # object_type "disease"
+    store.add_triple(triple(obj="Demenz"))
+    assert store.retype_nodes("disease", "condition") == 2
+    assert store.graph.nodes["Krebs"]["type"] == "condition"
+    assert store.retype_nodes("gibt_es_nicht", "x") == 0

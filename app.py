@@ -21,7 +21,7 @@ Start: uvicorn app:app --reload --port 8000
 
 import os
 import threading
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,7 +29,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from graph.ask import ask as run_ask
-from graph.normalize import normalize_triple
+from graph.normalize import normalize_triple, similar_entities
 from graph.store import GraphStore
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "graph.gml")
@@ -54,6 +54,17 @@ class TriplesIn(BaseModel):
 
 class QuestionIn(BaseModel):
     question: str
+
+
+class SimilarIn(BaseModel):
+    names: list[str]
+    limit: int = 3
+
+
+class RenameIn(BaseModel):
+    kind: Literal["relation", "type"]
+    old: str
+    new: str
 
 
 @app.get("/health")
@@ -104,6 +115,29 @@ def add_triples(body: TriplesIn):
             "nodes": store.graph.number_of_nodes(),
             "edges": store.graph.number_of_edges(),
         }
+
+
+@app.post("/entities/similar")
+def entities_similar(body: SimilarIn):
+    """Entity-Linking-Hinweise fuer polygraph: aehnliche, schon bekannte Knoten pro Name."""
+    with store_lock:
+        return {"matches": similar_entities(body.names, store.known_entities(), body.limit)}
+
+
+@app.post("/vocabulary/rename")
+def vocabulary_rename(body: RenameIn):
+    """
+    Relation bzw. Knotentyp im ganzen Graphen umbenennen - fuer den
+    Vokabular-Steward in polygraph (nach Freigabe durch einen Menschen).
+    """
+    with store_lock:
+        if body.kind == "relation":
+            changed = store.rename_relation(body.old, body.new)
+        else:
+            changed = store.retype_nodes(body.old, body.new)
+        if changed:
+            store.save(DATA_PATH)
+        return {"kind": body.kind, "old": body.old, "new": body.new, "changed": changed}
 
 
 @app.post("/ask")

@@ -122,3 +122,21 @@ def test_top_matches_sorted_by_cosine():
     with patch("graph.normalize.ollama.embed", side_effect=fake_embed):
         scored = normalize._top_matches(np.array(VECTORS["IL-6"]), ["Krebs", "IL-8", "Interleukin-6"])
     assert [term for _, term in scored] == ["Interleukin-6", "IL-8", "Krebs"]
+
+
+def test_similar_entities_returns_close_terms_without_llm():
+    with patch("graph.normalize.ollama.embed", side_effect=fake_embed), \
+         patch("graph.normalize.ollama.chat") as chat:
+        result = normalize.similar_entities(["IL-6", "Krebs"], ["Interleukin-6", "IL-8", "Krebs"])
+    chat.assert_not_called()
+    assert result["IL-6"] == ["Interleukin-6", "IL-8"]  # nach Aehnlichkeit sortiert
+    assert result["Krebs"] == []  # steht schon im Graphen -> keine Hinweise
+
+
+def test_similar_entities_no_hints_for_known_name_any_case():
+    with patch("graph.normalize.ollama.embed", side_effect=fake_embed):
+        assert normalize.similar_entities(["krebs"], ["Krebs", "IL-6"]) == {"krebs": []}
+
+
+def test_similar_entities_empty_graph():
+    assert normalize.similar_entities(["IL-6"], []) == {"IL-6": []}

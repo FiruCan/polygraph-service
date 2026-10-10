@@ -2,6 +2,23 @@
 
 ## Stand
 
+**Endpunkte fuer Entity-Linking und Vokabular-Steward (fertig)**
+- Grund: zwei neue Agenten in polygraph brauchen Zugriff auf den Graphen.
+- `POST /entities/similar` (`normalize.py::similar_entities`): pro Name die
+  bis zu 3 aehnlichsten bekannten Knoten per bge-m3-Embedding, ohne LLM
+  (schnell). Schwelle 0.6 statt 0.75: das Embedding erkennt Abkuerzungen
+  schlecht ("IL6": IL-8 0.67, Interleukin-6 0.64) - ob ein Hinweis
+  dieselbe Sache ist, entscheidet das Extraktionsmodell in polygraph.
+  Namen, die schon (auch in anderer Schreibung) im Graphen stehen, bekommen
+  keine Hinweise ("Muskelzellen" bekam sonst "Muskeln").
+- `POST /vocabulary/rename` (`store.py::rename_relation/retype_nodes`):
+  Relation/Knotentyp im ganzen Graphen umbenennen, speichert nur bei
+  Aenderungen; entfernt `relation_is_new` an umbenannten Kanten.
+- Offen: nach einer Umbenennung koennen zwei Kanten mit gleicher Relation
+  und gleicher Quelle zwischen denselben Knoten entstehen - werden nicht
+  zusammengelegt.
+- Tests in `test_store.py`, `test_normalize.py`, `test_app.py`.
+
 **Frontend: Service-URL umschaltbar (fertig)**
 - Grund: eigenes Frontend soll auch die Kollegen-Instanz bedienen koennen -
   nacheinander, nicht gleichzeitig (gleichzeitig = offener Punkt 1).

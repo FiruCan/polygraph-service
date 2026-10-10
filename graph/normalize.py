@@ -34,6 +34,11 @@ import ollama
 EMBED_MODEL = "bge-m3"
 JUDGE_MODEL = "gemma4:26b"
 CANDIDATE_THRESHOLD = 0.55
+# Hinweis-Schwelle fuer similar_entities(): bewusst niedrig, weil das
+# Embedding Abkuerzungen schlecht erkennt ("IL6": IL-8 0.67, Interleukin-6
+# 0.64). Ob ein Hinweis wirklich dieselbe Sache ist, entscheidet das
+# Extraktionsmodell (Regel in polygraph/prompts/extract.md).
+SIMILAR_THRESHOLD = 0.6
 MAX_JUDGE_CANDIDATES = 20
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "normalize_judge.md")
 
@@ -130,6 +135,37 @@ def find_match(term: str, known_terms: list) -> Optional[str]:
     if not candidates:
         return None
     return _judge(term, candidates)
+
+
+def similar_entities(names: list, known_terms: list, limit: int = 3,
+                     threshold: float = SIMILAR_THRESHOLD) -> dict:
+    """
+    Fuer Entity-Linking in polygraph (vor der Extraktion): pro Name die bis
+    zu 'limit' aehnlichsten bekannten Begriffe ueber 'threshold' - nur per
+    Embedding, OHNE LLM-Richter, damit es schnell bleibt. Das sind nur
+    Hinweise fuer den Extraktions-Prompt ("im Graphen bereits als: ..."),
+    das Extraktionsmodell entscheidet selbst, ob es dieselbe Sache ist; die
+    eigentliche Zusammenfuehrung macht weiterhin find_match() beim Import.
+
+    Steht ein Name schon (auch in anderer Gross-/Kleinschreibung) im Graphen,
+    gibt es keine Hinweise: er ist bereits kanonisch, weitere aehnliche
+    Begriffe ("Muskelzellen" -> "Muskeln") wuerden nur zu falschem
+    Umbenennen verleiten.
+    """
+    if not known_terms:
+        return {name: [] for name in names}
+    lowered = {k.lower().strip() for k in known_terms}
+    result = {}
+    for name in names:
+        if name.lower().strip() in lowered:
+            result[name] = []
+            continue
+        scored = _top_matches(_embed(name), known_terms)
+        result[name] = [
+            k for score, k in scored
+            if score >= threshold and k != name
+        ][:limit]
+    return result
 
 
 def normalize_triple(triple: dict, known_entities: list, known_relations: list) -> dict:

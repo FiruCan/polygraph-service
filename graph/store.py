@@ -122,6 +122,30 @@ class GraphStore:
             if "relation" in data
         })
 
+    def rename_relation(self, old: str, new: str) -> int:
+        """
+        Benennt eine Relation auf allen Kanten um (Vokabular-Steward in
+        polygraph: z.B. "lowers" -> "reduces"). Gibt die Anzahl geaenderter
+        Kanten zurueck. relation_is_new wird mit entfernt - die Kante traegt
+        danach eine bekannte Relation.
+        """
+        changed = 0
+        for _, _, data in self.graph.edges(data=True):
+            if data.get("relation") == old:
+                data["relation"] = new
+                data.pop("relation_is_new", None)
+                changed += 1
+        return changed
+
+    def retype_nodes(self, old: str, new: str) -> int:
+        """Setzt den Typ aller Knoten mit Typ 'old' auf 'new', gibt die Anzahl zurueck."""
+        changed = 0
+        for _, data in self.graph.nodes(data=True):
+            if data.get("type") == old:
+                data["type"] = new
+                changed += 1
+        return changed
+
     def edges_by_relation(self, node: str, relation: str, direction: str = "out"):
         """Alle Kanten eines bestimmten Relationstyps an einem Knoten."""
         edge_view = self.graph.out_edges if direction == "out" else self.graph.in_edges
