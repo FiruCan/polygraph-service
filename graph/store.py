@@ -71,17 +71,20 @@ class GraphStore:
 
     def _add_or_update_node(self, node: str, node_type):
         """
-        Legt den Knoten an (mit node_type, auch wenn None - fuer einen neuen
-        Knoten ist "noch kein Typ bekannt" ok) oder aktualisiert einen
-        bestehenden NUR, wenn node_type nicht None ist. Verhindert, dass ein
+        Legt den Knoten an oder aktualisiert einen bestehenden - den Typ
+        aber NUR, wenn node_type nicht None ist. Verhindert, dass ein
         bereits bekannter, echter Typ durch ein spaeteres Tripel ohne
         Typangabe stillschweigend mit None ueberschrieben wird.
+
+        Ein unbekannter Typ wird gar nicht als Attribut gesetzt (statt
+        type=None): write_gml kann None nicht schreiben - ein einziges
+        Tripel ohne Typ liess sonst JEDES weitere save() scheitern, bis der
+        Service neu startete. to_json() liefert fehlende Typen als None.
         """
-        if self.graph.has_node(node):
-            if node_type is not None:
-                self.graph.nodes[node]["type"] = node_type
-        else:
-            self.graph.add_node(node, type=node_type)
+        if not self.graph.has_node(node):
+            self.graph.add_node(node)
+        if node_type is not None:
+            self.graph.nodes[node]["type"] = node_type
 
     def _find_edge_key(self, u: str, v: str, relation, source=None):
         """Key der Kante u->v mit gegebener Relation UND Quelle ("origin"), falls vorhanden, sonst None."""

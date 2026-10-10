@@ -2,6 +2,31 @@
 
 ## Stand
 
+**Tests + Normalisierungs-Richter verlaesslicher (fertig)**
+- Grund: der Service hatte keine Tests; beim Neuaufbau des Graphen
+  (2026-10-08) fuehrte die Normalisierung "Glukose" mit "Blutzucker"
+  zusammen und entschied "Skelettmuskel" je nach Kandidatenliste
+  unterschiedlich.
+- `test/`: `test_store.py`, `test_normalize.py`, `test_app.py` (Ollama
+  gemockt, 100%/97% Coverage auf app/normalize/store) und
+  `test_normalize_judge_live.py` (25 Begriffspaare gegen echtes Ollama,
+  beide Richtungen: Synonyme MUESSEN, verwandte Begriffe DUERFEN NICHT
+  zusammengefuehrt werden; Kontrollgruppen stehen nicht im Prompt).
+- Bug gefunden und behoben: ein Tripel ohne subject_type/object_type legte
+  einen Knoten mit type=None an, write_gml scheiterte daran - und weil das
+  Tripel im Speicher blieb, scheiterte danach JEDES save() bis zum
+  Neustart. `store.py` setzt unbekannte Typen jetzt gar nicht erst.
+- `normalize_judge.md`: neue Regel "Stoff und sein Messwert im Blut sind
+  nicht dasselbe" (Glukose/Blutzucker). Eine erste, laengere Fassung machte
+  den Richter so vorsichtig, dass er echte Synonyme ablehnte - der
+  Live-Test prueft deshalb beide Richtungen.
+- `normalize.py::_judge`: Structured Output mit erst "begruendung", dann
+  "treffer" (enum: nur Kandidaten oder null). Ohne Begruendung waehlte das
+  Modell bei vielen aehnlichen Kandidaten den aehnlichsten statt zu pruefen,
+  ob er dasselbe ist ("Skelettmuskel": 2 Kandidaten -> korrekt abgelehnt,
+  9 Kandidaten aus dem echten Graphen -> "Muskeln"). Jetzt 25/25 im
+  Live-Test, aber ca. 1.3 s statt 0.5 s pro Entscheidung.
+
 **Quellenangabe (origin) im Frontend sichtbar (fertig)**
 - `origin` stand schon in `GraphStore.to_json()`, wurde aber nirgends
   angezeigt. `graph/ask.py::ask()` gibt jetzt `origin` pro Tripel in der

@@ -11,6 +11,7 @@ NICHT dieselbe Entitaet sind:
   "Typ-II-Diabetes", "IL-6" und "IL-8", "Krafttraining" und "Ausdauertraining")
 - Ober- und Unterbegriffe (z.B. "Erkrankungen" und "Herz-Kreislauf-Erkrankungen")
 - ein Zustand und seine Veraenderung, Ursache und Wirkung
+- ein Stoff und sein Messwert im Blut (z.B. "Glukose" und "Blutzucker")
 Im Zweifel: nicht dieselbe Entitaet.
 
 NEUER BEGRIFF:
@@ -19,6 +20,9 @@ NEUER BEGRIFF:
 BEKANNTE BEGRIFFE:
 {candidates}
 
-Antworte AUSSCHLIESSLICH mit dem exakten Namen des bekannten Begriffs, der
-dasselbe bezeichnet, oder mit dem Wort null, falls keiner passt. Keine
-Erklaerung, keine Anfuehrungszeichen.
+Antworte als JSON: zuerst "begruendung" (ein kurzer Satz: welcher Kandidat
+kommt am ehesten in Frage, und ist er wirklich DASSELBE oder nur verwandt,
+Ober-/Unterbegriff oder ein Messwert davon? Woerter, die im Fachtext
+austauschbar fuer dieselbe Sache stehen (z.B. "Sport" und "sportliche
+Betaetigung"), sind dasselbe - feine Bedeutungsnuancen zaehlen nicht),
+dann "treffer" (exakter Name des bekannten Begriffs oder null).

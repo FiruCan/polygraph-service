@@ -23,6 +23,7 @@ O(N)-Wachstum aber nicht weg (siehe PROGRESS.md fuer den Stand dazu).
 Voraussetzung: 'ollama pull bge-m3'.
 """
 
+import json
 import os
 from functools import lru_cache
 from typing import Optional
@@ -58,6 +59,28 @@ def _top_matches(term_vec: np.ndarray, known_terms: list) -> list:
     return [(float(scores[i]), known_terms[i]) for i in order]
 
 
+def _judge_schema(candidates: tuple) -> dict:
+    """
+    Structured Output fuer den Richter: erst eine kurze Begruendung, dann
+    der Treffer - per enum nur einer der Kandidaten oder null, ein
+    erfundener Name ist damit gar nicht erst moeglich.
+
+    Begruendung VOR dem Treffer, weil das Modell ohne sie bei vielen
+    aehnlichen Kandidaten den aehnlichsten waehlte statt zu pruefen, ob er
+    wirklich dasselbe ist: "Skelettmuskel" wurde mit 2 Kandidaten korrekt
+    abgelehnt (Unterbegriff), mit 9 Kandidaten aus dem echten Graphen aber
+    auf "Muskeln" gemappt. Kostet ca. 1.3 s statt 0.5 s pro Entscheidung.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "begruendung": {"type": "string"},
+            "treffer": {"enum": list(candidates) + [None]},
+        },
+        "required": ["begruendung", "treffer"],
+    }
+
+
 @lru_cache(maxsize=4096)
 def _judge(term: str, candidates: tuple) -> Optional[str]:
     """Fragt das LLM, welcher Kandidat (falls einer) dieselbe Entitaet wie 'term' ist."""
@@ -68,9 +91,15 @@ def _judge(term: str, candidates: tuple) -> Optional[str]:
         model=JUDGE_MODEL,
         messages=[{"role": "user", "content": prompt}],
         think=False,
-        options={"num_predict": 100, "temperature": 0},
+        format=_judge_schema(candidates),
+        options={"num_predict": 300, "temperature": 0},
     )
-    answer = response["message"]["content"].strip().strip('"').strip("'")
+    # Abgeschnittene/kaputte Antwort = im Zweifel nicht zusammenfuehren
+    # (gleiche Haltung wie der Prompt: "Im Zweifel: nicht dieselbe Entitaet")
+    try:
+        answer = json.loads(response["message"]["content"]).get("treffer")
+    except (json.JSONDecodeError, AttributeError):
+        return None
     return answer if answer in candidates else None
 
 

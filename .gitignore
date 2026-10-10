@@ -6,3 +6,5 @@ venv/
 data/*.gml
 !data/.gitkeep
 .DS_Store
+.coverage
+.pytest_cache/

@@ -37,6 +37,18 @@ Danach `http://localhost:8000` im Browser oeffnen (Frontend: Graph ansehen,
 Fragen stellen). Der Graph wird in `data/graph.gml` persistiert und beim
 Start automatisch geladen, falls vorhanden.
 
+## Tests
+
+```bash
+python3 -m pytest test -q
+```
+
+`test_store.py`, `test_normalize.py`, `test_app.py` mocken Ollama und
+schreiben nie in `data/graph.gml` (App-Tests nutzen eine temporaere Datei).
+`test_normalize_judge_live.py` prueft den LLM-Richter gegen echtes Ollama
+(wird uebersprungen, wenn Ollama nicht laeuft) - nach jeder Aenderung an
+`prompts/normalize_judge.md` laufen lassen.
+
 ## API
 
 Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
@@ -73,6 +85,7 @@ polygraph-service/
 │   ├── normalize.py    # Synonyme zusammenfuehren (bge-m3-Embedding + gemma4:26b-Pruefung)
 │   └── ask.py           # GraphRAG: Knoten waehlen -> Kanten holen -> LLM antwortet mit Belegen
 ├── prompts/             # ask_select.md, ask_answer.md, normalize_judge.md
+├── test/                # Unit-Tests + Live-Test fuer den Normalisierungs-Richter
 ├── static/              # index.html + app.js (vis-network), eine dynamische Seite ohne Reload
 └── data/graph.gml       # persistierter Graph (git-ignoriert)
 ```
