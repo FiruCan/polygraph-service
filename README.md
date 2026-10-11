@@ -83,10 +83,13 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}, "steps": [{"tool": str, "args": {...}, "new_triples": int}]}`
   `graph` ist der verwendete Teilgraph, im selben Format wie `GET /graph` -
   dieselbe Frontend-Logik zeichnet beides.
-- `GET /questions/suggest?count=5` (1-10) -> `{"questions": [{"question": str, "type": "knoten"|"pfad", "nodes": [str]}]}`
-  - Beispielfragen aus dem Graphen: stark vernetzte Knoten und Pfade ueber
-  2-4 Schritte, von einem LLM-Aufruf natuerlich formuliert; jede Frage
-  entsteht aus echten Kanten, ist also beantwortbar. In der Oberflaeche: Button
+- `GET /questions/suggest?count=5` (1-10) -> `{"questions": [{"question": str, "type": "detail"|"knoten"|"pfad"|"vergleich", "nodes": [str]}]}`
+  - Beispielfragen aus dem Graphen, reihum vier Arten: Kanten mit
+  Bedingung/Wert/Evidenz, vernetzte Knoten, Pfade ueber 2-4 Schritte, zwei
+  Knoten mit demselben Ziel. Ein LLM-Aufruf formuliert sie detailreich;
+  jede Frage entsteht aus echten Kanten, ist also beantwortbar. Zuletzt
+  benutzte Ausgangspunkte (300, im Speicher) werden ausgelassen - keine
+  Wiederholungen, bis alles einmal dran war. In der Oberflaeche: Button
   "Fragen vorschlagen", Klick auf einen Vorschlag stellt die Frage.
 - `POST /export/pdf` Body `{"question": str, "answer": str, "selected_nodes": [str], "triples": [...], "service": str}`
   -> schreibt `output/<Frage>.pdf` (Frage, Antwort, Belege mit Quellen) und

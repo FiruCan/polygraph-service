@@ -2,6 +2,22 @@
 
 ## Stand
 
+**Fragenvorschlaege: keine Wiederholungen, detailreicher (fertig)**
+- Grund: dieselben Fragen kamen immer wieder (Knoten nur aus den Top 10,
+  kein Gedaechtnis) und waren kurz und allgemein (max. 12 Woerter, Details
+  der Kanten nicht im Prompt).
+- `graph/suggest.py`: Knoten aus allen mit Grad >= 2, gewichtet nach
+  Wurzel des Grads; `SuggestionHistory` merkt sich die letzten 300
+  Ausgangspunkte und laesst sie aus (alles verbraucht -> von vorn). Neue
+  Arten "detail" (Kante mit Bedingung/Wert/Evidenz) und "vergleich" (zwei
+  Knoten, gleiches Ziel), reihum mit "knoten" und "pfad". Fakten im Prompt
+  mit [Wert; Bedingung; Evidenz], pro Knoten zufaellig, Details zuerst.
+- Prompt: mindestens ein Detail aufgreifen, bis ca. 25 Woerter,
+  verschiedene Frageanfaenge; temperature 0.9.
+- Gemessen am echten Graphen (904 Knoten): 10 Klicks x 5 -> 50
+  Ausgangspunkte, 0 doppelt. Live: Fragen nennen Bedingungen, Gruppen,
+  Studienart.
+
 **Keine eigene Oberflaeche mehr (fertig)**
 - Grund: der Service soll nur API sein. `static/` entfernt, kein
   StaticFiles-Mount mehr in `app.py` (`/` -> 404). Die Seite lebt jetzt in

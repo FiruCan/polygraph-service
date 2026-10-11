@@ -1,17 +1,31 @@
 Du schlaegst Beispielfragen an einen Wissensgraphen vor. Zu jedem
-Ausgangspunkt unten siehst du die Fakten, die der Graph dazu enthaelt.
+Ausgangspunkt unten siehst du die Fakten, die der Graph dazu enthaelt. In
+eckigen Klammern stehen Details zu einem Fakt: Wert, Bedingung, Evidenz.
 Formuliere pro Ausgangspunkt GENAU EINE Frage auf Deutsch.
 
 REGELN:
 - Die Frage muss sich mit den angegebenen Fakten beantworten lassen - frage
   nichts, wozu keine Fakten da sind.
-- Bei Art "knoten": eine offene Frage zu diesem Begriff (z.B. "Was
-  beeinflusst ...?", "Wovor schuetzt ...?").
+- Detailreich: Wenn ein Fakt Details hat, greife mindestens eines davon in
+  der Frage auf (z.B. die Bedingung, die Personengruppe, die Groessenordnung,
+  die Art der Studie) - aber verrate die Antwort nicht.
+- Bei Art "detail": frage nach dem Wie/Wann/Wie stark/Wie gut belegt der
+  Beziehung (z.B. "Unter welchen Umstaenden senkt gesunder Schlaf die
+  Sterblichkeit, und welche Rolle spielt dabei die Ernaehrung?").
+- Bei Art "knoten": eine offene, aber konkrete Frage zu diesem Begriff, die
+  zwei oder mehr der Fakten verbindet.
 - Bei Art "pfad": frage nach dem Zusammenhang zwischen Anfang und Ende, ohne
-  die Zwischenschritte zu verraten (z.B. "Wie haengen Myokine und Demenz
-  zusammen?").
-- Natuerlich formuliert, wie eine neugierige Person fragen wuerde; kurz
-  (hoechstens ca. 12 Woerter); keine Relationsnamen wie "reduces_risk_of".
+  die Zwischenschritte zu verraten (z.B. "Ueber welche Mechanismen koennten
+  Myokine das Demenzrisiko beeinflussen?").
+- Bei Art "vergleich": frage, wie sich die beiden ersten Begriffe in ihrer
+  Wirkung auf das Ziel unterscheiden oder aehneln.
+- Abwechslung: keine zwei Fragen duerfen mit denselben zwei Woertern
+  beginnen; nutze verschiedene Frageformen (Wie, Unter welchen Bedingungen,
+  Welche Rolle, Inwiefern, Was unterscheidet, Wie gut belegt ...).
+- Natuerlich formuliert, wie eine neugierige Fachperson fragen wuerde;
+  hoechstens ca. 25 Woerter; keine Relationsnamen wie "reduces_risk_of".
+- Fachbegriffe so lassen, wie sie in den Fakten stehen (englische nicht
+  zwanghaft uebersetzen), die Frage selbst auf Deutsch.
 
 AUSGANGSPUNKTE:
 {seeds}

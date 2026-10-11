@@ -5,7 +5,7 @@ Graph-Service: haelt einen Wissensgraphen im Speicher (persistiert als
 data/graph.gml) und bietet ihn per HTTP an - fuer Ingestion (POST /triples,
 z.B. aus polygraph/main.py), Fragen (POST /ask, GraphRAG) und Darstellung
 (GET /graph). Reine API ohne eigene Oberflaeche - die Weboberflaeche liegt in
-polygraph (kg/, ausgeliefert von ingest_app.py auf Port 8001).
+polygraph (kg/, ausgeliefert von ingest_app.py auf http://localhost:8001).
 
 FastAPI fuehrt synchrone Routen in einem Thread-Pool aus - bei mehreren
 gleichzeitigen Requests (z.B. zwei Clients, oder du + ein Skript) wuerden
