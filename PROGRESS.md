@@ -2,6 +2,38 @@
 
 ## Stand
 
+**Keine eigene Oberflaeche mehr (fertig)**
+- Grund: der Service soll nur API sein. `static/` entfernt, kein
+  StaticFiles-Mount mehr in `app.py` (`/` -> 404). Die Seite lebt jetzt in
+  polygraph (`kg/`, Port 8001) und ruft die API per CORS auf.
+- Tests: 95 bestanden.
+
+**Frontend: deutliches Feedback + PDF-Export (fertig)**
+- Grund: nach Klick auf "Fragen vorschlagen" bzw. einen Vorschlag war nicht
+  zu sehen, ob etwas passiert (Antwort dauert 1-2 Minuten, nur eine kleine
+  graue Statuszeile); ausserdem soll man Frage + Antwort weitergeben koennen.
+- Ursachen: (1) laufender Service war noch der alte Prozess (404 auf
+  /questions/suggest), (2) Browser nutzte die gecachte alte app.js -> jetzt
+  `app.js?v=N`, (3) im Dark Mode zeichnete der Browser den Hintergrund
+  dunkel, die Schrift blieb schwarz -> feste helle Farben (`color-scheme:
+  light`).
+- Feedback: Buttons zeigen "Vorschlaege werden erzeugt..." bzw. "Laeuft...",
+  blauer Kasten "Frage wird beantwortet ... N s" mit Sekundenzaehler,
+  angeklickter Vorschlag markiert, Seite scrollt zur fertigen Antwort.
+- PDF-Export: Button "Als PDF speichern" (aktiv, sobald eine Antwort da
+  ist) schickt die angezeigte Antwort an `POST /export/pdf`; der Service
+  schreibt `output/<Frage>.pdf` (Dateiname = Frage ohne "?" und ohne
+  verbotene Zeichen, nie ueberschreiben: " (2)" usw.), Inhalt wie die linke
+  Seite im Frontend: Frage, Datum + Service, relevante Knoten, Antwort,
+  Belege mit Quellen (sichere fett, unsichere blass). `graph/export.py`,
+  reportlab mit Arial fuer Umlaute/Sonderzeichen. Zuerst als Browser-
+  Druckdialog gebaut - verworfen: Browser darf nicht in einen festen Ordner
+  schreiben, und in Safari ohne Drucker ist "Drucken" ausgegraut.
+- Gespeichert wird immer auf dem Server, der die Seite ausliefert - auch
+  wenn das Frontend gerade die Kollegen-Instanz abfragt.
+- Tests: `test/test_export.py`, `test_app.py`. Live geprueft: "Was bewirkt
+  Clemastin?" -> `output/Was bewirkt Clemastin.pdf`.
+
 **Fragen vorschlagen (fertig, noch nicht im Browser getestet)**
 - Grund: man soll sich nicht selbst Fragen an den Graphen ausdenken muessen.
 - `graph/suggest.py` + `prompts/suggest_questions.md`, `GET /questions/suggest`:

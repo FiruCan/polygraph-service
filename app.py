@@ -4,16 +4,17 @@ app.py
 Graph-Service: haelt einen Wissensgraphen im Speicher (persistiert als
 data/graph.gml) und bietet ihn per HTTP an - fuer Ingestion (POST /triples,
 z.B. aus polygraph/main.py), Fragen (POST /ask, GraphRAG) und Darstellung
-(GET /graph, von static/app.js gerendert).
+(GET /graph). Reine API ohne eigene Oberflaeche - die Weboberflaeche liegt in
+polygraph (kg/, ausgeliefert von ingest_app.py auf Port 8001).
 
 FastAPI fuehrt synchrone Routen in einem Thread-Pool aus - bei mehreren
 gleichzeitigen Requests (z.B. zwei Clients, oder du + ein Skript) wuerden
 sonst mehrere Threads denselben NetworkX-Graphen gleichzeitig mutieren, was
 NetworkX nicht absichert. store_lock serialisiert deshalb jeden Zugriff.
 
-CORS: Ein Frontend auf einem anderen Port (z.B. deine Oberflaeche auf 8000
-fragt die Kollegen-Instanz auf 8001 ab) braucht die Erlaubnis des
-abgefragten Service. Standard: jede Seite von localhost/127.0.0.1, beliebiger
+CORS: Die Oberflaeche laeuft auf einem anderen Port (polygraph, 8001) und
+fragt diesen Service oder eine Kollegen-Instanz ab - dafuer braucht sie die
+Erlaubnis des abgefragten Service. Standard: jede Seite von localhost/127.0.0.1, beliebiger
 Port. Andere Herkuenfte per Umgebungsvariable POLYGRAPH_CORS_ORIGIN_REGEX.
 
 Start: uvicorn app:app --reload --port 8000
@@ -21,14 +22,17 @@ Start: uvicorn app:app --reload --port 8000
 
 import os
 import threading
+from urllib.parse import quote
 from typing import Literal, Optional
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from graph.ask import ask as run_ask
+import graph.export as export_module
+from graph.export import export_answer
 from graph.normalize import normalize_triple, similar_entities
 from graph.store import GraphStore
 from graph.suggest import suggest_questions
@@ -60,6 +64,14 @@ class QuestionIn(BaseModel):
 class SimilarIn(BaseModel):
     names: list[str]
     limit: int = 3
+
+
+class ExportIn(BaseModel):
+    question: str
+    answer: str
+    selected_nodes: list[str] = []
+    triples: list[dict] = []
+    service: Optional[str] = None
 
 
 class RenameIn(BaseModel):
@@ -153,10 +165,35 @@ def questions_suggest(count: int = Query(5, ge=1, le=10)):
     return {"questions": suggest_questions(graph, count)}
 
 
+@app.post("/export/pdf")
+def export_pdf(body: ExportIn):
+    """
+    Antwort als PDF nach output/<Frage>.pdf (graph/export.py). Bekommt die
+    Daten vom Frontend, statt die Frage neu zu stellen - das PDF zeigt genau
+    die Antwort, die man gerade sieht.
+    """
+    path = export_answer(body.question, body.answer, body.selected_nodes, body.triples, body.service)
+    filename = os.path.basename(path)
+    return {
+        "path": os.path.relpath(path, os.path.dirname(__file__)),
+        "absolute_path": os.path.abspath(path),
+        "filename": filename,
+        "url": f"/output/{quote(filename)}",
+    }
+
+
+@app.get("/output/{filename}")
+def output_file(filename: str):
+    """Exportierte PDFs zum Oeffnen im Browser - nur Dateien direkt in output/."""
+    output_dir = os.path.abspath(export_module.OUTPUT_DIR)
+    path = os.path.abspath(os.path.join(output_dir, filename))
+    if os.path.dirname(path) != output_dir or not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="Datei nicht gefunden")
+    return FileResponse(path, media_type="application/pdf")
+
+
 @app.post("/ask")
 def ask_question(body: QuestionIn):
     with store_lock:
         return run_ask(store.graph, body.question)
 
-
-app.mount("/", StaticFiles(directory=os.path.join(os.path.dirname(__file__), "static"), html=True), name="static")

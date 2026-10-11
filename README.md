@@ -2,7 +2,8 @@
 
 Haelt einen Wissensgraphen (NetworkX, persistiert als `data/graph.gml`) und
 bietet ihn per HTTP an: Tripel einspeisen, Fragen stellen (GraphRAG, lokales
-Ollama), Graph in einer Weboberflaeche ansehen.
+Ollama), Graph abrufen. Reine API ohne eigene Oberflaeche - die
+Weboberflaeche liegt im Projekt [polygraph](../polygraph) (`kg/`, Port 8001).
 
 Gedacht als **eigenstaendiger Service pro Person/Domain**: Wer einen eigenen
 Wissensgraphen aufbaut (z.B. eine andere Domain), betreibt eine eigene
@@ -33,16 +34,15 @@ ollama pull bge-m3       # Normalisierungs-Kandidatensuche (Embeddings)
 uvicorn app:app --reload --port 8000
 ```
 
-Danach `http://localhost:8000` im Browser oeffnen (Frontend: Graph ansehen,
-Fragen stellen). Der Graph wird in `data/graph.gml` persistiert und beim
-Start automatisch geladen, falls vorhanden.
+Der Graph wird in `data/graph.gml` persistiert und beim Start automatisch
+geladen, falls vorhanden. Ansehen und befragen: Oberflaeche von polygraph
+starten (`uvicorn ingest_app:app --port 8001` dort) und
+`http://localhost:8001` oeffnen.
 
-Andere Instanz im eigenen Frontend ansehen (z.B. die eines Kollegen): oben
-in der Seitenleiste die Service-URL eintragen (z.B. `http://localhost:8002`)
-und "Verbinden" - Graph und Fragen laufen dann gegen diese Instanz. Leeres
-Feld = der eigene Server. Die abgefragte Instanz erlaubt per CORS
-standardmaessig jede Seite von localhost/127.0.0.1; fuer andere Rechner
-`POLYGRAPH_CORS_ORIGIN_REGEX` setzen.
+Die Oberflaeche ruft diesen Service per HTTP von einem anderen Port aus auf;
+der Service erlaubt das per CORS standardmaessig fuer jede Seite von
+localhost/127.0.0.1. Fuer andere Rechner `POLYGRAPH_CORS_ORIGIN_REGEX`
+setzen.
 
 ## Tests
 
@@ -86,8 +86,12 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
 - `GET /questions/suggest?count=5` (1-10) -> `{"questions": [{"question": str, "type": "knoten"|"pfad", "nodes": [str]}]}`
   - Beispielfragen aus dem Graphen: stark vernetzte Knoten und Pfade ueber
   2-4 Schritte, von einem LLM-Aufruf natuerlich formuliert; jede Frage
-  entsteht aus echten Kanten, ist also beantwortbar. Im Frontend: Button
+  entsteht aus echten Kanten, ist also beantwortbar. In der Oberflaeche: Button
   "Fragen vorschlagen", Klick auf einen Vorschlag stellt die Frage.
+- `POST /export/pdf` Body `{"question": str, "answer": str, "selected_nodes": [str], "triples": [...], "service": str}`
+  -> schreibt `output/<Frage>.pdf` (Frage, Antwort, Belege mit Quellen) und
+  gibt `{"path": "output/....pdf", "filename": ...}` zurueck. In der Oberflaeche:
+  Button "Als PDF speichern".
 - `POST /entities/similar` Body `{"names": [str], "limit": 3}` ->
   `{"matches": {name: [aehnliche bekannte Knoten]}}` - Embedding-Aehnlichkeit
   ohne LLM, fuer Entity-Linking in polygraph vor der Extraktion. Namen, die
@@ -101,14 +105,14 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
 
 ```
 polygraph-service/
-├── app.py              # FastAPI-Routen (health, graph, triples, ask), serviert static/
+├── app.py              # FastAPI-Routen (health, graph, triples, ask, ...), reine API
 ├── graph/
 │   ├── store.py        # NetworkX-Wrapper, to_json()/from_json() fuer die API
 │   ├── normalize.py    # Synonyme zusammenfuehren (bge-m3-Embedding + gemma4:26b-Pruefung)
 │   └── ask.py           # GraphRAG: Knoten waehlen -> Kanten holen -> Agent antwortet (laedt bei Bedarf nach)
 ├── prompts/             # ask_select.md, ask_answer.md, normalize_judge.md
+├── output/              # exportierte PDFs (git-ignoriert)
 ├── test/                # Unit-Tests + Live-Test fuer den Normalisierungs-Richter
-├── static/              # index.html + app.js (vis-network), eine dynamische Seite ohne Reload
 └── data/graph.gml       # persistierter Graph (git-ignoriert)
 ```
 

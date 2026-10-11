@@ -8,3 +8,4 @@ data/*.gml
 .DS_Store
 .coverage
 .pytest_cache/
+output/
