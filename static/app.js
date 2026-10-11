@@ -305,7 +305,38 @@ async function askQuestion() {
   if (data.graph.nodes.length) renderGraph(data.graph, data.selected_nodes);
 }
 
+// Beispielfragen aus dem Graphen (GET /questions/suggest): jeder Klick auf
+// "Fragen vorschlagen" holt neue; ein Klick auf einen Vorschlag stellt ihn.
+async function suggestQuestions() {
+  const box = document.getElementById("suggestions");
+  const btn = document.getElementById("suggestBtn");
+  box.innerHTML = "";
+  btn.disabled = true;
+  document.getElementById("status").textContent = "Fragen werden vorgeschlagen...";
+  let data;
+  try {
+    data = await fetchService("/questions/suggest");
+  } catch (err) {
+    document.getElementById("status").textContent = err.message;
+    return;
+  } finally {
+    btn.disabled = false;
+  }
+  document.getElementById("status").textContent = data.questions.length
+    ? "" : "Der Graph ist leer - noch keine Vorschlaege moeglich.";
+  for (const q of data.questions) {
+    const b = document.createElement("button");
+    b.textContent = q.question;  // textContent statt innerHTML: Daten koennen von fremden Services kommen
+    b.addEventListener("click", () => {
+      document.getElementById("question").value = q.question;
+      askQuestion();
+    });
+    box.appendChild(b);
+  }
+}
+
 document.getElementById("askBtn").addEventListener("click", askQuestion);
+document.getElementById("suggestBtn").addEventListener("click", suggestQuestions);
 document.getElementById("question").addEventListener("keydown", e => { if (e.key === "Enter") askQuestion(); });
 document.getElementById("fullBtn").addEventListener("click", () => fullGraph ? renderGraph(fullGraph) : loadFullGraph());
 

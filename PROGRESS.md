@@ -2,6 +2,24 @@
 
 ## Stand
 
+**Fragen vorschlagen (fertig, noch nicht im Browser getestet)**
+- Grund: man soll sich nicht selbst Fragen an den Graphen ausdenken muessen.
+- `graph/suggest.py` + `prompts/suggest_questions.md`, `GET /questions/suggest`:
+  Ausgangspunkte aus der Graph-Struktur ohne LLM (stark vernetzte Knoten;
+  Knotenpaare mit 2-4 Schritten Abstand), dann EIN LLM-Aufruf, der pro
+  Ausgangspunkt eine Frage formuliert - mit den zugehoerigen Fakten im
+  Prompt. Jede Frage entsteht aus echten Kanten und ist damit beantwortbar.
+  Zufaellige Auswahl, damit jeder Klick neue Vorschlaege bringt. Scheitert
+  der LLM-Aufruf, kommen Fragen aus einer festen Vorlage.
+- Bewusst KEIN Agent (keine Werkzeug-Schleife): die Struktur liefert der
+  Graph-Algorithmus exakt und sofort, das LLM wird nur zum Formulieren
+  gebraucht - ein Aufruf (~10-20 s) statt mehrerer Runden.
+- Arbeitet auf einer Kopie des Graphen, damit ein gleichzeitiger Import
+  nicht auf den LLM-Aufruf warten muss.
+- Frontend: Button "Fragen vorschlagen", Vorschlaege als Buttons, Klick
+  stellt die Frage ueber den bestehenden Antwort-Agenten.
+- Tests: `test/test_suggest.py`, `test_app.py`.
+
 **Endpunkte fuer Entity-Linking und Vokabular-Steward (fertig)**
 - Grund: zwei neue Agenten in polygraph brauchen Zugriff auf den Graphen.
 - `POST /entities/similar` (`normalize.py::similar_entities`): pro Name die

@@ -127,3 +127,16 @@ def test_vocabulary_rename_type(client):
 def test_vocabulary_rename_rejects_unknown_kind(client):
     r = client.post("/vocabulary/rename", json={"kind": "entity", "old": "a", "new": "b"})
     assert r.status_code == 422
+
+
+def test_questions_suggest_returns_list(client):
+    client.post("/triples", json={"triples": [triple()]})
+    with patch("app.suggest_questions", return_value=[{"question": "Was senkt Krebs?", "type": "knoten", "nodes": ["Krebs"]}]) as sug:
+        r = client.get("/questions/suggest?count=3")
+    assert r.json() == {"questions": [{"question": "Was senkt Krebs?", "type": "knoten", "nodes": ["Krebs"]}]}
+    assert sug.call_args.args[1] == 3
+    assert sug.call_args.args[0] is not app_module.store.graph  # arbeitet auf einer Kopie
+
+
+def test_questions_suggest_rejects_too_many(client):
+    assert client.get("/questions/suggest?count=50").status_code == 422

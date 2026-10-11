@@ -25,6 +25,9 @@
   #service input { flex: 1; padding: 4px; font-size: 12px; }
   #service button { margin-top: 0; }
   #status { color: #888; font-size: 12px; margin-top: 6px; }
+  #suggestions button { display: block; width: 100%; text-align: left; margin-top: 4px;
+                        background: #f4f6fa; border: 1px solid #d5dbe5; border-radius: 4px; }
+  #suggestions button:hover { background: #e6ecf5; }
 </style>
 </head>
 <body>
@@ -37,6 +40,8 @@
     <input id="question" placeholder="Frage an den Graphen..." autofocus>
     <button id="askBtn">Fragen</button>
     <button id="fullBtn">Ganzer Graph</button>
+    <button id="suggestBtn">Fragen vorschlagen</button>
+    <div id="suggestions"></div>
     <div id="status"></div>
     <div id="answer"></div>
     <div id="belege"></div>

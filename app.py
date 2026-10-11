@@ -23,7 +23,7 @@ import os
 import threading
 from typing import Literal, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -31,6 +31,7 @@ from pydantic import BaseModel
 from graph.ask import ask as run_ask
 from graph.normalize import normalize_triple, similar_entities
 from graph.store import GraphStore
+from graph.suggest import suggest_questions
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "graph.gml")
 
@@ -138,6 +139,18 @@ def vocabulary_rename(body: RenameIn):
         if changed:
             store.save(DATA_PATH)
         return {"kind": body.kind, "old": body.old, "new": body.new, "changed": changed}
+
+
+@app.get("/questions/suggest")
+def questions_suggest(count: int = Query(5, ge=1, le=10)):
+    """
+    Beispielfragen aus dem Graphen (graph/suggest.py). Arbeitet auf einer
+    Kopie: der LLM-Aufruf dauert ~10-20 s, so lange soll ein gleichzeitiger
+    Import (POST /triples) nicht warten muessen.
+    """
+    with store_lock:
+        graph = store.graph.copy()
+    return {"questions": suggest_questions(graph, count)}
 
 
 @app.post("/ask")

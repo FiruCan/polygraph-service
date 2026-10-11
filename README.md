@@ -83,6 +83,11 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}, "steps": [{"tool": str, "args": {...}, "new_triples": int}]}`
   `graph` ist der verwendete Teilgraph, im selben Format wie `GET /graph` -
   dieselbe Frontend-Logik zeichnet beides.
+- `GET /questions/suggest?count=5` (1-10) -> `{"questions": [{"question": str, "type": "knoten"|"pfad", "nodes": [str]}]}`
+  - Beispielfragen aus dem Graphen: stark vernetzte Knoten und Pfade ueber
+  2-4 Schritte, von einem LLM-Aufruf natuerlich formuliert; jede Frage
+  entsteht aus echten Kanten, ist also beantwortbar. Im Frontend: Button
+  "Fragen vorschlagen", Klick auf einen Vorschlag stellt die Frage.
 - `POST /entities/similar` Body `{"names": [str], "limit": 3}` ->
   `{"matches": {name: [aehnliche bekannte Knoten]}}` - Embedding-Aehnlichkeit
   ohne LLM, fuer Entity-Linking in polygraph vor der Extraktion. Namen, die
