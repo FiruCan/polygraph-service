@@ -2,6 +2,11 @@
 
 ## Stand
 
+**PDF-Export nach polygraph umgezogen (fertig)**
+- `POST /export/pdf`, `GET /output/...` und `graph/export.py` sind weg; den
+  Export macht jetzt polygraph selbst (`ingest_app.py`, PDFs in
+  `polygraph/output/`). reportlab ist keine Abhaengigkeit mehr.
+
 **Fragenvorschlaege: keine Wiederholungen, detailreicher (fertig)**
 - Grund: dieselben Fragen kamen immer wieder (Knoten nur aus den Top 10,
   kein Gedaechtnis) und waren kurz und allgemein (max. 12 Woerter, Details

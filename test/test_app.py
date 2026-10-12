@@ -140,38 +140,3 @@ def test_questions_suggest_returns_list(client):
 
 def test_questions_suggest_rejects_too_many(client):
     assert client.get("/questions/suggest?count=50").status_code == 422
-
-
-def test_export_pdf_writes_file_named_after_question(client, tmp_path, monkeypatch):
-    import graph.export
-    monkeypatch.setattr(graph.export, "OUTPUT_DIR", str(tmp_path / "output"))
-    r = client.post("/export/pdf", json={
-        "question": "Was senkt Krebs?", "answer": "Krafttraining [1].",
-        "selected_nodes": ["Krebs"],
-        "triples": [{"n": 1, "subject": "Krafttraining", "relation": "reduces_risk_of", "object": "Krebs"}],
-    })
-    assert r.status_code == 200
-    assert r.json()["filename"] == "Was senkt Krebs.pdf"
-    assert os.path.exists(tmp_path / "output" / "Was senkt Krebs.pdf")
-
-
-def test_export_pdf_requires_question_and_answer(client):
-    assert client.post("/export/pdf", json={"question": "x"}).status_code == 422
-
-
-def test_exported_pdf_can_be_opened(client, tmp_path, monkeypatch):
-    import graph.export
-    monkeypatch.setattr(graph.export, "OUTPUT_DIR", str(tmp_path / "output"))
-    out = client.post("/export/pdf", json={"question": "Was hilft gegen Fatigue?", "answer": "x"}).json()
-    assert out["absolute_path"].endswith("Was hilft gegen Fatigue.pdf")
-    r = client.get(out["url"])
-    assert r.status_code == 200
-    assert r.content.startswith(b"%PDF")
-
-
-def test_output_route_rejects_path_traversal(client, tmp_path, monkeypatch):
-    import graph.export
-    monkeypatch.setattr(graph.export, "OUTPUT_DIR", str(tmp_path / "output"))
-    (tmp_path / "geheim.txt").write_text("x")
-    assert client.get("/output/..%2Fgeheim.txt").status_code == 404
-    assert client.get("/output/gibtsnicht.pdf").status_code == 404

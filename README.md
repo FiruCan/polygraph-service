@@ -91,10 +91,6 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   benutzte Ausgangspunkte (300, im Speicher) werden ausgelassen - keine
   Wiederholungen, bis alles einmal dran war. In der Oberflaeche: Button
   "Fragen vorschlagen", Klick auf einen Vorschlag stellt die Frage.
-- `POST /export/pdf` Body `{"question": str, "answer": str, "selected_nodes": [str], "triples": [...], "service": str}`
-  -> schreibt `output/<Frage>.pdf` (Frage, Antwort, Belege mit Quellen) und
-  gibt `{"path": "output/....pdf", "filename": ...}` zurueck. In der Oberflaeche:
-  Button "Als PDF speichern".
 - `POST /entities/similar` Body `{"names": [str], "limit": 3}` ->
   `{"matches": {name: [aehnliche bekannte Knoten]}}` - Embedding-Aehnlichkeit
   ohne LLM, fuer Entity-Linking in polygraph vor der Extraktion. Namen, die
@@ -114,7 +110,6 @@ polygraph-service/
 │   ├── normalize.py    # Synonyme zusammenfuehren (bge-m3-Embedding + gemma4:26b-Pruefung)
 │   └── ask.py           # GraphRAG: Knoten waehlen -> Kanten holen -> Agent antwortet (laedt bei Bedarf nach)
 ├── prompts/             # ask_select.md, ask_answer.md, normalize_judge.md
-├── output/              # exportierte PDFs (git-ignoriert)
 ├── test/                # Unit-Tests + Live-Test fuer den Normalisierungs-Richter
 └── data/graph.gml       # persistierter Graph (git-ignoriert)
 ```
