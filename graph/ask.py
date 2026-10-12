@@ -14,6 +14,9 @@ Fragen an den Wissensgraphen (GraphRAG mit lokalem Ollama):
    Erklaerungen aus Allgemeinwissen stammen und nicht aus dem Graphen.
    explain_term() liefert auf Wunsch (POST /explain) eine ausfuehrliche
    Erklaerung eines einzelnen Begriffs - ebenfalls aus Allgemeinwissen.
+5. Antwort-Pruefer (check_answer): jeder Satz ausserhalb von "Vermutung"
+   wird gegen die zitierten Tripel geprueft (gedeckt / teilweise / nicht
+   gedeckt). Die Antwort bleibt unveraendert, Frontend und PDF markieren.
 
 ask() gibt ein Dict zurueck (fuer die API); Druckausgabe/HTML-Erzeugung
 passiert nicht mehr hier, das macht das Frontend aus der JSON-Antwort.
@@ -21,6 +24,8 @@ passiert nicht mehr hier, das macht das Frontend aus der JSON-Antwort.
 
 import json
 import os
+import re
+import time
 from itertools import combinations
 
 import networkx as nx
@@ -358,13 +363,118 @@ def explain_term(term: str, question: str = "", answer: str = "", node_type: str
             "used_sources": bool(passages)}
 
 
+# Vermutungs-Abschnitt (ask_answer.md): auf Deutsch direkt am Text erkannt;
+# in anderen Antwortsprachen ordnet das LLM die Saetze zu (Urteil "vermutung").
+VERMUTUNG_MARKER = "vermutung (nicht im graphen belegt)"
+# Abkuerzungen mit Punkt, an denen kein Satz endet
+NO_SENTENCE_END = ("z.B.", "z. B.", "u.a.", "d.h.", "bzw.", "ca.", "etc.", "vs.", "e.g.", "i.e.",
+                   "Dr.", "Prof.", "Nr.", "evtl.", "ggf.", "inkl.")
+CHECK_VERDICTS = ["gedeckt", "teilweise", "nicht_gedeckt", "vermutung", "keine_aussage"]
+CHECK_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "nr": {"type": "integer"},
+            "belege": {"type": "array", "items": {"type": "integer"}},
+            "begruendung": {"type": "string"},
+            "urteil": {"enum": CHECK_VERDICTS},
+        },
+        "required": ["nr", "belege", "begruendung", "urteil"],
+    },
+}
+
+
+def split_statements(answer: str) -> list:
+    """
+    Antwort -> [{"satz", "vermutung"}] in Textreihenfolge. "satz" ist
+    woertlich aus der Antwort (ohne Aufzaehlungszeichen), damit Frontend und
+    PDF ihn dort wiederfinden. Ab der deutschen Zeile "Vermutung (nicht im
+    Graphen belegt):" ist vermutung=True; die Ueberschrift selbst ist kein Satz.
+    """
+    statements, vermutung = [], False
+    for line in answer.split("\n"):
+        text = line.strip().lstrip("-*•").strip()
+        if VERMUTUNG_MARKER in text.casefold():
+            vermutung = True
+            text = text[text.casefold().index(VERMUTUNG_MARKER) + len(VERMUTUNG_MARKER):].lstrip(" :*").strip()
+        pieces = []
+        for piece in re.split(r"(?<=[.!?])\s+(?=[\"„(\[A-ZÄÖÜ0-9])", text):
+            if pieces and pieces[-1].endswith(NO_SENTENCE_END):
+                pieces[-1] += " " + piece
+            else:
+                pieces.append(piece)
+        statements += [{"satz": p.strip(), "vermutung": vermutung} for p in pieces if len(p.strip()) > 1]
+    return statements
+
+
+def cited_numbers(text: str) -> list:
+    """[3] oder [2, 5] -> [3] bzw. [2, 5]"""
+    return [int(n) for group in re.findall(r"\[([\d,\s]+)\]", text) for n in re.findall(r"\d+", group)]
+
+
+def check_answer(graph, answer: str, evidence_edges: list, language: str = DEFAULT_LANGUAGE) -> dict:
+    """
+    Antwort-Pruefer: jeder Satz ausserhalb von "Vermutung" wird gegen die
+    Tripel geprueft, die die Antwort zitiert - auch Saetze ohne eigenes [n],
+    sie duerfen nichts behaupten, was nicht in den Belegen steht. Ein
+    LLM-Aufruf fuer alle Saetze (wie der Pruef-Agent in polygraph), pro Satz
+    erst Belege und Begruendung, dann Urteil.
+
+    Die Antwort bleibt unveraendert - Frontend und PDF markieren nicht
+    gedeckte Saetze. Scheitert die Pruefung, kommt {"status": "ungeprueft"}
+    statt eines Fehlers: die Antwort ist trotzdem da.
+    -> {"status": "geprueft"|"ungeprueft", "saetze": [{satz, vermutung,
+        urteil, belege, begruendung}], "dauer_s"}
+    """
+    started = time.time()
+    statements = split_statements(answer)
+    for s in statements:
+        if s["vermutung"]:
+            s.update(urteil="vermutung", belege=[], begruendung="")
+    to_check = [s for s in statements if not s["vermutung"]]
+    numbers = sorted({n for s in to_check for n in cited_numbers(s["satz"]) if 1 <= n <= len(evidence_edges)})
+
+    def done(status, **extra):
+        return {"status": status, "saetze": statements if status == "geprueft" else [],
+                "dauer_s": round(time.time() - started, 1), **extra}
+
+    if not to_check:
+        return done("geprueft")
+    prompt = _load_prompt("ask_check.md").format(
+        triples="\n".join(format_triple(n, graph, evidence_edges[n - 1]) for n in numbers) or "(keine)",
+        sentences="\n".join(f"{i}: {s['satz']}" for i, s in enumerate(to_check, 1)),
+        language=language,
+    )
+    try:
+        response = ollama.chat(
+            model=MODEL, messages=[{"role": "user", "content": prompt}], think=False,
+            format=CHECK_SCHEMA, options={"num_predict": 300 * len(to_check) + 500, "temperature": 0},
+        )
+        if response.get("done_reason") == "length":
+            raise ValueError("abgeschnitten")
+        verdicts = json.loads(response["message"]["content"])
+        if [v.get("nr") for v in verdicts] != list(range(1, len(to_check) + 1)):
+            raise ValueError(f"{len(verdicts)} Urteile fuer {len(to_check)} Saetze")
+    except Exception as e:  # Pruefung ist eine Zusatzinfo - die Antwort kommt trotzdem
+        print(f"Warnung: Antwort-Pruefung fehlgeschlagen ({e})")
+        return done("ungeprueft", fehler=str(e))
+
+    for s, v in zip(to_check, verdicts):
+        s.update(urteil=v["urteil"], begruendung=v["begruendung"].strip(),
+                 belege=[n for n in v["belege"] if n in numbers])
+        s["vermutung"] = v["urteil"] == "vermutung"
+    return done("geprueft")
+
+
 def ask(graph, question: str, language: str = DEFAULT_LANGUAGE) -> dict:
     """
     Fuehrt den GraphRAG-Ablauf aus und gibt ein API-taugliches Dict zurueck:
     question, selected_nodes (Startknoten + vom Agenten untersuchte Knoten),
     answer, triples (nummeriert), graph (Teilgraph im GraphStore.to_json()-
     Format), steps (Werkzeugaufrufe des Agenten), glossary (Fachbegriffe
-    der Antwort mit Erklaerung, siehe explain_terms). language ist die
+    der Antwort mit Erklaerung, siehe explain_terms), pruefung (Urteil pro
+    Satz, siehe check_answer). language ist die
     Sprache von Antwort und Glossar - die Frage darf in jeder Sprache
     kommen, der Graph selbst ist immer englisch.
     """
@@ -405,4 +515,6 @@ def ask(graph, question: str, language: str = DEFAULT_LANGUAGE) -> dict:
         "graph": subgraph_store.to_json(),
         "steps": steps,
         "glossary": explain_terms(graph, answer, evidence.edges, language) if answer else [],
+        "pruefung": (check_answer(graph, answer, evidence.edges, language) if answer
+                     else {"status": "ungeprueft", "fehler": "keine Antwort", "saetze": []}),
     }

@@ -90,7 +90,10 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   Tripel und darf bei Bedarf per Werkzeug (Knotensuche, Kanten eines
   Knotens, Pfad zwischen zwei Knoten) weitere Tripel nachladen.
   Antwort:
-  `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}, "steps": [{"tool": str, "args": {...}, "new_triples": int}], "glossary": [{"term": str, "type": str, "explanation": str | null}]}`
+  `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}, "steps": [{"tool": str, "args": {...}, "new_triples": int}], "glossary": [{"term": str, "type": str, "explanation": str | null}], "pruefung": {"status": "geprueft"|"ungeprueft", "saetze": [{"satz": str, "urteil": "gedeckt"|"teilweise"|"nicht_gedeckt"|"vermutung"|"keine_aussage", "belege": [int], "begruendung": str}], "dauer_s": float}}`
+  `pruefung`: Antwort-Pruefer - jeder Satz gegen die zitierten Tripel
+  geprueft; die Antwort selbst bleibt unveraendert, die Oberflaeche markiert
+  nicht gedeckte Saetze.
   `graph` ist der verwendete Teilgraph, im selben Format wie `GET /graph` -
   dieselbe Frontend-Logik zeichnet beides.
 - `GET /questions/suggest?count=5&language=Deutsch` (count 1-10) -> `{"questions": [{"question": str, "type": "detail"|"knoten"|"pfad"|"vergleich", "nodes": [str]}]}`
@@ -118,6 +121,16 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   Speichert einmal am Ende.
 - `POST /edges/rewrite` Body `{"rewrites": [{"field": "value"|"condition"|"evidence_level", "old": str, "new": str}, ...]}`
   -> `{"changed": N}` - ersetzt eine Angabe auf allen Kanten.
+- `POST /duplicates/find` Body `{"threshold": 0.75, "limit": null}` ->
+  `{"vorschlaege": [{"behalten": str, "entfernen": str, "begruendung": str, "aehnlichkeit": float, "kanten": {...}, "typen": {...}, "freigegeben": false}], "richter_aufrufe": int, "knoten": int, "dauer_s": float}`
+  - Duplikat-Aufraeumer: doppelte Knoten im ganzen Graphen (Embedding +
+  LLM-Richter), aendert nichts. Dauert lange (~75 Min. bei ~2.800 Knoten);
+  `limit` begrenzt die Richter-Aufrufe fuer Probelaeufe. Aufruf ueber
+  polygraph `dedupe.py`.
+- `POST /nodes/merge` Body `{"keep": str, "remove": str}` ->
+  `{"moved": n, "collapsed": n, "dropped_self_loops": n, "nodes": N, "edges": M}`
+  - Kanten von `remove` an `keep` umhaengen, `remove` loeschen (nach
+  Freigabe durch einen Menschen). 404 wenn ein Knoten fehlt.
 
 ## Bestand auf Englisch umstellen
 

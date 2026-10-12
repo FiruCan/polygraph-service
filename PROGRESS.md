@@ -2,6 +2,41 @@
 
 ## Stand
 
+**Antwort-Pruefer (fertig)**
+- Grund: Antworten gehen als PDF weiter - eine falsch belegte Aussage ist
+  dort teurer als im Graphen. Gleiches Prinzip wie der Pruef-Agent bei der
+  Extraktion (polygraph `verify_triples`).
+- `graph/ask.py::check_answer()`, `prompts/ask_check.md`: ein LLM-Aufruf
+  fuer alle Saetze, pro Satz erst Belege + Begruendung, dann Urteil
+  (gedeckt / teilweise / nicht_gedeckt / vermutung / keine_aussage).
+  Geprueft wird gegen die zitierten Tripel, auch Saetze ohne eigenes [n].
+  Vermutungs-Abschnitt: auf Deutsch am Text erkannt, in anderen Sprachen
+  ordnet ihn das LLM zu. Scheitert die Pruefung: `status: "ungeprueft"`,
+  Antwort unveraendert.
+- `/ask` liefert `pruefung`; polygraph markiert nicht gedeckte Saetze im
+  Frontend (Begruendung als Tooltip) und im PDF (Abschnitt "Belegpruefung").
+- Live (echter Graph, eine Frage zu Krafttraining/Herz/Diabetes): Original
+  4/4 Saetze gedeckt; 5 eingebaute Fehler (Zahl, Richtung, Bedingung,
+  erfundene Aussage mit Beleg, "klinische Studien beweisen" statt
+  Bevoelkerungsstudien) alle gefunden, jeweils nur der falsche Satz
+  markiert. Rechenzeit ~9 s (1.4 s Prompt, 7 s Ausgabe); gemessen 42-68 s,
+  weil Ollama gleichzeitig andere Anfragen bearbeitete.
+- Grenzen: nur an einer Frage live geprueft; Antwortzeit pro Frage +~10 s.
+
+**Duplikat-Aufraeumer (fertig, noch nicht ueber den ganzen Graphen gelaufen)**
+- `graph/dedupe.py`, `POST /duplicates/find`, `POST /nodes/merge`
+  (`store.merge_nodes`: Kanten umhaengen, Schleifen zwischen den beiden
+  verwerfen, gleiche Relation + Quelle zusammenlegen); Freigabe-Ablauf in
+  polygraph `dedupe.py` (wie der Vokabular-Steward).
+- Kandidaten: 0.75 und max. 5 pro Knoten; Abkuerzungen 0.55 und max. 20
+  ("MS" ~ "multiple Sklerose" nur 0.66). Gemessen am Graphen (2.762
+  Knoten): ~980 Richter-Aufrufe a ~4.7 s -> ~75 Min.
+- Probelauf (30 Aufrufe): 3 Vorschlaege, 2 richtig, 1 falsch ("Konzentration
+  im Blut" -> "concentration") - deshalb nur mit Freigabe.
+- Offen: voller Lauf erst nach der Umstellung auf englische Namen
+  (`translate_graph.py`) - viele Duplikate ueber Sprachgrenzen loesen sich
+  dabei von selbst.
+
 **Graph komplett Englisch, Fragen/Antworten in waehlbarer Sprache (fertig, Bestand noch nicht umgestellt)**
 - Grund: Knotennamen standen in der Sprache des Quelltextes - "Multiple
   Sklerose" neben "multiple sclerosis", "ZNS" neben "CNS". Die

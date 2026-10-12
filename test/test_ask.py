@@ -43,6 +43,7 @@ def final(text):
 def run(graph, question, selected, replies):
     with patch.object(ask_mod, "select_nodes", return_value=selected), \
          patch.object(ask_mod, "explain_terms", return_value=[]), \
+         patch.object(ask_mod, "check_answer", return_value={"status": "geprueft", "saetze": []}), \
          patch.object(ask_mod.ollama, "chat", side_effect=replies) as chat:
         return ask_mod.ask(graph, question), chat
 
@@ -187,3 +188,84 @@ def test_explain_term_passes_source_sentences(graph):
         result = ask_mod.explain_term("CN045", passages=["We identified a lead hit (CN045)."])
     assert result["used_sources"] is True
     assert "- We identified a lead hit (CN045)." in chat.call_args.kwargs["messages"][0]["content"]
+
+
+# --- Antwort-Pruefer (check_answer) ----------------------------------------
+
+def checker_reply(*verdicts):
+    return {"message": {"content": json.dumps([
+        {"nr": i, "belege": b, "begruendung": f"Grund {i}", "urteil": u}
+        for i, (u, b) in enumerate(verdicts, 1)])}}
+
+
+def test_split_statements_keeps_text_and_marks_german_vermutung():
+    answer = ("Krafttraining senkt das Herzrisiko um 15 Prozent [1]. Das gilt z.B. bei zwei Einheiten pro Woche [1].\n\n"
+              "- Muskeln geben Myokine ab [2].\n"
+              "Vermutung (nicht im Graphen belegt): Vielleicht hilft das auch dem Gehirn. Sicher ist das nicht.")
+    st = ask_mod.split_statements(answer)
+    assert [s["satz"] for s in st] == [
+        "Krafttraining senkt das Herzrisiko um 15 Prozent [1].",
+        "Das gilt z.B. bei zwei Einheiten pro Woche [1].",
+        "Muskeln geben Myokine ab [2].",
+        "Vielleicht hilft das auch dem Gehirn.",
+        "Sicher ist das nicht.",
+    ]
+    assert [s["vermutung"] for s in st] == [False, False, False, True, True]
+    assert all(s["satz"] in answer for s in st)
+
+
+def test_cited_numbers():
+    assert ask_mod.cited_numbers("A [3] und B [2, 5].") == [3, 2, 5]
+
+
+def test_check_answer_sends_only_cited_triples_and_skips_vermutung(graph):
+    edges = list(graph.edges(keys=True))
+    answer = "Krafttraining senkt das Risiko [1]. Myokine heilen Krebs [3].\nVermutung (nicht im Graphen belegt): Vielleicht."
+    with patch.object(ask_mod.ollama, "chat",
+                      return_value=checker_reply(("gedeckt", [1]), ("nicht_gedeckt", [9]))) as chat:
+        result = ask_mod.check_answer(graph, answer, edges, "Deutsch")
+    prompt = chat.call_args.kwargs["messages"][0]["content"]
+    assert "[1] Krafttraining" in prompt and "[3] Myokine" in prompt and "[2]" not in prompt
+    assert "Vielleicht" not in prompt
+    assert result["status"] == "geprueft"
+    assert [(s["urteil"], s["belege"]) for s in result["saetze"]] == [
+        ("gedeckt", [1]), ("nicht_gedeckt", []), ("vermutung", [])]   # 9 ist kein zitierter Beleg -> raus
+
+
+def test_check_answer_llm_marks_vermutung_in_other_languages(graph):
+    edges = list(graph.edges(keys=True))
+    answer = "Strength training lowers the risk [1].\nAssumption (not proven in the graph): It may help the brain."
+    with patch.object(ask_mod.ollama, "chat", return_value=checker_reply(
+            ("gedeckt", [1]), ("vermutung", []))) as chat:
+        result = ask_mod.check_answer(graph, answer, edges, "Englisch")
+    assert "auf Englisch" in chat.call_args.kwargs["messages"][0]["content"]
+    assert [s["vermutung"] for s in result["saetze"]] == [False, True]
+
+
+@pytest.mark.parametrize("reply", [
+    {"message": {"content": "kaputt"}},
+    {"message": {"content": "[]"}},                                    # falsche Anzahl
+    {"message": {"content": "[]"}, "done_reason": "length"},
+])
+def test_check_answer_failure_returns_unchecked(graph, reply):
+    edges = list(graph.edges(keys=True))
+    with patch.object(ask_mod.ollama, "chat", return_value=reply):
+        result = ask_mod.check_answer(graph, "Krafttraining senkt das Risiko [1].", edges)
+    assert result["status"] == "ungeprueft" and result["saetze"] == [] and result["fehler"]
+
+
+def test_check_answer_without_checkable_sentences_skips_llm(graph):
+    with patch.object(ask_mod.ollama, "chat") as chat:
+        result = ask_mod.check_answer(graph, "Vermutung (nicht im Graphen belegt): Vielleicht.", [])
+    chat.assert_not_called()
+    assert result["status"] == "geprueft"
+
+
+def test_ask_includes_pruefung(graph):
+    with patch.object(ask_mod, "select_nodes", return_value=["Krafttraining"]), \
+         patch.object(ask_mod, "explain_terms", return_value=[]), \
+         patch.object(ask_mod.ollama, "chat", side_effect=[
+             final("Krafttraining senkt das Risiko [1]."), checker_reply(("gedeckt", [1]))]):
+        result = ask_mod.ask(graph, "Was senkt das Risiko?")
+    assert result["pruefung"]["status"] == "geprueft"
+    assert result["pruefung"]["saetze"][0]["urteil"] == "gedeckt"
