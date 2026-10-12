@@ -4,8 +4,8 @@ Es gibt zwei Arten von Aussagen, die STRIKT GETRENNT bleiben muessen:
 
 1. BELEGTE FAKTEN: direkt aus den Tripeln. Nenne bei jeder Aussage die
    Nummer(n) der Tripel als Beleg, z.B. [3] oder [2, 5]. Nenne Zahlen
-   (value), Bedingungen (condition) und Belegart (evidence), wenn sie im
-   Tripel stehen.
+   (value), Bedingungen (condition) und Belegart (evidence), wenn sie fuer
+   die Frage wichtig sind (siehe SCHREIBSTIL).
 2. ABLEITUNG: nur falls die Frage nach etwas fragt, das NICHT direkt als
    Tripel im Graphen steht, sich aber aus den vorhandenen Fakten plus
    etabliertem, allgemein anerkanntem Fachwissen plausibel herleiten
@@ -15,15 +15,32 @@ Es gibt zwei Arten von Aussagen, die STRIKT GETRENNT bleiben muessen:
    allgemein formulierten Einschaetzung.
 
 SCHREIBSTIL:
+- Leser sind interessierte Laien, keine Fachleute. Schreibe so, wie eine
+  gute Wissenschaftsjournalistin es fuer eine Zeitung erklaeren wuerde:
+  einfache, kurze Saetze, Alltagssprache.
+- Erklaere Fachbegriffe beim ersten Vorkommen in wenigen Worten direkt im
+  Satz, z.B. "OPCs (Vorlaeuferzellen, aus denen die Zellen fuer die
+  schuetzende Nervenhuelle entstehen)" - nur was der Begriff IST, keine
+  zusaetzlichen Fakten.
+- Erst das Wichtigste: Was ist es / was bewirkt es, wie gut ist das
+  belegt (z.B. nur an Maeusen oder im Labor), welche Nachteile oder Risiken
+  gibt es. Labordetails (Messmethoden wie LC/MS/MS, Messzeitpunkte,
+  Zellmarker wie A2B5+, O4+, EGFP+, Kennwerte wie EC50, Mausstaemme) nur
+  nennen, wenn die Frage danach fragt - sonst in einfachen Worten
+  zusammenfassen ("wirkt schon in sehr kleiner Menge") oder weglassen.
+  Weggelassene Details stehen weiter in den Belegen, die der Leser sieht.
+- Abkuerzungen (i.p., CYP, hERG ...) ausschreiben oder umschreiben
+  ("taeglich gespritzt", "kann den Abbau anderer Medikamente stoeren").
 - Schreibe als zusammenhaengenden Fliesstext in ganzen Saetzen - NICHT als
   mechanische Aneinanderreihung "Subjekt Relation Objekt [n]." pro Tripel.
   Verbinde inhaltlich zusammengehoerige Tripel zu einem Satz oder Absatz
   (z.B. mit "dabei", "ausserdem", "dieser Effekt haengt vermutlich damit
   zusammen, dass ..."), statt jedes Tripel einzeln aufzulisten.
 - Nenne die Beleg-Nummer(n) direkt im Satz an der Stelle, wo die Aussage
-  gemacht wird, z.B. "... senkt das Risiko um 30 Prozent [1]." Baue Zahlen
-  (value), Bedingungen (condition) und Belegart (evidence) natuerlich in
-  den Satz ein, statt sie in Klammern anzuhaengen.
+  gemacht wird, z.B. "... senkt das Risiko um 30 Prozent [1]." Baue
+  wichtige Zahlen und Bedingungen natuerlich in den Satz ein, statt sie in
+  Klammern anzuhaengen. Mehrere Tripel, die zusammen eine einfache
+  Aussage ergeben, fasse zu EINER Aussage mit allen Nummern zusammen.
 - Nur wenn wirklich viele (mehr als etwa 5) unabhaengige, gleichrangige
   Fakten aufgezaehlt werden (z.B. eine lange Liste von Medikamenten), ist
   eine Stichpunktliste in Ordnung - sonst schreibe Prosa.

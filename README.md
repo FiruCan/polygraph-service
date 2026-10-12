@@ -58,6 +58,9 @@ schreiben nie in `data/graph.gml` (App-Tests nutzen eine temporaere Datei).
 
 ## API
 
+Uebersicht aller Endpoints im Browser: `http://localhost:8000/help` (leitet
+auf die automatische API-Doku `/docs` weiter).
+
 Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
 
 ```json
@@ -80,7 +83,7 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   Tripel und darf bei Bedarf per Werkzeug (Knotensuche, Kanten eines
   Knotens, Pfad zwischen zwei Knoten) weitere Tripel nachladen.
   Antwort:
-  `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}, "steps": [{"tool": str, "args": {...}, "new_triples": int}]}`
+  `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}, "steps": [{"tool": str, "args": {...}, "new_triples": int}], "glossary": [{"term": str, "type": str, "explanation": str | null}]}`
   `graph` ist der verwendete Teilgraph, im selben Format wie `GET /graph` -
   dieselbe Frontend-Logik zeichnet beides.
 - `GET /questions/suggest?count=5` (1-10) -> `{"questions": [{"question": str, "type": "detail"|"knoten"|"pfad"|"vergleich", "nodes": [str]}]}`

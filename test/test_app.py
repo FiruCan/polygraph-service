@@ -140,3 +140,21 @@ def test_questions_suggest_returns_list(client):
 
 def test_questions_suggest_rejects_too_many(client):
     assert client.get("/questions/suggest?count=50").status_code == 422
+
+
+def test_help_redirects_to_docs(client):
+    response = client.get("/help", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers["location"] == "/docs"
+
+
+def test_explain_endpoint(client):
+    with patch("app.explain_term", return_value={"term": "X", "explanation": "E", "known": True}) as fn:
+        r = client.post("/explain", json={"term": "X", "question": "F", "answer": "A"})
+    assert r.status_code == 200 and r.json()["explanation"] == "E"
+    fn.assert_called_once_with("X", "F", "A", None, [])
+
+
+def test_explain_endpoint_llm_failure_is_502(client):
+    with patch("app.explain_term", side_effect=RuntimeError("down")):
+        assert client.post("/explain", json={"term": "X"}).status_code == 502

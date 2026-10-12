@@ -9,6 +9,11 @@ Fragen an den Wissensgraphen (GraphRAG mit lokalem Ollama):
    sie nicht, darf er per Werkzeug (suche_knoten, kanten_von, pfad) weitere
    Tripel nachladen - bis zu MAX_TOOL_ROUNDS Runden. Nachgeladene Tripel
    werden fortlaufend weiternummeriert, damit Belege eindeutig bleiben.
+4. Glossar: ein weiterer LLM-Aufruf erklaert Fachbegriffe aus der Antwort
+   (z.B. LINGO-1, OPCs) fuer Laien - getrennt vom Antworttext, weil die
+   Erklaerungen aus Allgemeinwissen stammen und nicht aus dem Graphen.
+   explain_term() liefert auf Wunsch (POST /explain) eine ausfuehrliche
+   Erklaerung eines einzelnen Begriffs - ebenfalls aus Allgemeinwissen.
 
 ask() gibt ein Dict zurueck (fuer die API); Druckausgabe/HTML-Erzeugung
 passiert nicht mehr hier, das macht das Frontend aus der JSON-Antwort.
@@ -29,6 +34,7 @@ MAX_TOOL_ROUNDS = 4
 MAX_TOOL_TRIPLES = 40     # pro Werkzeugaufruf
 MAX_TOTAL_TRIPLES = 250   # Obergrenze ueber alle Runden
 MAX_SEARCH_HITS = 30
+MAX_GLOSSARY_TERMS = 40   # Kandidaten fuer das Glossar
 PROMPT_DIR = os.path.join(os.path.dirname(__file__), "..", "prompts")
 
 
@@ -246,12 +252,115 @@ def _agent_answer(graph, question: str, evidence: _Evidence) -> tuple:
     return "", steps, focus  # nicht erreichbar: die letzte Runde laeuft ohne Werkzeuge
 
 
+def glossary_candidates(graph, answer: str, edges: list) -> list:
+    """Knoten aus den Belegen, deren Name in der Antwort vorkommt -> [(Name, Typ)].
+    So kennt das Glossar nur Begriffe, die der Leser wirklich sieht, plus ihren Typ aus dem Graphen."""
+    text = answer.casefold()
+    names = []
+    for u, v, _ in edges:
+        for n in (u, v):
+            if n not in names and str(n).casefold() in text:
+                names.append(n)
+    # laengere Namen zuerst: "Oligodendrocyte Progenitor Cells" vor "Cells", falls die Liste gekappt wird
+    names.sort(key=lambda n: -len(str(n)))
+    return [(n, graph.nodes[n].get("type")) for n in names[:MAX_GLOSSARY_TERMS]]
+
+
+def _glossary_schema(names: list) -> dict:
+    return {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "begriff": {"type": "string", "enum": names},
+                "bekannt": {"type": "boolean"},
+                "erklaerung": {"type": "string"},
+            },
+            "required": ["begriff", "bekannt", "erklaerung"],
+        },
+    }
+
+
+def explain_terms(graph, answer: str, edges: list) -> list:
+    """
+    Glossar zur Antwort: [{term, type, explanation}]. explanation ist None,
+    wenn das Modell den Begriff nicht sicher kennt (lieber nichts als etwas
+    Erfundenes - das Frontend zeigt dann nur den Typ aus dem Graphen).
+    Scheitert der Aufruf, gibt es ein leeres Glossar statt eines Fehlers.
+    """
+    candidates = glossary_candidates(graph, answer, edges)
+    if not candidates:
+        return []
+    types = dict(candidates)
+    terms = "\n".join(f"- {n}" + (f" (Typ: {t})" if t else "") for n, t in candidates)
+    try:
+        response = ollama.chat(
+            model=MODEL,
+            messages=[{"role": "user", "content": _load_prompt("ask_glossary.md").format(
+                terms=terms, answer=answer)}],
+            think=False,
+            format=_glossary_schema([n for n, _ in candidates]),
+            options={"num_predict": 2000, "temperature": 0},
+        )
+        items = json.loads(response["message"]["content"])
+    except Exception as e:  # Glossar ist ein Komfort - die Antwort kommt trotzdem
+        print(f"Warnung: Glossar fehlgeschlagen ({e})")
+        return []
+
+    glossary, seen = [], set()
+    for item in items if isinstance(items, list) else []:
+        term = item.get("begriff") if isinstance(item, dict) else None
+        if term not in types or term in seen:
+            continue
+        seen.add(term)
+        explanation = (item.get("erklaerung") or "").strip() if item.get("bekannt") else ""
+        glossary.append({"term": term, "type": types[term], "explanation": explanation or None})
+    return glossary
+
+
+EXPLAIN_SCHEMA = {
+    "type": "object",
+    "properties": {"bekannt": {"type": "boolean"}, "erklaerung": {"type": "string", "minLength": 1}},
+    "required": ["bekannt", "erklaerung"],
+}
+
+
+def explain_term(term: str, question: str = "", answer: str = "", node_type: str = None,
+                 passages: list = None) -> dict:
+    """
+    Ausfuehrliche Erklaerung eines Begriffs aus Fachwissen des Modells, im
+    Zusammenhang der Frage. Bekommt bewusst KEINE Tripel: die Erklaerung soll
+    in eigenen Worten erklaeren, nicht Graph-Kanten nacherzaehlen. passages
+    sind Saetze aus den Originalquellen (polygraph POST /passages) - damit
+    lassen sich auch Begriffe erklaeren, die das Modell nicht kennt (CN045).
+    think=True: ohne Denkschritt kamen nur zwei knappe Saetze und eine
+    erfundene Verbindung zwischen Begriffen; mit ~50-70 s.
+    -> {term, explanation, known}. Fehler (Ollama weg, kaputtes JSON) gehen an den Aufrufer.
+    """
+    prompt = _load_prompt("ask_explain.md").format(
+        term=term, type_hint=f" (Typ im Wissensgraphen: {node_type})" if node_type else "",
+        question=question or "(unbekannt)", answer=answer or "(unbekannt)",
+        passages="\n".join(f"- {p}" for p in passages) if passages else "(kein Quelltext vorhanden)",
+    )
+    response = ollama.chat(
+        model=MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        think=True,
+        format=EXPLAIN_SCHEMA,
+        options={"num_predict": 4000, "temperature": 0.3},
+    )
+    data = json.loads(response["message"]["content"])
+    return {"term": term, "explanation": data["erklaerung"].strip(), "known": bool(data["bekannt"]),
+            "used_sources": bool(passages)}
+
+
 def ask(graph, question: str) -> dict:
     """
     Fuehrt den GraphRAG-Ablauf aus und gibt ein API-taugliches Dict zurueck:
     question, selected_nodes (Startknoten + vom Agenten untersuchte Knoten),
     answer, triples (nummeriert), graph (Teilgraph im GraphStore.to_json()-
-    Format), steps (Werkzeugaufrufe des Agenten).
+    Format), steps (Werkzeugaufrufe des Agenten), glossary (Fachbegriffe
+    der Antwort mit Erklaerung, siehe explain_terms).
     """
     from graph.store import GraphStore  # lokal importiert, um Zirkularimport zu vermeiden
 
@@ -289,4 +398,5 @@ def ask(graph, question: str) -> dict:
         "triples": triples,
         "graph": subgraph_store.to_json(),
         "steps": steps,
+        "glossary": explain_terms(graph, answer, evidence.edges) if answer else [],
     }

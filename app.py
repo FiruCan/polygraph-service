@@ -24,11 +24,12 @@ import os
 import threading
 from typing import Literal, Optional
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-from graph.ask import ask as run_ask
+from graph.ask import ask as run_ask, explain_term
 from graph.normalize import normalize_triple, similar_entities
 from graph.store import GraphStore
 from graph.suggest import suggest_questions
@@ -57,6 +58,14 @@ class QuestionIn(BaseModel):
     question: str
 
 
+class ExplainIn(BaseModel):
+    term: str
+    type: Optional[str] = None
+    question: str = ""
+    answer: str = ""
+    passages: list[str] = []
+
+
 class SimilarIn(BaseModel):
     names: list[str]
     limit: int = 3
@@ -70,6 +79,7 @@ class RenameIn(BaseModel):
 
 @app.get("/health")
 def health():
+    """Lebenszeichen plus Groesse des Graphen (Knoten, Kanten)."""
     with store_lock:
         return {
             "status": "ok",
@@ -80,12 +90,17 @@ def health():
 
 @app.get("/graph")
 def get_graph():
+    """Der ganze Graph als JSON: nodes und edges."""
     with store_lock:
         return store.to_json()
 
 
 @app.post("/triples")
 def add_triples(body: TriplesIn):
+    """
+    Tripel normalisieren und einfuegen. Mit source werden vorher alle Kanten
+    dieser Quelle entfernt (Re-Import ersetzt statt zu wachsen).
+    """
     with store_lock:
         removed_nodes_before = store.graph.number_of_nodes()
         removed_edges_before = store.graph.number_of_edges()
@@ -156,6 +171,24 @@ def questions_suggest(count: int = Query(5, ge=1, le=10)):
 
 @app.post("/ask")
 def ask_question(body: QuestionIn):
+    """Frage an den Graphen (GraphRAG): Antwort, verwendete Tripel und Teilgraph."""
     with store_lock:
         return run_ask(store.graph, body.question)
 
+
+@app.post("/explain")
+def explain(body: ExplainIn):
+    """
+    Ausfuehrliche Erklaerung eines Begriffs aus der Antwort (Allgemeinwissen
+    des Modells, nicht aus dem Graphen). Ohne store_lock: liest den Graphen nicht.
+    """
+    try:
+        return explain_term(body.term, body.question, body.answer, body.type, body.passages)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Erklaerung fehlgeschlagen: {e}")
+
+
+@app.get("/help", include_in_schema=False)
+def help_page():
+    """Kurzer Einstieg: leitet auf die automatische API-Doku (/docs) weiter."""
+    return RedirectResponse("/docs")
