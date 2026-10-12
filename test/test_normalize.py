@@ -22,9 +22,11 @@ from graph.normalize import find_match, normalize_triple
 def clear_caches():
     normalize._embed.cache_clear()
     normalize._judge.cache_clear()
+    normalize.judge_verdict.cache_clear()
     yield
     normalize._embed.cache_clear()
     normalize._judge.cache_clear()
+    normalize.judge_verdict.cache_clear()
 
 
 # Feste Spielzeug-Vektoren: Aehnlichkeit laesst sich direkt ablesen
@@ -111,7 +113,9 @@ def test_judge_broken_json_means_no_merge():
 def test_normalize_triple_maps_fields_and_keeps_rest():
     triple = {"subject": "IL-6", "relation": "reduces", "object": "Entzündungen", "value": "x"}
     matches = {"IL-6": "Interleukin-6", "Entzündungen": None, "reduces": "reduces"}
-    with patch("graph.normalize.find_match", side_effect=lambda term, known: matches[term]):
+    with patch("graph.normalize.find_match", side_effect=lambda term, known: matches[term]), \
+         patch("graph.normalize.to_english", side_effect=lambda n: n), \
+         patch("graph.normalize.detail_to_english", side_effect=lambda t: t):
         result = normalize_triple(triple, ["Interleukin-6"], ["reduces"])
     assert result == {"subject": "Interleukin-6", "relation": "reduces",
                       "object": "Entzündungen", "value": "x"}

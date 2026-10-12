@@ -146,6 +146,77 @@ class GraphStore:
                 changed += 1
         return changed
 
+    def rewrite_edge_field(self, field: str, old: str, new: str) -> int:
+        """Setzt das Feld auf allen Kanten mit Wert 'old' auf 'new' (z.B. "Metaanalyse" -> "meta-analysis")."""
+        changed = 0
+        for _, _, data in self.graph.edges(data=True):
+            if data.get(field) == old:
+                data[field] = new
+                changed += 1
+        return changed
+
+    def merge_nodes(self, keep: str, remove: str) -> dict:
+        """
+        Fuehrt 'remove' in 'keep' zusammen (Duplikat-Aufraeumer, nach Freigabe):
+        alle Kanten von/zu 'remove' haengen danach an 'keep', 'remove' wird
+        geloescht. Den Typ von 'remove' erbt 'keep' nur, wenn es selbst keinen hat.
+
+        - Kanten zwischen den beiden ("MS --abbreviation_of--> multiple
+          Sklerose") wuerden zur Schleife keep -> keep und fallen weg.
+        - Gibt es an 'keep' schon dieselbe Kante (Relation + Quelle), wird
+          nicht verdoppelt, sondern zusammengelegt - wie bei add_triple();
+          fehlende Felder der bestehenden Kante werden ergaenzt.
+        -> {"moved", "collapsed", "dropped_self_loops"}. KeyError, wenn ein
+        Knoten fehlt; ValueError bei keep == remove.
+        """
+        if keep == remove:
+            raise ValueError("keep und remove sind derselbe Knoten")
+        for node in (keep, remove):
+            if not self.graph.has_node(node):
+                raise KeyError(node)
+
+        edges = {(u, v, k): data for u, v, k, data in self.graph.out_edges(remove, keys=True, data=True)}
+        edges.update({(u, v, k): data for u, v, k, data in self.graph.in_edges(remove, keys=True, data=True)})
+
+        stats = {"moved": 0, "collapsed": 0, "dropped_self_loops": 0}
+        for (u, v, _), data in edges.items():
+            u, v = (keep if u == remove else u), (keep if v == remove else v)
+            if u == v:
+                stats["dropped_self_loops"] += 1
+                continue
+            existing = self._find_edge_key(u, v, data.get("relation"), data.get("origin"))
+            if existing is None:
+                self.graph.add_edge(u, v, **data)
+                stats["moved"] += 1
+            else:
+                target = self.graph.edges[u, v, existing]
+                for key, value in data.items():
+                    target.setdefault(key, value)
+                stats["collapsed"] += 1
+
+        removed_type = self.graph.nodes[remove].get("type")
+        if removed_type is not None and self.graph.nodes[keep].get("type") is None:
+            self.graph.nodes[keep]["type"] = removed_type
+        self.graph.remove_node(remove)
+        return stats
+
+    def rename_node(self, old: str, new: str) -> dict:
+        """
+        Benennt einen Knoten um (Umstellung auf englische Namen,
+        translate_graph.py). Gibt es 'new' schon, wird 'old' dorthin
+        zusammengefuehrt (merge_nodes) statt einen zweiten Knoten anzulegen.
+        -> {"merged": bool, ...Zaehler von merge_nodes}. KeyError, wenn 'old'
+        fehlt; ValueError bei old == new.
+        """
+        if old == new:
+            raise ValueError("alter und neuer Name sind gleich")
+        if not self.graph.has_node(old):
+            raise KeyError(old)
+        if self.graph.has_node(new):
+            return {"merged": True, **self.merge_nodes(new, old)}
+        nx.relabel_nodes(self.graph, {old: new}, copy=False)
+        return {"merged": False}
+
     def edges_by_relation(self, node: str, relation: str, direction: str = "out"):
         """Alle Kanten eines bestimmten Relationstyps an einem Knoten."""
         edge_view = self.graph.out_edges if direction == "out" else self.graph.in_edges

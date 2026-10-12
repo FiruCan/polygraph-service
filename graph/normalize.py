@@ -31,6 +31,8 @@ from typing import Optional
 import numpy as np
 import ollama
 
+from graph.translate import DETAIL_FIELDS, detail_to_english, to_english
+
 EMBED_MODEL = "bge-m3"
 JUDGE_MODEL = "gemma4:26b"
 CANDIDATE_THRESHOLD = 0.55
@@ -89,6 +91,15 @@ def _judge_schema(candidates: tuple) -> dict:
 @lru_cache(maxsize=4096)
 def _judge(term: str, candidates: tuple) -> Optional[str]:
     """Fragt das LLM, welcher Kandidat (falls einer) dieselbe Entitaet wie 'term' ist."""
+    return judge_verdict(term, candidates)[0]
+
+
+@lru_cache(maxsize=4096)
+def judge_verdict(term: str, candidates: tuple) -> tuple:
+    """
+    Wie _judge, aber mit Begruendung: (Treffer oder None, Begruendung) - der
+    Duplikat-Aufraeumer (graph/dedupe.py) zeigt sie einem Menschen zur Freigabe.
+    """
     with open(PROMPT_PATH, "r", encoding="utf-8") as f:
         template = f.read()
     prompt = template.format(term=term, candidates="\n".join(f"- {c}" for c in candidates))
@@ -102,10 +113,11 @@ def _judge(term: str, candidates: tuple) -> Optional[str]:
     # Abgeschnittene/kaputte Antwort = im Zweifel nicht zusammenfuehren
     # (gleiche Haltung wie der Prompt: "Im Zweifel: nicht dieselbe Entitaet")
     try:
-        answer = json.loads(response["message"]["content"]).get("treffer")
+        verdict = json.loads(response["message"]["content"])
+        answer, reason = verdict.get("treffer"), verdict.get("begruendung") or ""
     except (json.JSONDecodeError, AttributeError):
-        return None
-    return answer if answer in candidates else None
+        return None, "Antwort nicht lesbar"
+    return (answer if answer in candidates else None), reason
 
 
 def find_match(term: str, known_terms: list) -> Optional[str]:
@@ -172,10 +184,20 @@ def normalize_triple(triple: dict, known_entities: list, known_relations: list) 
     """
     Ersetzt subject/object/relation im Tripel durch den kanonischen,
     bereits bekannten Begriff, falls das LLM sie als identisch bestaetigt.
+    Subjekt und Objekt werden vorher ins Englische uebersetzt, ebenso
+    value, condition und evidence_level.
     Modifiziert eine Kopie, nicht das Original.
     """
     normalized = dict(triple)
-    normalized["subject"] = find_match(triple["subject"], known_entities) or triple["subject"]
-    normalized["object"] = find_match(triple["object"], known_entities) or triple["object"]
+    known = set(known_entities)
+    for field in ("subject", "object"):
+        # Knoten sind immer englisch (graph/translate.py): erst uebersetzen,
+        # dann gegen die (englischen) bekannten Knoten abgleichen. Ein
+        # exakt bekannter Name braucht keinen LLM-Aufruf.
+        term = triple[field] if triple[field] in known else to_english(triple[field])
+        normalized[field] = find_match(term, known_entities) or term
+    for field in DETAIL_FIELDS:
+        if isinstance(triple.get(field), str) and triple[field].strip():
+            normalized[field] = detail_to_english(triple[field])
     normalized["relation"] = find_match(triple["relation"], known_relations) or triple["relation"]
     return normalized

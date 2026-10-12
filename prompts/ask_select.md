@@ -3,11 +3,14 @@ Du bekommst eine Frage und die Liste aller Knoten eines Wissensgraphen.
 AUFGABE:
 Waehle die Knoten, die in der Frage GENANNT oder GEMEINT sind (Ausgangspunkte
 der Suche). Beruecksichtige auch Synonyme, Abkuerzungen sowie Ober- und
-Unterbegriffe (z.B. "Diabetes" -> "Typ-II-Diabetes", "Muskeln" -> "Muskulatur",
-"Skelettmuskel").
+Unterbegriffe (z.B. "Diabetes" -> "type 2 diabetes", "Muskeln" -> "muscles",
+"skeletal muscle").
+Die Knotennamen sind ENGLISCH, die Frage kann in jeder Sprache gestellt
+sein (z.B. Deutsch oder Tuerkisch) - uebersetze die Begriffe der Frage
+gedanklich ins Englische und waehle die passenden englischen Knoten.
 Waehle NICHT die gesuchte Antwort: Die Antwort ergibt sich spaeter aus den
 Kanten der gewaehlten Knoten.
-Beispiel: Frage "Was senkt das Risiko fuer Krebs?" -> ["Krebs"]
+Beispiel: Frage "Was senkt das Risiko fuer Krebs?" -> ["cancer"]
 
 AUSGABEFORMAT:
 Antworte AUSSCHLIESSLICH mit einem JSON-Array der exakten Knotennamen aus der

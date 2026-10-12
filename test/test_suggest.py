@@ -133,13 +133,13 @@ def test_suggest_falls_back_to_template_when_llm_fails():
     for q in result:
         k = q["nodes"]
         if q["type"] == "pfad":
-            assert q["question"] == f"Wie hängen {k[0]} und {k[1]} zusammen?"
+            assert q["question"] == f"How are {k[0]} and {k[1]} connected?"
         elif q["type"] == "detail":
-            assert q["question"] == f"Unter welchen Bedingungen hängt {k[0]} mit {k[1]} zusammen?"
+            assert q["question"] == f"Under which conditions is {k[0]} related to {k[1]}?"
         elif q["type"] == "vergleich":
-            assert q["question"] == f"Wirken {k[0]} und {k[1]} auf dieselbe Weise auf {k[2]}?"
+            assert q["question"] == f"Do {k[0]} and {k[1]} affect {k[2]} in the same way?"
         else:
-            assert q["question"] == f"Was ist über {k[0]} bekannt?"
+            assert q["question"] == f"What is known about {k[0]}?"
 
 
 def test_suggest_fills_missing_items_from_template():

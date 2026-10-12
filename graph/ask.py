@@ -27,6 +27,8 @@ import networkx as nx
 import ollama
 
 MODEL = "gemma4:26b"
+# Sprache von Antworten und Erklaerungen, wenn der Aufrufer keine waehlt
+DEFAULT_LANGUAGE = "Deutsch"
 HOPS = 2
 MAX_PATH_LENGTH = 4
 MAX_TRIPLES = 100
@@ -122,7 +124,8 @@ TOOLS = [
     {"type": "function", "function": {
         "name": "suche_knoten",
         "description": "Sucht Knotennamen im Graphen, die den Begriff enthalten (Teilstring, "
-                       "Gross-/Kleinschreibung egal). Fuer Synonyme mehrere Begriffe nacheinander probieren.",
+                       "Gross-/Kleinschreibung egal). Knotennamen sind englisch - englisch suchen. "
+                       "Fuer Synonyme mehrere Begriffe nacheinander probieren.",
         "parameters": {"type": "object", "required": ["begriff"],
                        "properties": {"begriff": {"type": "string"}}},
     }},
@@ -211,7 +214,7 @@ def _run_tool(graph, evidence: _Evidence, name: str, args: dict) -> tuple:
     return f"Unbekanntes Werkzeug '{name}'.", []
 
 
-def _agent_answer(graph, question: str, evidence: _Evidence) -> tuple:
+def _agent_answer(graph, question: str, evidence: _Evidence, language: str = DEFAULT_LANGUAGE) -> tuple:
     """
     Antwort-Schleife: das Modell bekommt die Start-Tripel und darf bis zu
     MAX_TOOL_ROUNDS Mal Werkzeuge aufrufen. think=True (anders als
@@ -222,7 +225,7 @@ def _agent_answer(graph, question: str, evidence: _Evidence) -> tuple:
     """
     start = "\n".join(format_triple(i, graph, e) for i, e in enumerate(evidence.edges, 1))
     messages = [{"role": "user", "content": _load_prompt("ask_answer.md").format(
-        triples=start or "(keine - nutze die Werkzeuge)", question=question,
+        triples=start or "(keine - nutze die Werkzeuge)", question=question, language=language,
     )}]
     steps, focus = [], []
 
@@ -281,7 +284,7 @@ def _glossary_schema(names: list) -> dict:
     }
 
 
-def explain_terms(graph, answer: str, edges: list) -> list:
+def explain_terms(graph, answer: str, edges: list, language: str = DEFAULT_LANGUAGE) -> list:
     """
     Glossar zur Antwort: [{term, type, explanation}]. explanation ist None,
     wenn das Modell den Begriff nicht sicher kennt (lieber nichts als etwas
@@ -297,7 +300,7 @@ def explain_terms(graph, answer: str, edges: list) -> list:
         response = ollama.chat(
             model=MODEL,
             messages=[{"role": "user", "content": _load_prompt("ask_glossary.md").format(
-                terms=terms, answer=answer)}],
+                terms=terms, answer=answer, language=language)}],
             think=False,
             format=_glossary_schema([n for n, _ in candidates]),
             options={"num_predict": 2000, "temperature": 0},
@@ -326,7 +329,7 @@ EXPLAIN_SCHEMA = {
 
 
 def explain_term(term: str, question: str = "", answer: str = "", node_type: str = None,
-                 passages: list = None) -> dict:
+                 passages: list = None, language: str = DEFAULT_LANGUAGE) -> dict:
     """
     Ausfuehrliche Erklaerung eines Begriffs aus Fachwissen des Modells, im
     Zusammenhang der Frage. Bekommt bewusst KEINE Tripel: die Erklaerung soll
@@ -341,6 +344,7 @@ def explain_term(term: str, question: str = "", answer: str = "", node_type: str
         term=term, type_hint=f" (Typ im Wissensgraphen: {node_type})" if node_type else "",
         question=question or "(unbekannt)", answer=answer or "(unbekannt)",
         passages="\n".join(f"- {p}" for p in passages) if passages else "(kein Quelltext vorhanden)",
+        language=language,
     )
     response = ollama.chat(
         model=MODEL,
@@ -354,13 +358,15 @@ def explain_term(term: str, question: str = "", answer: str = "", node_type: str
             "used_sources": bool(passages)}
 
 
-def ask(graph, question: str) -> dict:
+def ask(graph, question: str, language: str = DEFAULT_LANGUAGE) -> dict:
     """
     Fuehrt den GraphRAG-Ablauf aus und gibt ein API-taugliches Dict zurueck:
     question, selected_nodes (Startknoten + vom Agenten untersuchte Knoten),
     answer, triples (nummeriert), graph (Teilgraph im GraphStore.to_json()-
     Format), steps (Werkzeugaufrufe des Agenten), glossary (Fachbegriffe
-    der Antwort mit Erklaerung, siehe explain_terms).
+    der Antwort mit Erklaerung, siehe explain_terms). language ist die
+    Sprache von Antwort und Glossar - die Frage darf in jeder Sprache
+    kommen, der Graph selbst ist immer englisch.
     """
     from graph.store import GraphStore  # lokal importiert, um Zirkularimport zu vermeiden
 
@@ -370,7 +376,7 @@ def ask(graph, question: str) -> dict:
 
     # Auch ohne Startknoten laeuft der Agent: er kann per suche_knoten
     # selbst Einstiegspunkte finden, die select_nodes uebersehen hat.
-    answer, steps, focus = _agent_answer(graph, question, evidence)
+    answer, steps, focus = _agent_answer(graph, question, evidence, language)
 
     triples = []
     for i, e in enumerate(evidence.edges, 1):
@@ -398,5 +404,5 @@ def ask(graph, question: str) -> dict:
         "triples": triples,
         "graph": subgraph_store.to_json(),
         "steps": steps,
-        "glossary": explain_terms(graph, answer, evidence.edges) if answer else [],
+        "glossary": explain_terms(graph, answer, evidence.edges, language) if answer else [],
     }

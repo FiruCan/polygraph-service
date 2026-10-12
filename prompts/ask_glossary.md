@@ -15,7 +15,7 @@ Krafttraining). Fuer jeden gewaehlten Begriff:
    Substanznummern, die du nicht zuordnen kannst (z.B. "CN045"), und wenn
    du raten muesstest.
 2. "erklaerung": nur wenn bekannt = true - EIN kurzer Satz (hoechstens
-   ca. 20 Woerter) auf Deutsch: WAS der Begriff ist, nicht was er in der
+   ca. 20 Woerter) auf {language}: WAS der Begriff ist, nicht was er in der
    Antwort bewirkt. Keine Zahlen, Studien oder Quellen erfinden. Bei
    bekannt = false: leerer String.
 

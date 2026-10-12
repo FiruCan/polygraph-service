@@ -79,6 +79,7 @@ DIFFERENT = [
 @pytest.fixture(autouse=True)
 def fresh_judge_cache():
     normalize._judge.cache_clear()
+    normalize.judge_verdict.cache_clear()
     yield
 
 

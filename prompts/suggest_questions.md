@@ -1,7 +1,7 @@
 Du schlaegst Beispielfragen an einen Wissensgraphen vor. Zu jedem
 Ausgangspunkt unten siehst du die Fakten, die der Graph dazu enthaelt. In
 eckigen Klammern stehen Details zu einem Fakt: Wert, Bedingung, Evidenz.
-Formuliere pro Ausgangspunkt GENAU EINE Frage auf Deutsch.
+Formuliere pro Ausgangspunkt GENAU EINE Frage auf {language}.
 
 REGELN:
 - Die Frage muss sich mit den angegebenen Fakten beantworten lassen - frage
@@ -24,8 +24,10 @@ REGELN:
   Welche Rolle, Inwiefern, Was unterscheidet, Wie gut belegt ...).
 - Natuerlich formuliert, wie eine neugierige Fachperson fragen wuerde;
   hoechstens ca. 25 Woerter; keine Relationsnamen wie "reduces_risk_of".
-- Fachbegriffe so lassen, wie sie in den Fakten stehen (englische nicht
-  zwanghaft uebersetzen), die Frage selbst auf Deutsch.
+- Die Fakten sind englisch. Uebertrage Begriffe in die Fragesprache, wo es
+  dort eine uebliche Bezeichnung gibt ("multiple sclerosis" -> auf Deutsch
+  "Multiple Sklerose"); Fachnamen ohne solche Bezeichnung (Gene, Proteine,
+  Substanzcodes) bleiben, wie sie sind. Die Frage selbst auf {language}.
 
 AUSGANGSPUNKTE:
 {seeds}

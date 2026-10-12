@@ -39,6 +39,8 @@ from collections import deque
 import networkx as nx
 import ollama
 
+from graph.ask import DEFAULT_LANGUAGE
+
 MODEL = "gemma4:26b"
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "suggest_questions.md")
 MAX_FACTS = 6           # Fakten pro Knoten-Ausgangspunkt im Prompt
@@ -238,17 +240,18 @@ def find_seeds(graph, count: int = 5, rng: random.Random = None, history: Sugges
 
 
 def fallback_question(seed: dict) -> str:
+    """Feste Vorlage, falls der LLM-Aufruf scheitert - englisch wie der Graph."""
     k = seed["knoten"]
     if seed["art"] == "pfad":
-        return f"Wie hängen {k[0]} und {k[1]} zusammen?"
+        return f"How are {k[0]} and {k[1]} connected?"
     if seed["art"] == "detail":
-        return f"Unter welchen Bedingungen hängt {k[0]} mit {k[1]} zusammen?"
+        return f"Under which conditions is {k[0]} related to {k[1]}?"
     if seed["art"] == "vergleich":
-        return f"Wirken {k[0]} und {k[1]} auf dieselbe Weise auf {k[2]}?"
-    return f"Was ist über {k[0]} bekannt?"
+        return f"Do {k[0]} and {k[1]} affect {k[2]} in the same way?"
+    return f"What is known about {k[0]}?"
 
 
-def build_prompt(seeds: list) -> str:
+def build_prompt(seeds: list, language: str = DEFAULT_LANGUAGE) -> str:
     with open(PROMPT_PATH, "r", encoding="utf-8") as f:
         template = f.read()
     blocks = []
@@ -263,11 +266,11 @@ def build_prompt(seeds: list) -> str:
         else:
             what = k[0]
         blocks.append(f"{i}. Art: {s['art']} | {what}\n" + "\n".join(f"   - {f}" for f in s["fakten"]))
-    return template.format(seeds="\n".join(blocks))
+    return template.format(seeds="\n".join(blocks), language=language)
 
 
 def suggest_questions(graph, count: int = 5, rng: random.Random = None,
-                      history: SuggestionHistory = None) -> list:
+                      history: SuggestionHistory = None, language: str = DEFAULT_LANGUAGE) -> list:
     seeds = find_seeds(graph, count, rng, HISTORY if history is None else history)
     if not seeds:
         return []
@@ -276,7 +279,7 @@ def suggest_questions(graph, count: int = 5, rng: random.Random = None,
     try:
         response = ollama.chat(
             model=MODEL,
-            messages=[{"role": "user", "content": build_prompt(seeds)}],
+            messages=[{"role": "user", "content": build_prompt(seeds, language)}],
             think=False,
             format=QUESTIONS_SCHEMA,
             options={"num_predict": 2000, "temperature": 0.9},

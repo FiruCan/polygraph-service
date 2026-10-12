@@ -17,6 +17,13 @@ Tripel kommen von aussen (z.B. aus dem separaten
 lokalem LLM in Tripel extrahiert) und werden hier normalisiert und
 gespeichert.
 
+**Sprache:** Alles im Graphen ist **Englisch** - Knotennamen und die
+Angaben an den Kanten (`value`, `condition`, `evidence_level`); beim
+Import wird uebersetzt (`graph/translate.py`). Fragen,
+Antworten, Vorschlaege und Erklaerungen gibt es in einer frei waehlbaren
+Sprache (`language`, z.B. `"Deutsch"`, `"Englisch"`, `"Tuerkisch"`;
+Standard `"Deutsch"`). Relationen und Typen sind ebenfalls englisch.
+
 ## Setup
 
 ```bash
@@ -78,7 +85,7 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
 - `POST /triples` Body `{"triples": [<Tripel>, ...]}` -> normalisiert jedes
   Tripel gegen den aktuellen Graphen und fuegt es ein. Antwort:
   `{"added": N, "merges": [["subject"|"object"|"relation", "alt", "neu"], ...], "nodes": N, "edges": M}`
-- `POST /ask` Body `{"question": str}` -> GraphRAG: waehlt passende Knoten,
+- `POST /ask` Body `{"question": str, "language": "Deutsch"}` -> GraphRAG: waehlt passende Knoten,
   holt deren Kanten (bis 2 Hops), ein Agent antwortet nur anhand dieser
   Tripel und darf bei Bedarf per Werkzeug (Knotensuche, Kanten eines
   Knotens, Pfad zwischen zwei Knoten) weitere Tripel nachladen.
@@ -86,7 +93,7 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   `{"question": str, "selected_nodes": [str], "answer": str, "triples": [{"n": 1, "subject": ..., "relation": ..., "object": ..., "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}], "graph": {"nodes": [...], "edges": [...]}, "steps": [{"tool": str, "args": {...}, "new_triples": int}], "glossary": [{"term": str, "type": str, "explanation": str | null}]}`
   `graph` ist der verwendete Teilgraph, im selben Format wie `GET /graph` -
   dieselbe Frontend-Logik zeichnet beides.
-- `GET /questions/suggest?count=5` (1-10) -> `{"questions": [{"question": str, "type": "detail"|"knoten"|"pfad"|"vergleich", "nodes": [str]}]}`
+- `GET /questions/suggest?count=5&language=Deutsch` (count 1-10) -> `{"questions": [{"question": str, "type": "detail"|"knoten"|"pfad"|"vergleich", "nodes": [str]}]}`
   - Beispielfragen aus dem Graphen, reihum vier Arten: Kanten mit
   Bedingung/Wert/Evidenz, vernetzte Knoten, Pfade ueber 2-4 Schritte, zwei
   Knoten mit demselben Ziel. Ein LLM-Aufruf formuliert sie detailreich;
@@ -103,6 +110,35 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   ganzen Graphen um (Vokabular-Steward in polygraph, nach Freigabe durch
   einen Menschen).
 
+- `POST /explain` Body `{"term": str, ..., "language": "Deutsch"}` ->
+  ausfuehrliche Erklaerung eines Begriffs in der gewaehlten Sprache.
+- `POST /nodes/rename` Body `{"renames": [{"old": str, "new": str}, ...]}`
+  -> `{"renamed": N, "merged": N, "skipped": [...], ...}` - benennt Knoten
+  um; existiert der neue Name schon, werden beide zusammengefuehrt.
+  Speichert einmal am Ende.
+- `POST /edges/rewrite` Body `{"rewrites": [{"field": "value"|"condition"|"evidence_level", "old": str, "new": str}, ...]}`
+  -> `{"changed": N}` - ersetzt eine Angabe auf allen Kanten.
+
+## Bestand auf Englisch umstellen
+
+Einmalig, bei laufendem Service mit dem neuen Code (~1 Std. fuer 2.800
+Knoten und ~1.700 Kanten-Angaben):
+
+```bash
+python3 translate_graph.py plan
+```
+
+schreibt `data/translate_review.json` mit zwei Listen: `knoten` (alt ->
+neu, `zusammenfuehren`, `freigegeben`) und `kanten` (`feld`, alt -> neu,
+`freigegeben`). Durchsehen, falsche Eintraege korrigieren oder auf
+`"freigegeben": false` setzen, dann:
+
+```bash
+python3 translate_graph.py apply
+```
+
+legt vorher `data/graph.backup-<Zeitstempel>.gml` an.
+
 ## Projektstruktur
 
 ```
@@ -111,8 +147,10 @@ polygraph-service/
 ├── graph/
 │   ├── store.py        # NetworkX-Wrapper, to_json()/from_json() fuer die API
 │   ├── normalize.py    # Synonyme zusammenfuehren (bge-m3-Embedding + gemma4:26b-Pruefung)
+│   ├── translate.py    # Knotennamen + Kanten-Angaben ins Englische (gemma4:26b, paketweise, gecacht)
 │   └── ask.py           # GraphRAG: Knoten waehlen -> Kanten holen -> Agent antwortet (laedt bei Bedarf nach)
 ├── prompts/             # ask_select.md, ask_answer.md, normalize_judge.md
+├── translate_graph.py   # einmalige Umstellung des Bestands auf Englisch
 ├── test/                # Unit-Tests + Live-Test fuer den Normalisierungs-Richter
 └── data/graph.gml       # persistierter Graph (git-ignoriert)
 ```

@@ -2,6 +2,41 @@
 
 ## Stand
 
+**Graph komplett Englisch, Fragen/Antworten in waehlbarer Sprache (fertig, Bestand noch nicht umgestellt)**
+- Grund: Knotennamen standen in der Sprache des Quelltextes - "Multiple
+  Sklerose" neben "multiple sclerosis", "ZNS" neben "CNS". Die
+  Synonym-Erkennung findet solche Paare ueber Sprachgrenzen schlecht.
+- `graph/translate.py` + `prompts/translate_names.md`: uebersetzt Namen
+  paketweise (40 pro LLM-Aufruf, ~30 s), schon englische Namen,
+  Abkuerzungen, Gen-/Medikamentnamen und Eigennamen bleiben. Kaputte oder
+  fehlende Antwort -> Name bleibt unveraendert.
+- Import: `normalize_triple` uebersetzt Subjekt/Objekt vor dem
+  Synonym-Abgleich (exakt bekannte Namen ohne LLM-Aufruf).
+- Bestand: `translate_graph.py plan|apply` ueber `POST /nodes/rename`
+  (`store.rename_node`, faellt auf `merge_nodes` zurueck, wenn der
+  englische Name schon existiert). Reine Gross-/Kleinschreibungs-
+  Aenderungen werden ausgelassen.
+- Sprache: `language` an `/ask`, `/questions/suggest`, `/explain`
+  (Standard "Deutsch"), Platzhalter `{language}` in den Prompts.
+  `ask_select.md` und das Werkzeug `suche_knoten` wissen, dass die Knoten
+  englisch heissen - Frage darf in jeder Sprache kommen.
+- Live geprueft: Stichprobe von 48 echten Knoten sinnvoll uebersetzt;
+  Fragevorschlaege auf Tuerkisch.
+- Kanten-Angaben (value, condition, evidence_level) ebenfalls englisch:
+  eigener Prompt `prompts/translate_details.md` (Dezimalpunkt, englische
+  Studientypen, Kennwerte/Quellenangaben unveraendert), beim Import und
+  per `POST /edges/rewrite` im Bestand. `/triples` uebersetzt alle neuen
+  Namen und Angaben vorab in wenigen Paketen.
+- Ersatzfragen (`suggest.py::fallback_question`) englisch wie der Graph.
+- Frontend (polygraph `kg/`): Sprach-Dropdown mit Flaggen (Deutsch,
+  English, Tuerkce) neben dem Fragefeld, im Browser gemerkt; geht an
+  `/ask`, `/questions/suggest`, `/explain`. Im Browser geprueft:
+  Vorschlaege und Antwort auf Tuerkisch.
+- Offen: Bestand noch nicht umgestellt (`translate_graph.py`); laufender
+  Service muss dafuer neu gestartet werden. `/passages` in polygraph sucht
+  den (jetzt englischen) Begriff im Quelltext - in deutschen Artikeln
+  findet er dann nichts.
+
 **PDF-Export nach polygraph umgezogen (fertig)**
 - `POST /export/pdf`, `GET /output/...` und `graph/export.py` sind weg; den
   Export macht jetzt polygraph selbst (`ingest_app.py`, PDFs in

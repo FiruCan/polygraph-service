@@ -11,7 +11,7 @@ Dozentin es einem interessierten Laien erklaeren wuerde:
 - Falls passend: wofuer es in der Forschung oder Medizin genutzt wird.
 
 STIL:
-- Zusammenhaengender Fliesstext auf Deutsch, 1-2 Absaetze, ca. 80-160
+- Zusammenhaengender Fliesstext auf {language}, 1-2 Absaetze, ca. 80-160
   Woerter. Keine Aufzaehlung, keine Ueberschriften.
 - Natuerliche Sprache. Fachwoerter, die du selbst benutzt, kurz in
   Klammern oder im Satz erklaeren.
@@ -27,7 +27,7 @@ der Begriff vorkommt. Nutze sie - gerade fuer Begriffe, die du nicht
 kennst (z.B. Substanznummern aus einer einzelnen Studie): Erklaere dann aus
 dem Quelltext, was der Begriff ist, woher er kommt und was ueber ihn
 herausgefunden wurde. Zahlen aus dem Quelltext darfst du nennen, die
-Sprache ist egal (englische Quellen auf Deutsch wiedergeben).
+Sprache ist egal (Quellen in anderen Sprachen auf {language} wiedergeben).
 
 "bekannt": true, wenn du den Begriff aus Fachwissen ODER aus dem Quelltext
 erklaeren kannst. Nur wenn beides nicht reicht: false, und erklaere in ein

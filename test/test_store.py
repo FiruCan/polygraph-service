@@ -150,3 +150,38 @@ def test_retype_nodes():
     assert store.retype_nodes("disease", "condition") == 2
     assert store.graph.nodes["Krebs"]["type"] == "condition"
     assert store.retype_nodes("gibt_es_nicht", "x") == 0
+
+
+def test_rename_node_keeps_edges_and_type():
+    store = GraphStore()
+    store.add_triple(triple())
+    assert store.rename_node("Krebs", "cancer") == {"merged": False}
+    assert store.graph.nodes["cancer"]["type"] == "disease"
+    assert store.graph.has_edge("Krafttraining", "cancer") and "Krebs" not in store.graph
+
+
+def test_rename_node_onto_existing_merges():
+    store = GraphStore()
+    store.add_triple(triple(obj="cancer"))
+    store.add_triple(triple(obj="Krebs"))
+    stats = store.rename_node("Krebs", "cancer")
+    assert stats["merged"] and stats["collapsed"] == 1
+    assert store.graph.number_of_edges() == 1
+
+
+def test_rename_node_errors():
+    import pytest
+    store = GraphStore()
+    store.add_triple(triple())
+    with pytest.raises(KeyError):
+        store.rename_node("gibtsnicht", "x")
+    with pytest.raises(ValueError):
+        store.rename_node("Krebs", "Krebs")
+
+
+def test_rewrite_edge_field():
+    store = GraphStore()
+    store.add_triple(triple(evidence_level="Metaanalyse"))
+    store.add_triple(triple(obj="Diabetes", evidence_level="RCT"))
+    assert store.rewrite_edge_field("evidence_level", "Metaanalyse", "meta-analysis") == 1
+    assert store.graph.get_edge_data("Krafttraining", "Krebs")[0]["evidence_level"] == "meta-analysis"

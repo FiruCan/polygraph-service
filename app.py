@@ -27,12 +27,15 @@ from typing import Literal, Optional
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from graph.ask import ask as run_ask, explain_term
+from graph.ask import DEFAULT_LANGUAGE, ask as run_ask, explain_term
+from graph.dedupe import DEDUPE_THRESHOLD, find_duplicates
+from graph.localize import localize
 from graph.normalize import normalize_triple, similar_entities
 from graph.store import GraphStore
 from graph.suggest import suggest_questions
+from graph.translate import DETAIL_FIELDS, translate_details, translate_names
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "graph.gml")
 
@@ -54,8 +57,14 @@ class TriplesIn(BaseModel):
     source: Optional[str] = None
 
 
+# Sprache von Fragen und Antworten, frei waehlbar ("Deutsch", "Englisch",
+# "Tuerkisch", ...) - der Graph selbst ist immer englisch.
+Language = Field(DEFAULT_LANGUAGE, min_length=2, max_length=40)
+
+
 class QuestionIn(BaseModel):
     question: str
+    language: str = Language
 
 
 class ExplainIn(BaseModel):
@@ -64,11 +73,47 @@ class ExplainIn(BaseModel):
     question: str = ""
     answer: str = ""
     passages: list[str] = []
+    language: str = Language
+
+
+class LabelsIn(BaseModel):
+    texts: list[str] = Field(..., max_length=20000)
+    language: str = Language
+    cached_only: bool = False
 
 
 class SimilarIn(BaseModel):
     names: list[str]
     limit: int = 3
+
+
+class DuplicatesIn(BaseModel):
+    threshold: float = Field(DEDUPE_THRESHOLD, ge=0.5, le=1.0)
+    limit: Optional[int] = Field(None, ge=1)
+
+
+class MergeIn(BaseModel):
+    keep: str
+    remove: str
+
+
+class NodeRename(BaseModel):
+    old: str
+    new: str
+
+
+class NodeRenameIn(BaseModel):
+    renames: list[NodeRename]
+
+
+class EdgeRewrite(BaseModel):
+    field: Literal["value", "condition", "evidence_level"]
+    old: str
+    new: str
+
+
+class EdgeRewriteIn(BaseModel):
+    rewrites: list[EdgeRewrite]
 
 
 class RenameIn(BaseModel):
@@ -110,6 +155,15 @@ def add_triples(body: TriplesIn):
             "nodes": removed_nodes_before - store.graph.number_of_nodes(),
             "edges": removed_edges_before - store.graph.number_of_edges(),
         }
+
+        # Alle neuen Namen und Angaben vorab in wenigen Paketen uebersetzen
+        # (der Graph ist immer englisch) - normalize_triple findet sie dann
+        # im Cache statt einen LLM-Aufruf pro Feld zu machen.
+        known = set(store.known_entities())
+        translate_names([t[f] for t in body.triples for f in ("subject", "object")
+                         if isinstance(t.get(f), str) and t[f] not in known])
+        translate_details([t[f] for t in body.triples for f in DETAIL_FIELDS
+                           if isinstance(t.get(f), str) and t[f].strip()])
 
         merges = []
         for triple in body.triples:
@@ -156,8 +210,74 @@ def vocabulary_rename(body: RenameIn):
         return {"kind": body.kind, "old": body.old, "new": body.new, "changed": changed}
 
 
+@app.post("/duplicates/find")
+def duplicates_find(body: DuplicatesIn):
+    """
+    Duplikat-Aufraeumer (graph/dedupe.py): Vorschlaege fuer doppelte Knoten,
+    nichts wird geaendert. Dauert lange (~20 Min. bei 2.800 Knoten) - laeuft
+    deshalb auf einer Kopie, damit Importe und Fragen nicht so lange warten.
+    """
+    with store_lock:
+        graph = store.graph.copy()
+    return find_duplicates(graph, threshold=body.threshold, limit=body.limit)
+
+
+@app.post("/nodes/merge")
+def nodes_merge(body: MergeIn):
+    """Knoten 'remove' in 'keep' zusammenfuehren (nach Freigabe durch einen Menschen)."""
+    with store_lock:
+        try:
+            stats = store.merge_nodes(body.keep, body.remove)
+        except KeyError as e:
+            raise HTTPException(status_code=404, detail=f"Knoten nicht gefunden: {e.args[0]}")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        store.save(DATA_PATH)
+        return {"keep": body.keep, "remove": body.remove, **stats,
+                "nodes": store.graph.number_of_nodes(), "edges": store.graph.number_of_edges()}
+
+
+@app.post("/nodes/rename")
+def nodes_rename(body: NodeRenameIn):
+    """
+    Knoten umbenennen (Umstellung auf englische Namen, translate_graph.py);
+    existiert der neue Name schon, werden beide zusammengefuehrt. Viele auf
+    einmal, gespeichert wird nur einmal am Ende. Fehlt ein Knoten (z.B.
+    schon umbenannt), wird er uebersprungen statt alles abzubrechen.
+    """
+    with store_lock:
+        renamed, merged, skipped = 0, 0, []
+        for r in body.renames:
+            try:
+                stats = store.rename_node(r.old, r.new)
+            except (KeyError, ValueError) as e:
+                skipped.append({"old": r.old, "new": r.new, "reason": str(e)})
+                continue
+            merged += stats["merged"]
+            renamed += not stats["merged"]
+        if renamed or merged:
+            store.save(DATA_PATH)
+        return {"renamed": renamed, "merged": merged, "skipped": skipped,
+                "nodes": store.graph.number_of_nodes(), "edges": store.graph.number_of_edges()}
+
+
+@app.post("/edges/rewrite")
+def edges_rewrite(body: EdgeRewriteIn):
+    """
+    Angaben an Kanten ersetzen (Umstellung auf Englisch, translate_graph.py):
+    jede Kante, deren Feld genau 'old' ist, bekommt 'new'. Gespeichert wird
+    einmal am Ende.
+    """
+    with store_lock:
+        changed = sum(store.rewrite_edge_field(r.field, r.old, r.new) for r in body.rewrites)
+        if changed:
+            store.save(DATA_PATH)
+        return {"changed": changed}
+
+
 @app.get("/questions/suggest")
-def questions_suggest(count: int = Query(5, ge=1, le=10)):
+def questions_suggest(count: int = Query(5, ge=1, le=10),
+                      language: str = Query(DEFAULT_LANGUAGE, min_length=2, max_length=40)):
     """
     Beispielfragen aus dem Graphen (graph/suggest.py). Arbeitet auf einer
     Kopie: der LLM-Aufruf dauert ~10-20 s, so lange soll ein gleichzeitiger
@@ -165,7 +285,7 @@ def questions_suggest(count: int = Query(5, ge=1, le=10)):
     """
     with store_lock:
         graph = store.graph.copy()
-    return {"questions": suggest_questions(graph, count)}
+    return {"questions": suggest_questions(graph, count, language=language)}
 
 
 
@@ -173,7 +293,7 @@ def questions_suggest(count: int = Query(5, ge=1, le=10)):
 def ask_question(body: QuestionIn):
     """Frage an den Graphen (GraphRAG): Antwort, verwendete Tripel und Teilgraph."""
     with store_lock:
-        return run_ask(store.graph, body.question)
+        return run_ask(store.graph, body.question, language=body.language)
 
 
 @app.post("/explain")
@@ -183,9 +303,24 @@ def explain(body: ExplainIn):
     des Modells, nicht aus dem Graphen). Ohne store_lock: liest den Graphen nicht.
     """
     try:
-        return explain_term(body.term, body.question, body.answer, body.type, body.passages)
+        return explain_term(body.term, body.question, body.answer, body.type, body.passages,
+                            language=body.language)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Erklaerung fehlgeschlagen: {e}")
+
+
+@app.post("/labels")
+def labels(body: LabelsIn):
+    """
+    Beschriftungen des Graphen (Knoten, Typen, Beziehungen, Kanten-Angaben)
+    in der Sprache des Lesers, nur fuer die Anzeige (graph/localize.py).
+    cached_only=true: nur schon Uebersetztes, sofort. Ohne store_lock: liest
+    den Graphen nicht.
+    """
+    try:
+        return {"labels": localize(body.texts, body.language, cached_only=body.cached_only)}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Uebersetzung fehlgeschlagen: {e}")
 
 
 @app.get("/help", include_in_schema=False)

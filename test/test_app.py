@@ -23,8 +23,11 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DATA_PATH", str(tmp_path / "graph.gml"))
     monkeypatch.setattr(app_module, "store", GraphStore())
     # Normalisierung ohne Ollama: Begriffe bleiben, wie sie sind
-    with patch("app.normalize_triple", side_effect=lambda t, e, r: dict(t)):
-        yield TestClient(app_module.app)
+    with patch("app.normalize_triple", side_effect=lambda t, e, r: dict(t)), \
+         patch("app.translate_names") as names, patch("app.translate_details") as details:
+        client = TestClient(app_module.app)
+        client.translate_names, client.translate_details = names, details
+        yield client
 
 
 def triple(subject="Krafttraining", obj="Krebs", relation="reduces_risk_of"):
@@ -88,6 +91,13 @@ def test_ask_delegates_to_graphrag(client):
         r = client.post("/ask", json={"question": "Was senkt Krebs?"})
     assert r.json() == {"answer": "x"}
     assert ask.call_args.args[1] == "Was senkt Krebs?"
+    assert ask.call_args.kwargs["language"] == "Deutsch"  # Standard
+
+
+def test_ask_passes_chosen_language(client):
+    with patch("app.run_ask", return_value={"answer": "x"}) as ask:
+        client.post("/ask", json={"question": "Kanseri ne azaltır?", "language": "Türkisch"})
+    assert ask.call_args.kwargs["language"] == "Türkisch"
 
 
 def test_cors_allows_other_localhost_port(client):
@@ -136,6 +146,13 @@ def test_questions_suggest_returns_list(client):
     assert r.json() == {"questions": [{"question": "Was senkt Krebs?", "type": "knoten", "nodes": ["Krebs"]}]}
     assert sug.call_args.args[1] == 3
     assert sug.call_args.args[0] is not app_module.store.graph  # arbeitet auf einer Kopie
+    assert sug.call_args.kwargs["language"] == "Deutsch"
+
+
+def test_questions_suggest_passes_language(client):
+    with patch("app.suggest_questions", return_value=[]) as sug:
+        client.get("/questions/suggest?language=Englisch")
+    assert sug.call_args.kwargs["language"] == "Englisch"
 
 
 def test_questions_suggest_rejects_too_many(client):
@@ -152,9 +169,81 @@ def test_explain_endpoint(client):
     with patch("app.explain_term", return_value={"term": "X", "explanation": "E", "known": True}) as fn:
         r = client.post("/explain", json={"term": "X", "question": "F", "answer": "A"})
     assert r.status_code == 200 and r.json()["explanation"] == "E"
-    fn.assert_called_once_with("X", "F", "A", None, [])
+    fn.assert_called_once_with("X", "F", "A", None, [], language="Deutsch")
 
 
 def test_explain_endpoint_llm_failure_is_502(client):
     with patch("app.explain_term", side_effect=RuntimeError("down")):
         assert client.post("/explain", json={"term": "X"}).status_code == 502
+
+
+def test_labels_endpoint(client):
+    with patch("app.localize", return_value={"muscles": "Muskeln"}) as fn:
+        r = client.post("/labels", json={"texts": ["muscles"], "language": "Deutsch", "cached_only": True})
+    assert r.status_code == 200 and r.json() == {"labels": {"muscles": "Muskeln"}}
+    fn.assert_called_once_with(["muscles"], "Deutsch", cached_only=True)
+
+
+def test_labels_endpoint_llm_failure_is_502(client):
+    with patch("app.localize", side_effect=RuntimeError("down")):
+        assert client.post("/labels", json={"texts": ["x"]}).status_code == 502
+
+
+# --- Duplikat-Aufraeumer ----------------------------------------------------
+
+def test_nodes_merge(client):
+    client.post("/triples", json={"triples": [triple("MS", "Fatigue", "causes"),
+                                              triple("multiple Sklerose", "Fatigue", "causes")], "source": "A"})
+    r = client.post("/nodes/merge", json={"keep": "multiple Sklerose", "remove": "MS"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["collapsed"] == 1 and body["nodes"] == 2 and body["edges"] == 1
+    assert "MS" not in [n["id"] for n in client.get("/graph").json()["nodes"]]
+
+
+def test_nodes_merge_errors(client):
+    client.post("/triples", json={"triples": [triple()]})
+    assert client.post("/nodes/merge", json={"keep": "Krebs", "remove": "gibtsnicht"}).status_code == 404
+    assert client.post("/nodes/merge", json={"keep": "Krebs", "remove": "Krebs"}).status_code == 400
+
+
+def test_duplicates_find_passes_parameters(client):
+    with patch("app.find_duplicates", return_value={"vorschlaege": []}) as find:
+        r = client.post("/duplicates/find", json={"threshold": 0.8, "limit": 3})
+    assert r.status_code == 200
+    assert find.call_args.kwargs == {"threshold": 0.8, "limit": 3}
+    assert client.post("/duplicates/find", json={"threshold": 0.1}).status_code == 422
+
+
+# --- Umstellung auf englische Knotennamen -----------------------------------
+
+def test_nodes_rename_renames_merges_and_skips(client):
+    client.post("/triples", json={"triples": [triple("Krafttraining", "Krebs"),
+                                              triple("strength training", "Fatigue", "reduces")]})
+    r = client.post("/nodes/rename", json={"renames": [
+        {"old": "Krebs", "new": "cancer"},
+        {"old": "Krafttraining", "new": "strength training"},
+        {"old": "gibtsnicht", "new": "x"},
+    ]})
+    body = r.json()
+    assert (body["renamed"], body["merged"], len(body["skipped"])) == (1, 1, 1)
+    nodes = {n["id"] for n in client.get("/graph").json()["nodes"]}
+    assert nodes == {"cancer", "strength training", "Fatigue"}
+
+
+def test_post_triples_pretranslates_new_names_and_details(client):
+    client.post("/triples", json={"triples": [triple("Krafttraining", "Krebs")]})
+    client.post("/triples", json={"triples": [dict(triple("Krafttraining", "Muskeln"),
+                                                   value="20 Prozent", condition=" ")]})
+    assert client.translate_names.call_args.args[0] == ["Muskeln"]  # bekannter Knoten nicht
+    assert client.translate_details.call_args.args[0] == ["20 Prozent"]  # leere Angabe nicht
+
+
+def test_edges_rewrite(client):
+    client.post("/triples", json={"triples": [dict(triple(), evidence_level="Metaanalyse")]})
+    r = client.post("/edges/rewrite", json={"rewrites": [
+        {"field": "evidence_level", "old": "Metaanalyse", "new": "meta-analysis"}]})
+    assert r.json() == {"changed": 1}
+    assert client.get("/graph").json()["edges"][0]["evidence_level"] == "meta-analysis"
+    assert client.post("/edges/rewrite", json={"rewrites": [
+        {"field": "relation", "old": "a", "new": "b"}]}).status_code == 422
