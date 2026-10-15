@@ -29,9 +29,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
-from graph.ask import DEFAULT_LANGUAGE, ask as run_ask, explain_term
+from graph.ask import DEFAULT_LANGUAGE, ask as run_ask, explain_term, select_nodes
 from graph.dedupe import DEDUPE_THRESHOLD, find_duplicates
-from graph.localize import localize
+from graph.localize import localize, translate_texts
 from graph.normalize import normalize_triple, similar_entities
 from graph.store import GraphStore
 from graph.suggest import suggest_questions
@@ -80,6 +80,11 @@ class LabelsIn(BaseModel):
     texts: list[str] = Field(..., max_length=20000)
     language: str = Language
     cached_only: bool = False
+
+
+class TranslateIn(BaseModel):
+    texts: list[str] = Field(..., max_length=200)
+    language: str = Language
 
 
 class SimilarIn(BaseModel):
@@ -277,15 +282,25 @@ def edges_rewrite(body: EdgeRewriteIn):
 
 @app.get("/questions/suggest")
 def questions_suggest(count: int = Query(5, ge=1, le=10),
-                      language: str = Query(DEFAULT_LANGUAGE, min_length=2, max_length=40)):
+                      language: str = Query(DEFAULT_LANGUAGE, min_length=2, max_length=40),
+                      topic: str = Query("", max_length=500)):
     """
     Beispielfragen aus dem Graphen (graph/suggest.py). Arbeitet auf einer
     Kopie: der LLM-Aufruf dauert ~10-20 s, so lange soll ein gleichzeitiger
     Import (POST /triples) nicht warten muessen.
+
+    Mit topic (Thema in beliebiger Sprache) waehlt das LLM erst die passenden
+    (englischen) Knoten, und alle Fragen drehen sich um diese. Passt kein
+    Knoten, gibt es keine Fragen statt zufaelliger - topic_nodes ist dann leer.
     """
     with store_lock:
         graph = store.graph.copy()
-    return {"questions": suggest_questions(graph, count, language=language)}
+    topic = topic.strip()
+    if not topic:
+        return {"questions": suggest_questions(graph, count, language=language)}
+    focus = select_nodes(graph, topic) if graph.number_of_nodes() else []
+    questions = suggest_questions(graph, count, language=language, focus=focus) if focus else []
+    return {"questions": questions, "topic_nodes": focus}
 
 
 
@@ -319,6 +334,20 @@ def labels(body: LabelsIn):
     """
     try:
         return {"labels": localize(body.texts, body.language, cached_only=body.cached_only)}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Uebersetzung fehlgeschlagen: {e}")
+
+
+@app.post("/translate")
+def translate(body: TranslateIn):
+    """
+    Freie Texte in die Sprache des Lesers (graph/localize.py): eine schon
+    gegebene Antwort samt Pruefung und Glossar, wenn er die Sprache wechselt.
+    -> {"texts": [...]} in derselben Reihenfolge. Ohne store_lock: liest den
+    Graphen nicht.
+    """
+    try:
+        return {"texts": translate_texts(body.texts, body.language)}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Uebersetzung fehlgeschlagen: {e}")
 

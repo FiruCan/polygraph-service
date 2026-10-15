@@ -10,6 +10,10 @@ Ein LLM-Aufruf uebersetzt ein Paket von bis zu BATCH_SIZE Texten
 (prompts/localize_labels.md). Jede Uebersetzung wird pro Sprache dauerhaft
 gemerkt (data/labels/<Sprache>.json): der ganze Graph (~3.000 Knoten) dauert
 beim ersten Mal lange, danach kommt alles sofort aus dem Cache.
+
+translate_texts() uebersetzt dagegen laengere freie Texte - eine schon
+gegebene Antwort samt Pruefung und Glossar, wenn der Leser die Sprache
+wechselt (prompts/translate_texts.md). Ohne Cache: jede Antwort ist anders.
 """
 
 import json
@@ -22,6 +26,7 @@ import ollama
 LOCALIZE_MODEL = "gemma4:26b"
 BATCH_SIZE = 40
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "localize_labels.md")
+TEXTS_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "translate_texts.md")
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "labels")
 # Der Graph ist englisch - dafuer braucht es keine Uebersetzung.
 SOURCE_LANGUAGES = {"englisch", "english"}
@@ -35,6 +40,21 @@ SCHEMA = {
                 "type": "object",
                 "properties": {"original": {"type": "string"}, "uebersetzung": {"type": "string"}},
                 "required": ["original", "uebersetzung"],
+            },
+        },
+    },
+    "required": ["uebersetzungen"],
+}
+
+TEXTS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "uebersetzungen": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"nr": {"type": "integer"}, "text": {"type": "string"}},
+                "required": ["nr", "text"],
             },
         },
     },
@@ -120,3 +140,37 @@ def localize(texts: list, language: str, cached_only: bool = False) -> dict:
             _save(language)
         known.update(batch)
     return known
+
+
+def translate_texts(texts: list, language: str) -> list:
+    """
+    -> Liste gleicher Laenge mit den Texten auf language, ein LLM-Aufruf.
+    Fehlt eine Uebersetzung in der Antwort, bleibt der Text unveraendert;
+    eine abgeschnittene Antwort ist ein Fehler (lieber gar nichts als eine
+    halb uebersetzte Antwort).
+    """
+    if not texts:
+        return []
+    with open(TEXTS_PROMPT_PATH, "r", encoding="utf-8") as f:
+        template = f.read()
+    blocks = "\n\n".join(f"### Text {i}\n{t}" for i, t in enumerate(texts, 1))
+    response = ollama.chat(
+        model=LOCALIZE_MODEL,
+        messages=[{"role": "user", "content": template.format(language=language, texts=blocks)}],
+        think=False,
+        format=TEXTS_SCHEMA,
+        options={"num_predict": sum(len(t) for t in texts) + 100 * len(texts) + 500, "temperature": 0},
+    )
+    if response.get("done_reason") == "length":
+        raise ValueError("Uebersetzung abgeschnitten")
+    try:
+        items = json.loads(response["message"]["content"])["uebersetzungen"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        items = []
+    result = list(texts)
+    for item in items:
+        nr = item.get("nr") if isinstance(item, dict) else None
+        text = (item.get("text") or "").strip() if isinstance(nr, int) else ""
+        if text and 1 <= nr <= len(texts):
+            result[nr - 1] = text
+    return result

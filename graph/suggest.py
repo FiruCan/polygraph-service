@@ -27,6 +27,13 @@ riesiger Hub dominiert nicht), und SuggestionHistory merkt sich die zuletzt
 benutzten Ausgangspunkte. Die werden ausgelassen, bis nichts Neues mehr da
 ist - dann beginnt der Verlauf von vorn. Scheitert der LLM-Aufruf, gibt es
 Fragen aus einer festen Vorlage statt eines Fehlers.
+
+Mit Thema (focus = Knoten, die ask.select_nodes zum Thema gewaehlt hat):
+jeder Ausgangspunkt beruehrt mindestens einen Themenknoten - "knoten" und der
+Anfang von "pfad" sind Themenknoten, "detail"-Kanten haben ein Themenende,
+bei "vergleich" ist das Ziel oder einer der beiden Begriffe ein Themenknoten.
+Themenknoten duerfen in einer Runde mehrfach vorkommen, sonst gaebe ein Thema
+mit nur einem Knoten nur eine einzige Frage.
 """
 
 import json
@@ -122,7 +129,7 @@ def _weighted_pick(rng, nodes, weights, exclude):
 
 
 class _SeedFinder:
-    def __init__(self, graph, rng, history):
+    def __init__(self, graph, rng, history, focus=None):
         self.graph = graph
         self.rng = rng
         self.history = history
@@ -130,7 +137,20 @@ class _SeedFinder:
         self.nodes = [n for n in graph.nodes if graph.degree(n) >= 2] or list(graph.nodes)
         self.weights = [math.sqrt(graph.degree(n)) for n in self.nodes]
         self.detail_edges = [(u, v, d) for u, v, d in graph.edges(data=True) if _has_detail(d)]
-        self.used_nodes = set()   # in dieser Runde schon Ausgangspunkt
+        self.focus = set(focus or ())
+        # Startknoten fuer "knoten"/"pfad", Ziele fuer "vergleich": ohne Thema
+        # alle vernetzten Knoten, mit Thema die Themenknoten bzw. diese samt Nachbarn
+        self.starts, self.start_weights = self.nodes, self.weights
+        self.targets, self.target_weights = self.nodes, self.weights
+        if self.focus:
+            self.starts = sorted(self.focus)
+            self.start_weights = [math.sqrt(graph.degree(n) or 1) for n in self.starts]
+            region = self.focus.union(*(self.undirected[n] for n in self.focus))
+            self.targets = sorted(region)
+            self.target_weights = [math.sqrt(graph.degree(n) or 1) for n in self.targets]
+            self.detail_edges = [(u, v, d) for u, v, d in self.detail_edges
+                                 if u in self.focus or v in self.focus]
+        self.used_nodes = set()   # in dieser Runde schon Ausgangspunkt (ohne Themenknoten)
         self.used_keys = set()
 
     def _fresh(self, key) -> bool:
@@ -138,7 +158,7 @@ class _SeedFinder:
 
     def _take(self, key, seed):
         self.used_keys.add(key)
-        self.used_nodes.update(seed["knoten"])
+        self.used_nodes.update(n for n in seed["knoten"] if n not in self.focus)
         return seed
 
     def detail(self):
@@ -157,7 +177,7 @@ class _SeedFinder:
     def knoten(self):
         skipped = set()
         for _ in range(ATTEMPTS):
-            node = _weighted_pick(self.rng, self.nodes, self.weights, self.used_nodes | skipped)
+            node = _weighted_pick(self.rng, self.starts, self.start_weights, self.used_nodes | skipped)
             if node is None:
                 return None
             key = ("knoten", node)
@@ -170,7 +190,7 @@ class _SeedFinder:
 
     def pfad(self):
         for _ in range(ATTEMPTS):
-            a = _weighted_pick(self.rng, self.nodes, self.weights, self.used_nodes)
+            a = _weighted_pick(self.rng, self.starts, self.start_weights, self.used_nodes)
             b = _weighted_pick(self.rng, self.nodes, self.weights, self.used_nodes | {a})
             if a is None or b is None:
                 return None
@@ -188,7 +208,7 @@ class _SeedFinder:
     def vergleich(self):
         """Zwei Knoten mit Kante auf dasselbe Ziel: 'Wirken A und B gleich auf C?'"""
         for _ in range(ATTEMPTS):
-            target = _weighted_pick(self.rng, self.nodes, self.weights, self.used_nodes)
+            target = _weighted_pick(self.rng, self.targets, self.target_weights, self.used_nodes)
             if target is None:
                 return None
             incoming = {}
@@ -198,6 +218,8 @@ class _SeedFinder:
             if len(incoming) < 2:
                 continue
             a, b = self.rng.sample(sorted(incoming), 2)
+            if self.focus and not self.focus & {a, b, target}:
+                continue
             key = ("vergleich", frozenset((a, b)), target)
             if not self._fresh(key):
                 continue
@@ -206,11 +228,13 @@ class _SeedFinder:
         return None
 
 
-def find_seeds(graph, count: int = 5, rng: random.Random = None, history: SuggestionHistory = None) -> list:
+def find_seeds(graph, count: int = 5, rng: random.Random = None, history: SuggestionHistory = None,
+               focus: list = None) -> list:
     """
     Ausgangspunkte, reihum aus den vier Arten (Startart zufaellig). Was im
     Verlauf steht, wird ausgelassen; ist dadurch gar nichts mehr zu finden,
-    wird der Verlauf geleert und neu begonnen.
+    wird der Verlauf geleert und neu begonnen. focus: nur Ausgangspunkte, die
+    einen dieser Knoten beruehren (Thema).
     """
     rng = rng or random.Random()
     history = history if history is not None else SuggestionHistory()
@@ -218,7 +242,7 @@ def find_seeds(graph, count: int = 5, rng: random.Random = None, history: Sugges
         return []
 
     for attempt in range(2):
-        finder = _SeedFinder(graph, rng, history)
+        finder = _SeedFinder(graph, rng, history, focus)
         kinds = list(KINDS)
         rng.shuffle(kinds)
         seeds, misses, i = [], 0, 0
@@ -270,8 +294,9 @@ def build_prompt(seeds: list, language: str = DEFAULT_LANGUAGE) -> str:
 
 
 def suggest_questions(graph, count: int = 5, rng: random.Random = None,
-                      history: SuggestionHistory = None, language: str = DEFAULT_LANGUAGE) -> list:
-    seeds = find_seeds(graph, count, rng, HISTORY if history is None else history)
+                      history: SuggestionHistory = None, language: str = DEFAULT_LANGUAGE,
+                      focus: list = None) -> list:
+    seeds = find_seeds(graph, count, rng, HISTORY if history is None else history, focus)
     if not seeds:
         return []
 

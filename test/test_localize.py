@@ -70,3 +70,27 @@ def test_batches_and_ignores_broken_answers():
 
 def test_language_cannot_escape_cache_dir(cache_dir):
     assert os.path.dirname(loc._cache_path("../../etc/x")) == str(cache_dir)
+
+
+def texts_answer(items, done_reason="stop"):
+    return {"message": {"content": json.dumps({"uebersetzungen": items})}, "done_reason": done_reason}
+
+
+def test_translate_texts_keeps_order_and_missing_texts():
+    reply = texts_answer([{"nr": 2, "text": "Kaslar [1]."}, {"nr": 9, "text": "x"}])
+    with patch("graph.localize.ollama.chat", return_value=reply) as chat:
+        assert loc.translate_texts(["IL-6", "Muskeln [1]."], "Türkisch") == ["IL-6", "Kaslar [1]."]
+    prompt = chat.call_args.kwargs["messages"][0]["content"]
+    assert "Türkisch" in prompt and "### Text 2\nMuskeln [1]." in prompt
+
+
+def test_translate_texts_truncated_is_an_error():
+    with patch("graph.localize.ollama.chat", return_value=texts_answer([], "length")):
+        with pytest.raises(ValueError):
+            loc.translate_texts(["Muskeln"], "Englisch")
+
+
+def test_translate_texts_empty_needs_no_llm():
+    with patch("graph.localize.ollama.chat") as chat:
+        assert loc.translate_texts([], "Deutsch") == []
+    chat.assert_not_called()

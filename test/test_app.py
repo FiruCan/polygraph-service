@@ -189,6 +189,18 @@ def test_labels_endpoint_llm_failure_is_502(client):
         assert client.post("/labels", json={"texts": ["x"]}).status_code == 502
 
 
+def test_translate_endpoint(client):
+    with patch("app.translate_texts", return_value=["Muscles"]) as fn:
+        r = client.post("/translate", json={"texts": ["Muskeln"], "language": "Englisch"})
+    assert r.status_code == 200 and r.json() == {"texts": ["Muscles"]}
+    fn.assert_called_once_with(["Muskeln"], "Englisch")
+
+
+def test_translate_endpoint_llm_failure_is_502(client):
+    with patch("app.translate_texts", side_effect=RuntimeError("down")):
+        assert client.post("/translate", json={"texts": ["x"]}).status_code == 502
+
+
 # --- Duplikat-Aufraeumer ----------------------------------------------------
 
 def test_nodes_merge(client):
@@ -247,3 +259,28 @@ def test_edges_rewrite(client):
     assert client.get("/graph").json()["edges"][0]["evidence_level"] == "meta-analysis"
     assert client.post("/edges/rewrite", json={"rewrites": [
         {"field": "relation", "old": "a", "new": "b"}]}).status_code == 422
+
+
+def test_questions_suggest_with_topic_uses_selected_nodes(client):
+    client.post("/triples", json={"triples": [triple()]})
+    with patch("app.select_nodes", return_value=["Krebs"]) as sel, \
+         patch("app.suggest_questions", return_value=[]) as sug:
+        r = client.get("/questions/suggest?topic=Krebsrisiko")
+    assert sel.call_args.args[1] == "Krebsrisiko"
+    assert sug.call_args.kwargs["focus"] == ["Krebs"]
+    assert r.json() == {"questions": [], "topic_nodes": ["Krebs"]}
+
+
+def test_questions_suggest_unknown_topic_gives_no_questions(client):
+    client.post("/triples", json={"triples": [triple()]})
+    with patch("app.select_nodes", return_value=[]), patch("app.suggest_questions") as sug:
+        r = client.get("/questions/suggest?topic=Raumfahrt")
+    sug.assert_not_called()  # keine Zufallsfragen, wenn das Thema nicht im Graphen ist
+    assert r.json() == {"questions": [], "topic_nodes": []}
+
+
+def test_questions_suggest_blank_topic_is_random(client):
+    with patch("app.select_nodes") as sel, patch("app.suggest_questions", return_value=[]):
+        r = client.get("/questions/suggest?topic=%20%20")
+    sel.assert_not_called()
+    assert r.json() == {"questions": []}

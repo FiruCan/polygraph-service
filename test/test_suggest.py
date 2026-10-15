@@ -116,6 +116,42 @@ def test_history_starts_over_when_everything_used():
         assert find_seeds(g, 3, rng, history), "nach dem Leeren des Verlaufs muss es weitergehen"
 
 
+def touches_focus(s, focus):
+    return bool(set(s["knoten"]) & focus)
+
+
+def test_focus_every_seed_touches_topic():
+    focus = {"Demenz"}
+    for seed in range(20):
+        seeds = find_seeds(chain_graph(), 5, random.Random(seed), SuggestionHistory(), focus=["Demenz"])
+        assert seeds
+        for s in seeds:
+            assert touches_focus(s, focus), s
+
+
+def test_focus_single_node_gives_several_questions():
+    # ein Thema mit nur einem Knoten darf nicht bei einer einzigen Frage enden
+    seeds = find_seeds(chain_graph(), 5, random.Random(2), SuggestionHistory(), focus=["Muskeln"])
+    assert len(seeds) >= 3
+    assert all(touches_focus(s, {"Muskeln"}) for s in seeds)
+
+
+def test_focus_vergleich_and_detail_touch_topic():
+    found = []
+    for seed in range(30):
+        found += find_seeds(chain_graph(), 5, random.Random(seed), SuggestionHistory(), focus=["Krafttraining"])
+    kinds = {s["art"] for s in found}
+    assert "vergleich" in kinds and "knoten" in kinds
+    assert all(touches_focus(s, {"Krafttraining"}) for s in found)
+
+
+def test_suggest_passes_focus():
+    with patch("graph.suggest.ollama.chat", side_effect=RuntimeError("weg")):
+        result = suggest_questions(chain_graph(), 4, random.Random(1), history=SuggestionHistory(),
+                                   focus=["Myokine"])
+    assert result and all("Myokine" in q["nodes"] for q in result)
+
+
 def test_suggest_uses_llm_wording():
     g = chain_graph()
     n = len(find_seeds(g, 3, random.Random(1)))
