@@ -1,6 +1,7 @@
 """
-Unit-Tests fuer graph/translate.py und die Uebersetzung beim Import
-(normalize.normalize_triple). ollama.chat wird gemockt.
+Unit-Tests fuer graph/translate.py, die Uebersetzung beim Import
+(normalize.normalize_triple) und translate_graph.py. ollama.chat und die
+API-Aufrufe werden gemockt.
 """
 
 import json
@@ -12,6 +13,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import translate_graph
 from graph import normalize, translate
 from graph.translate import translate_names
 
@@ -84,3 +86,57 @@ def test_normalize_triple_translates_edge_details():
         result = normalize.normalize_triple(triple, ["a", "b"], ["r"])
     assert result["value"] == "20 percent"
     assert result["condition"] is None and result["confidence"] == 0.9
+
+
+def test_types_use_own_prompt():
+    with patch("graph.translate.ollama.chat",
+               return_value=answer([("Krankheiten", "diseases")])) as chat:
+        assert translate.translate_types(["Krankheiten", "signaling_molecule"]) == {
+            "Krankheiten": "diseases", "signaling_molecule": "signaling_molecule"}
+    assert "TYPEN:" in chat.call_args.kwargs["messages"][0]["content"]
+
+
+# --- translate_graph.py ----------------------------------------------------
+
+def test_renames_skip_case_only_changes_and_flag_merges():
+    values = ["Krankheiten", "diseases", "Fatigue", "Müdigkeit"]
+    translated = {"Krankheiten": "diseases", "diseases": "diseases", "Fatigue": "fatigue",
+                  "Müdigkeit": "fatigue"}
+    assert translate_graph._renames(values, translated) == [
+        {"alt": "Krankheiten", "neu": "diseases", "zusammenfuehren": True, "freigegeben": True},
+        {"alt": "Müdigkeit", "neu": "Fatigue", "zusammenfuehren": True, "freigegeben": True},
+    ]
+
+
+def test_plan_only_types(tmp_path, monkeypatch):
+    monkeypatch.setattr(translate_graph, "REVIEW_PATH", str(tmp_path / "review.json"))
+    graph = {"nodes": [{"id": "a", "type": "Krankheiten"}, {"id": "b", "type": "disease"},
+                       {"id": "c", "type": None}], "edges": []}
+    with patch("translate_graph.requests.get") as get, \
+         patch("translate_graph.translate_names") as names, \
+         patch("translate_graph.translate_types",
+               side_effect=lambda types, progress=None: {t: {"Krankheiten": "diseases"}.get(t, t) for t in types}):
+        get.return_value.json.return_value = graph
+        translate_graph.plan("http://x", ["typen"])
+    names.assert_not_called()
+    with open(tmp_path / "review.json", encoding="utf-8") as f:
+        assert json.load(f) == {"typen": [
+            {"alt": "Krankheiten", "neu": "diseases", "zusammenfuehren": False, "freigegeben": True}]}
+
+
+def test_apply_renames_only_approved_types(tmp_path, monkeypatch):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "graph.gml").write_text("graph [ ]")
+    review = {"typen": [
+        {"alt": "Krankheiten", "neu": "diseases", "zusammenfuehren": False, "freigegeben": True},
+        {"alt": "Gehirn", "neu": "brain", "zusammenfuehren": False, "freigegeben": False}]}
+    (tmp_path / "review.json").write_text(json.dumps(review))
+    monkeypatch.setattr(translate_graph, "HERE", str(tmp_path))
+    monkeypatch.setattr(translate_graph, "REVIEW_PATH", str(tmp_path / "review.json"))
+    monkeypatch.setattr(translate_graph, "GRAPH_PATH", str(tmp_path / "graph.gml"))
+    with patch("translate_graph.requests.post") as post:
+        post.return_value.json.return_value = {"changed": 3}
+        translate_graph.apply("http://x")
+    post.assert_called_once_with("http://x/vocabulary/rename", timeout=600,
+                                 json={"kind": "type", "old": "Krankheiten", "new": "diseases"})
+    assert len(list((tmp_path / "data").glob("graph.backup-*.gml"))) == 1

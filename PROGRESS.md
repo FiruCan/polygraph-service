@@ -37,7 +37,7 @@
   (`translate_graph.py`) - viele Duplikate ueber Sprachgrenzen loesen sich
   dabei von selbst.
 
-**Graph komplett Englisch, Fragen/Antworten in waehlbarer Sprache (fertig, Bestand noch nicht umgestellt)**
+**Graph komplett Englisch, Fragen/Antworten in waehlbarer Sprache (fertig, Bestand umgestellt)**
 - Grund: Knotennamen standen in der Sprache des Quelltextes - "Multiple
   Sklerose" neben "multiple sclerosis", "ZNS" neben "CNS". Die
   Synonym-Erkennung findet solche Paare ueber Sprachgrenzen schlecht.
@@ -67,10 +67,29 @@
   English, Tuerkce) neben dem Fragefeld, im Browser gemerkt; geht an
   `/ask`, `/questions/suggest`, `/explain`. Im Browser geprueft:
   Vorschlaege und Antwort auf Tuerkisch.
-- Offen: Bestand noch nicht umgestellt (`translate_graph.py`); laufender
-  Service muss dafuer neu gestartet werden. `/passages` in polygraph sucht
-  den (jetzt englischen) Begriff im Quelltext - in deutschen Artikeln
-  findet er dann nichts.
+- Bestand umgestellt (2026-10-17): 749 Knoten umbenannt, 14
+  zusammengefuehrt, 606 Kanten-Angaben; Backup
+  `data/graph.backup-2026-10-17-192413.gml`. Danach geprueft: Namen,
+  Angaben und alle 282 Relationen englisch - aber rund 80 der 540 Typen
+  noch deutsch ("Krankheiten", "Gehirn", ...), die waren nicht dabei.
+- Typen deshalb ebenfalls (2026-10-19): eigener Prompt
+  `prompts/translate_types.md` (snake_case bleibt snake_case:
+  "infektionskrankheit" -> "infectious_disease"); beim Import uebersetzt
+  `/triples` nur noch unbekannte Typen (`store.known_types`); Bestand per
+  `translate_graph.py plan --nur typen` + `apply` ueber
+  `POST /vocabulary/rename`. Live: Stichprobe von 18 echten Typen sinnvoll.
+- Typen im Bestand umgestellt (2026-10-19): 87 Typen an 95 Knoten, davon
+  3 von Hand korrigiert/ergaenzt ("CD4+ T cells", "Fampridin" fehlte im
+  Lauf, ein in den Typ gerutschter Linking-Hinweis "EDSS (im Graphen
+  bereits als: EDSS 4)" -> "EDSS"); Backup
+  `data/graph.backup-2026-10-19-141455.gml`. Danach 532 Typen, keiner
+  mehr deutsch.
+- Offen: Service muss fuer die Typ-Uebersetzung beim Import neu
+  gestartet werden. `/passages` in
+  polygraph sucht den (jetzt englischen) Begriff im Quelltext - in
+  deutschen Artikeln findet er dann nichts. Typen allgemein unordentlich:
+  419 der 540 Werte sind kein Vokabular, sondern Begriffe ("small
+  molecules"), 443 kommen nur einmal vor - vermutlich aus der Extraktion.
 
 **PDF-Export nach polygraph umgezogen (fertig)**
 - `POST /export/pdf`, `GET /output/...` und `graph/export.py` sind weg; den

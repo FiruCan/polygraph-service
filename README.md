@@ -17,12 +17,13 @@ Tripel kommen von aussen (z.B. aus dem separaten
 lokalem LLM in Tripel extrahiert) und werden hier normalisiert und
 gespeichert.
 
-**Sprache:** Alles im Graphen ist **Englisch** - Knotennamen und die
-Angaben an den Kanten (`value`, `condition`, `evidence_level`); beim
-Import wird uebersetzt (`graph/translate.py`). Fragen,
+**Sprache:** Alles im Graphen ist **Englisch** - Knotennamen, die
+Angaben an den Kanten (`value`, `condition`, `evidence_level`) und die
+Knotentypen; beim Import wird uebersetzt (`graph/translate.py`). Fragen,
 Antworten, Vorschlaege und Erklaerungen gibt es in einer frei waehlbaren
 Sprache (`language`, z.B. `"Deutsch"`, `"Englisch"`, `"Tuerkisch"`;
-Standard `"Deutsch"`). Relationen und Typen sind ebenfalls englisch.
+Standard `"Deutsch"`). Relationen kommen schon englisch aus polygraph und
+werden nicht uebersetzt.
 
 ## Setup
 
@@ -141,10 +142,12 @@ Knoten und ~1.700 Kanten-Angaben):
 python3 translate_graph.py plan
 ```
 
-schreibt `data/translate_review.json` mit zwei Listen: `knoten` (alt ->
-neu, `zusammenfuehren`, `freigegeben`) und `kanten` (`feld`, alt -> neu,
-`freigegeben`). Durchsehen, falsche Eintraege korrigieren oder auf
-`"freigegeben": false` setzen, dann:
+schreibt `data/translate_review.json` mit drei Listen: `knoten` (alt ->
+neu, `zusammenfuehren`, `freigegeben`), `kanten` (`feld`, alt -> neu,
+`freigegeben`) und `typen` (wie `knoten`, umbenannt ueber
+`POST /vocabulary/rename`). Mit `--nur typen` (bzw. `knoten`, `kanten`)
+wird nur ein Teil geprueft. Durchsehen, falsche Eintraege korrigieren oder
+auf `"freigegeben": false` setzen, dann:
 
 ```bash
 python3 translate_graph.py apply
@@ -160,7 +163,7 @@ polygraph-service/
 ├── graph/
 │   ├── store.py        # NetworkX-Wrapper, to_json()/from_json() fuer die API
 │   ├── normalize.py    # Synonyme zusammenfuehren (bge-m3-Embedding + gemma4:26b-Pruefung)
-│   ├── translate.py    # Knotennamen + Kanten-Angaben ins Englische (gemma4:26b, paketweise, gecacht)
+│   ├── translate.py    # Knotennamen, Kanten-Angaben + Typen ins Englische (gemma4:26b, paketweise, gecacht)
 │   └── ask.py           # GraphRAG: Knoten waehlen -> Kanten holen -> Agent antwortet (laedt bei Bedarf nach)
 ├── prompts/             # ask_select.md, ask_answer.md, normalize_judge.md
 ├── translate_graph.py   # einmalige Umstellung des Bestands auf Englisch

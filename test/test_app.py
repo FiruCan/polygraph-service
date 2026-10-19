@@ -24,9 +24,10 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "store", GraphStore())
     # Normalisierung ohne Ollama: Begriffe bleiben, wie sie sind
     with patch("app.normalize_triple", side_effect=lambda t, e, r: dict(t)), \
-         patch("app.translate_names") as names, patch("app.translate_details") as details:
+         patch("app.translate_names") as names, patch("app.translate_details") as details, \
+         patch("app.translate_types", side_effect=lambda types: {t: t for t in types}) as types:
         client = TestClient(app_module.app)
-        client.translate_names, client.translate_details = names, details
+        client.translate_names, client.translate_details, client.translate_types = names, details, types
         yield client
 
 
@@ -249,6 +250,17 @@ def test_post_triples_pretranslates_new_names_and_details(client):
                                                    value="20 Prozent", condition=" ")]})
     assert client.translate_names.call_args.args[0] == ["Muskeln"]  # bekannter Knoten nicht
     assert client.translate_details.call_args.args[0] == ["20 Prozent"]  # leere Angabe nicht
+
+
+def test_post_triples_translates_new_types(client):
+    client.post("/triples", json={"triples": [dict(triple(), subject_type="lifestyle_factor",
+                                                   object_type="disease")]})
+    client.translate_types.side_effect = lambda types: {t: "diseases" for t in types}
+    client.post("/triples", json={"triples": [dict(triple(obj="Diabetes"), subject_type="lifestyle_factor",
+                                                   object_type="Krankheiten")]})
+    assert client.translate_types.call_args.args[0] == ["Krankheiten"]  # bekannter Typ nicht
+    types = {n["id"]: n["type"] for n in client.get("/graph").json()["nodes"]}
+    assert types == {"Krafttraining": "lifestyle_factor", "Krebs": "disease", "Diabetes": "diseases"}
 
 
 def test_edges_rewrite(client):

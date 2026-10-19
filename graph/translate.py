@@ -10,17 +10,20 @@ unzuverlaessig.
 
 Dasselbe gilt fuer die Angaben an den Kanten (value, condition,
 evidence_level): "1,9 bis 3,3 Prozent" -> "1.9 to 3.3 percent",
-"Metaanalyse" -> "meta-analysis". Alles im Graphen ist englisch - nur
-Fragen und Antworten gibt es in der Sprache, die der Leser waehlt.
+"Metaanalyse" -> "meta-analysis". Ebenso die Knotentypen ("Krankheiten" ->
+"diseases"). Alles im Graphen ist englisch - nur Fragen und Antworten gibt
+es in der Sprache, die der Leser waehlt.
 
 Ein LLM-Aufruf uebersetzt ein ganzes Paket auf einmal, Knotennamen
-(prompts/translate_names.md) und Kanten-Angaben
-(prompts/translate_details.md) mit je eigenem Prompt; schon Englisches,
-Abkuerzungen und Eigennamen bleiben unveraendert. Jeder Text wird nur
-einmal uebersetzt (Cache).
+(prompts/translate_names.md), Kanten-Angaben (prompts/translate_details.md)
+und Typen (prompts/translate_types.md) mit je eigenem Prompt; schon
+Englisches, Abkuerzungen und Eigennamen bleiben unveraendert. Jeder Text
+wird nur einmal uebersetzt (Cache).
 
-Genutzt beim Import (normalize.normalize_triple) und fuer die einmalige
-Umstellung des Bestands (translate_graph.py -> POST /nodes/rename).
+Genutzt beim Import (Namen und Angaben in normalize.normalize_triple, Typen
+in app.py) und fuer die einmalige Umstellung des Bestands
+(translate_graph.py -> POST /nodes/rename, /edges/rewrite,
+/vocabulary/rename).
 """
 
 import json
@@ -31,9 +34,12 @@ import ollama
 TRANSLATE_MODEL = "gemma4:26b"
 BATCH_SIZE = 40
 PROMPT_DIR = os.path.join(os.path.dirname(__file__), "..", "prompts")
-PROMPTS = {"names": "translate_names.md", "details": "translate_details.md"}
+PROMPTS = {"names": "translate_names.md", "details": "translate_details.md",
+           "types": "translate_types.md"}
 # Kanten-Felder mit Freitext aus dem Quelltext (confidence ist eine Zahl)
 DETAIL_FIELDS = ("value", "condition", "evidence_level")
+# Tripel-Felder mit den Typen von Subjekt und Objekt
+TYPE_FIELDS = ("subject_type", "object_type")
 
 _cache: dict = {}
 
@@ -86,7 +92,8 @@ def _translate_batch(names: list, kind: str) -> dict:
 def translate_names(names: list, progress=None, kind: str = "names") -> dict:
     """
     -> {name: englisch} fuer alle names (unveraendert, wenn schon
-    englisch). kind: "names" (Knoten) oder "details" (Kanten-Angaben).
+    englisch). kind: "names" (Knoten), "details" (Kanten-Angaben) oder
+    "types" (Knotentypen).
     progress(fertig, gesamt) wird nach jedem Paket aufgerufen.
     """
     todo = list(dict.fromkeys(n for n in names if (kind, n) not in _cache))
@@ -100,6 +107,10 @@ def translate_names(names: list, progress=None, kind: str = "names") -> dict:
 
 def translate_details(texts: list, progress=None) -> dict:
     return translate_names(texts, progress, kind="details")
+
+
+def translate_types(types: list, progress=None) -> dict:
+    return translate_names(types, progress, kind="types")
 
 
 def to_english(name: str) -> str:

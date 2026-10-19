@@ -77,6 +77,13 @@ def test_known_entities_and_relations():
     assert store.known_relations() == ["increases_risk_of", "reduces_risk_of"]
 
 
+def test_known_types_skips_nodes_without_type():
+    store = GraphStore()
+    store.add_triple(triple())
+    store.add_triple({"subject": "a", "relation": "r", "object": "b"})
+    assert store.known_types() == ["disease", "lifestyle_factor"]
+
+
 def test_edges_by_relation_and_neighbors():
     store = GraphStore()
     store.add_triple(triple())

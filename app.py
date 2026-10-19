@@ -35,7 +35,7 @@ from graph.localize import localize, translate_texts
 from graph.normalize import normalize_triple, similar_entities
 from graph.store import GraphStore
 from graph.suggest import suggest_questions
-from graph.translate import DETAIL_FIELDS, translate_details, translate_names
+from graph.translate import DETAIL_FIELDS, TYPE_FIELDS, translate_details, translate_names, translate_types
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "graph.gml")
 
@@ -169,10 +169,18 @@ def add_triples(body: TriplesIn):
                          if isinstance(t.get(f), str) and t[f] not in known])
         translate_details([t[f] for t in body.triples for f in DETAIL_FIELDS
                            if isinstance(t.get(f), str) and t[f].strip()])
+        # Typen ebenso; ein schon bekannter Typ ist englisch (Bestand mit
+        # translate_graph.py umgestellt) und braucht keinen LLM-Aufruf.
+        known_types = set(store.known_types())
+        types = translate_types([t[f] for t in body.triples for f in TYPE_FIELDS
+                                 if isinstance(t.get(f), str) and t[f].strip() and t[f] not in known_types])
 
         merges = []
         for triple in body.triples:
             normalized = normalize_triple(triple, store.known_entities(), store.known_relations())
+            for field in TYPE_FIELDS:
+                if isinstance(triple.get(field), str) and triple[field] in types:
+                    normalized[field] = types[triple[field]]
             for field in ("subject", "object", "relation"):
                 if normalized[field] != triple[field]:
                     merges.append([field, triple[field], normalized[field]])

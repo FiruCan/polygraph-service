@@ -122,6 +122,9 @@ class GraphStore:
             if "relation" in data
         })
 
+    def known_types(self) -> list[str]:
+        return sorted({data["type"] for _, data in self.graph.nodes(data=True) if "type" in data})
+
     def rename_relation(self, old: str, new: str) -> int:
         """
         Benennt eine Relation auf allen Kanten um (Vokabular-Steward in
