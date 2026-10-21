@@ -96,6 +96,17 @@ def test_types_use_own_prompt():
     assert "TYPEN:" in chat.call_args.kwargs["messages"][0]["content"]
 
 
+def test_prompt_names_topics_of_the_graph():
+    with patch("graph.translate.ollama.chat", return_value=answer([("Bewegung", "motion")])) as chat:
+        translate.translate_names(["Bewegung"], topics="physical_quantity, experiment")
+    prompt = chat.call_args.kwargs["messages"][0]["content"]
+    assert "physical_quantity, experiment" in prompt
+    assert "biomedizin" not in prompt.lower() and "Gesundheitskontext" not in prompt
+    with patch("graph.translate.ollama.chat", return_value=answer([])) as chat:
+        translate.translate_details(["Faktor 1,8"])  # leerer Graph
+    assert translate.NO_TOPICS in chat.call_args.kwargs["messages"][0]["content"]
+
+
 # --- translate_graph.py ----------------------------------------------------
 
 def test_renames_skip_case_only_changes_and_flag_merges():

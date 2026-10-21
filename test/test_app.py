@@ -25,7 +25,7 @@ def client(tmp_path, monkeypatch):
     # Normalisierung ohne Ollama: Begriffe bleiben, wie sie sind
     with patch("app.normalize_triple", side_effect=lambda t, e, r: dict(t)), \
          patch("app.translate_names") as names, patch("app.translate_details") as details, \
-         patch("app.translate_types", side_effect=lambda types: {t: t for t in types}) as types:
+         patch("app.translate_types", side_effect=lambda types, topics="": {t: t for t in types}) as types:
         client = TestClient(app_module.app)
         client.translate_names, client.translate_details, client.translate_types = names, details, types
         yield client
@@ -182,7 +182,7 @@ def test_labels_endpoint(client):
     with patch("app.localize", return_value={"muscles": "Muskeln"}) as fn:
         r = client.post("/labels", json={"texts": ["muscles"], "language": "Deutsch", "cached_only": True})
     assert r.status_code == 200 and r.json() == {"labels": {"muscles": "Muskeln"}}
-    fn.assert_called_once_with(["muscles"], "Deutsch", cached_only=True)
+    fn.assert_called_once_with(["muscles"], "Deutsch", cached_only=True, topics="")
 
 
 def test_labels_endpoint_llm_failure_is_502(client):
@@ -228,6 +228,15 @@ def test_duplicates_find_passes_parameters(client):
     assert client.post("/duplicates/find", json={"threshold": 0.1}).status_code == 422
 
 
+def test_graph_backup_copies_current_graph(client):
+    client.post("/triples", json={"triples": [triple()], "source": "A"})
+    name = client.post("/graph/backup").json()["backup"]
+    assert name.startswith("graph.backup-") and name.endswith(".gml")
+    backup = GraphStore()
+    backup.load(os.path.join(os.path.dirname(app_module.DATA_PATH), name))
+    assert backup.graph.has_edge("Krafttraining", "Krebs")
+
+
 # --- Umstellung auf englische Knotennamen -----------------------------------
 
 def test_nodes_rename_renames_merges_and_skips(client):
@@ -252,10 +261,32 @@ def test_post_triples_pretranslates_new_names_and_details(client):
     assert client.translate_details.call_args.args[0] == ["20 Prozent"]  # leere Angabe nicht
 
 
+def test_post_triples_passes_topics_from_graph_and_new_triples(client):
+    # Fachgebiet = haeufigste Typen des Graphen plus die der neuen Tripel
+    client.post("/triples", json={"triples": [dict(triple(), subject_type="company", object_type="sector")]})
+    client.post("/triples", json={"triples": [dict(triple(obj="Banken"), subject_type="company",
+                                                   object_type="sector")]})
+    assert client.translate_names.call_args.kwargs["topics"] == "company, sector"
+    assert client.translate_types.call_args.kwargs["topics"] == "company, sector"
+
+
+def test_vocabulary_lists_types_and_relations_by_count(client):
+    client.post("/triples", json={"triples": [
+        dict(triple(), subject_type="lifestyle_factor", object_type="disease"),
+        dict(triple(subject="Rauchen", relation="increases_risk_of"), subject_type="risk_factor",
+             object_type="disease"),
+        dict(triple(obj="Diabetes"), subject_type="lifestyle_factor", object_type="disease")]})
+    assert client.get("/vocabulary").json() == {
+        "types": [{"name": "disease", "count": 2}, {"name": "lifestyle_factor", "count": 1},
+                  {"name": "risk_factor", "count": 1}],
+        "relations": [{"name": "reduces_risk_of", "count": 2}, {"name": "increases_risk_of", "count": 1}],
+    }
+
+
 def test_post_triples_translates_new_types(client):
     client.post("/triples", json={"triples": [dict(triple(), subject_type="lifestyle_factor",
                                                    object_type="disease")]})
-    client.translate_types.side_effect = lambda types: {t: "diseases" for t in types}
+    client.translate_types.side_effect = lambda types, topics="": {t: "diseases" for t in types}
     client.post("/triples", json={"triples": [dict(triple(obj="Diabetes"), subject_type="lifestyle_factor",
                                                    object_type="Krankheiten")]})
     assert client.translate_types.call_args.args[0] == ["Krankheiten"]  # bekannter Typ nicht

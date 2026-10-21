@@ -12,6 +12,13 @@ kompatible Instanzen liefern Graph/Antworten im selben JSON-Format, sodass
 sich beide von einer gemeinsamen Oberflaeche aus abfragen lassen, ohne die
 Graphen selbst zu vermischen.
 
+**Keine feste Domain:** welches Fachgebiet ein Graph hat, bestimmen die
+Artikel, die importiert werden. Pro Thema laeuft eine eigene Instanz. Das
+Vokabular (Knotentypen, Relationen) waechst aus den Tripeln;
+`GET /vocabulary` liefert es polygraph fuer die Extraktion, und die
+haeufigsten Knotentypen sagen den Prompts, worum es geht (z.B. ob
+"Bewegung" "physical activity" oder "motion" heisst).
+
 Tripel kommen von aussen (z.B. aus dem separaten
 [polygraph](https://github.com/FiruCan/polygraph)-Projekt, das Text per
 lokalem LLM in Tripel extrahiert) und werden hier normalisiert und
@@ -105,6 +112,9 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   benutzte Ausgangspunkte (300, im Speicher) werden ausgelassen - keine
   Wiederholungen, bis alles einmal dran war. In der Oberflaeche: Button
   "Fragen vorschlagen", Klick auf einen Vorschlag stellt die Frage.
+- `GET /vocabulary` -> `{"types": [{"name": str, "count": int}], "relations": [{"name": str, "count": int}]}`
+  - Knotentypen und Relationen mit Haeufigkeit, haeufigste zuerst.
+  polygraph gibt die haeufigen der Extraktion als bekanntes Vokabular mit.
 - `POST /entities/similar` Body `{"names": [str], "limit": 3}` ->
   `{"matches": {name: [aehnliche bekannte Knoten]}}` - Embedding-Aehnlichkeit
   ohne LLM, fuer Entity-Linking in polygraph vor der Extraktion. Namen, die
@@ -123,15 +133,24 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
 - `POST /edges/rewrite` Body `{"rewrites": [{"field": "value"|"condition"|"evidence_level", "old": str, "new": str}, ...]}`
   -> `{"changed": N}` - ersetzt eine Angabe auf allen Kanten.
 - `POST /duplicates/find` Body `{"threshold": 0.75, "limit": null}` ->
-  `{"vorschlaege": [{"behalten": str, "entfernen": str, "begruendung": str, "aehnlichkeit": float, "kanten": {...}, "typen": {...}, "freigegeben": false}], "richter_aufrufe": int, "knoten": int, "dauer_s": float}`
-  - Duplikat-Aufraeumer: doppelte Knoten im ganzen Graphen (Embedding +
-  LLM-Richter), aendert nichts. Dauert lange (~75 Min. bei ~2.800 Knoten);
-  `limit` begrenzt die Richter-Aufrufe fuer Probelaeufe. Aufruf ueber
-  polygraph `dedupe.py`.
+  `{"vorschlaege": [{"behalten": str, "entfernen": str, "begruendung": str, "schritte": [str], "beleg": "schreibweise"|"abkuerzung"|null, "mehrdeutig": [str], "aehnlichkeit": float, "kanten": {...}, "typen": {...}, "freigegeben": bool}], "richter_aufrufe": int, "llm_aufrufe": int, "knoten": int, "dauer_s": float}`
+  - Duplikat-Aufraeumer: doppelte Knoten im ganzen Graphen (Embedding und
+  Namen liefern Kandidaten, ein Richter-Agent urteilt und kann per
+  `suche_knoten` z.B. die Langform einer Abkuerzung nachschlagen -
+  `schritte` zeigt die Suchen), aendert nichts. `freigegeben` ist ein
+  Vorschlag nur, wenn auch die Namen ihn belegen (`beleg`) und eine
+  Abkuerzung eindeutig ist (sonst `mehrdeutig`: gleichauf liegende
+  Langformen). Dauert lange (~1 Std. bei ~3.000 Knoten); `limit` begrenzt
+  die Richter-Aufrufe fuer Probelaeufe. Aufruf ueber polygraph `dedupe.py`
+  (`--auto`: vollautomatisch).
 - `POST /nodes/merge` Body `{"keep": str, "remove": str}` ->
   `{"moved": n, "collapsed": n, "dropped_self_loops": n, "nodes": N, "edges": M}`
   - Kanten von `remove` an `keep` umhaengen, `remove` loeschen (nach
-  Freigabe durch einen Menschen). 404 wenn ein Knoten fehlt.
+  Freigabe durch den Duplikat-Agenten oder einen Menschen). 404 wenn ein
+  Knoten fehlt.
+- `POST /graph/backup` -> `{"backup": "graph.backup-<Zeitstempel>.gml"}` -
+  Kopie von `data/graph.gml` (ruft polygraph `dedupe.py --auto` vor dem
+  Zusammenfuehren auf).
 
 ## Bestand auf Englisch umstellen
 

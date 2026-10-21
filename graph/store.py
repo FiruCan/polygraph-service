@@ -9,6 +9,7 @@ unveraendert).
 
 import json
 import os
+from collections import Counter
 
 import networkx as nx
 
@@ -124,6 +125,36 @@ class GraphStore:
 
     def known_types(self) -> list[str]:
         return sorted({data["type"] for _, data in self.graph.nodes(data=True) if "type" in data})
+
+    def vocabulary(self) -> dict:
+        """
+        Knotentypen und Relationen mit Haeufigkeit, haeufigste zuerst. Das
+        Vokabular waechst aus den Artikeln, die importiert werden - es gibt
+        keine fest eingestellte Domain. polygraph gibt die haeufigen Begriffe
+        der Extraktion als bekanntes Vokabular mit (GET /vocabulary), die
+        Prompts hier die haeufigsten Typen als Fachgebiet (topics()).
+        """
+        types = Counter(data["type"] for _, data in self.graph.nodes(data=True) if data.get("type"))
+        relations = Counter(data["relation"] for _, _, data in self.graph.edges(data=True)
+                            if data.get("relation"))
+
+        def listed(counts):
+            return [{"name": name, "count": n}
+                    for name, n in sorted(counts.items(), key=lambda i: (-i[1], i[0]))]
+
+        return {"types": listed(types), "relations": listed(relations)}
+
+    def topics(self, extra_types=(), limit: int = 15) -> str:
+        """
+        Die haeufigsten Knotentypen als kurze Liste ("disease, drug, ...") -
+        sagt den Prompts, worum es in diesem Graphen geht, z.B. um
+        mehrdeutige Woerter richtig zu uebersetzen. extra_types (die Typen
+        gerade importierter Tripel) zaehlen mit: ein junger Graph hat noch
+        kaum eigene Typen. Leer, wenn es noch keine gibt.
+        """
+        counts = Counter(data["type"] for _, data in self.graph.nodes(data=True) if data.get("type"))
+        counts.update(t for t in extra_types if isinstance(t, str) and t.strip())
+        return ", ".join(name for name, _ in counts.most_common(limit))
 
     def rename_relation(self, old: str, new: str) -> int:
         """

@@ -28,7 +28,8 @@ Achte besonders auf:
 - Zahlen und Werte (stimmen sie mit value ueberein?)
 - Richtung (erhoeht / senkt, verbessert / verschlechtert)
 - Ursache statt Zusammenhang ("bewirkt" vs. "geht einher mit")
-- Verallgemeinerung (nur an Maeusen / im Labor belegt, im Satz fuer Menschen)
+- Verallgemeinerung (nur an Maeusen / im Labor / in einem Land oder
+  Zeitraum belegt, im Satz allgemein gueltig)
 - "wird untersucht" / "koennte" im Tripel, im Satz als Tatsache
 - Bedingungen (condition), die im Satz fehlen und die Aussage umkehren
 
@@ -38,6 +39,8 @@ KEIN Grund fuer "teilweise" oder "nicht_gedeckt":
 - kurze Erklaerungen von Fachbegriffen in Klammern oder im Nebensatz
   (z.B. "OPCs (Vorlaeuferzellen der Myelin bildenden Zellen)") - das ist
   erlaubtes Allgemeinwissen
+- kurze bildhafte Vergleiche, die nur einen Begriff veranschaulichen
+  ("wie die Isolierung um ein Stromkabel")
 - weggelassene Details (der Satz muss nicht alles aus dem Tripel nennen)
 
 TRIPEL:

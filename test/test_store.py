@@ -53,6 +53,29 @@ def test_same_relation_other_source_is_separate_edge():
     assert len(store.graph.get_edge_data("Krafttraining", "Krebs")) == 2
 
 
+def test_vocabulary_counts_types_and_relations_most_frequent_first():
+    store = GraphStore()
+    store.add_triple(triple())
+    store.add_triple(triple(subject="Rauchen", relation="increases_risk_of", subject_type="risk_factor"))
+    store.add_triple(triple(obj="Diabetes", relation="increases_risk_of"))
+    vocab = store.vocabulary()
+    assert vocab["types"] == [{"name": "disease", "count": 2}, {"name": "lifestyle_factor", "count": 1},
+                              {"name": "risk_factor", "count": 1}]
+    assert vocab["relations"] == [{"name": "increases_risk_of", "count": 2},
+                                  {"name": "reduces_risk_of", "count": 1}]
+
+
+def test_topics_are_most_frequent_types_including_new_ones():
+    store = GraphStore()
+    assert store.topics() == ""
+    store.add_triple(triple())
+    store.add_triple(triple(obj="Diabetes"))
+    assert store.topics() == "disease, lifestyle_factor"
+    # junger Graph: die Typen der gerade importierten Tripel zaehlen mit
+    assert store.topics(["company", "company", "company", None, " "]) == "company, disease, lifestyle_factor"
+    assert store.topics(limit=1) == "disease"
+
+
 def test_node_type_not_overwritten_with_none():
     store = GraphStore()
     store.add_triple(triple())

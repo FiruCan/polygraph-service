@@ -40,6 +40,8 @@ PROMPTS = {"names": "translate_names.md", "details": "translate_details.md",
 DETAIL_FIELDS = ("value", "condition", "evidence_level")
 # Tripel-Felder mit den Typen von Subjekt und Objekt
 TYPE_FIELDS = ("subject_type", "object_type")
+# Fachgebiet im Prompt, solange der Graph noch keine Typen hat
+NO_TOPICS = "(noch unbekannt - der Graph ist leer)"
 
 _cache: dict = {}
 
@@ -59,7 +61,7 @@ SCHEMA = {
 }
 
 
-def _translate_batch(names: list, kind: str) -> dict:
+def _translate_batch(names: list, kind: str, topics: str = "") -> dict:
     """
     -> {original: englisch} fuer ein Paket. Fehlt ein Name in der Antwort
     oder ist sie kaputt, bleibt er unveraendert - lieber ein deutscher
@@ -67,7 +69,8 @@ def _translate_batch(names: list, kind: str) -> dict:
     """
     with open(os.path.join(PROMPT_DIR, PROMPTS[kind]), "r", encoding="utf-8") as f:
         template = f.read()
-    prompt = template.format(names="\n".join(f"- {n}" for n in names))
+    prompt = template.format(names="\n".join(f"- {n}" for n in names),
+                             topics=topics or NO_TOPICS)
     response = ollama.chat(
         model=TRANSLATE_MODEL,
         messages=[{"role": "user", "content": prompt}],
@@ -89,28 +92,30 @@ def _translate_batch(names: list, kind: str) -> dict:
     return result
 
 
-def translate_names(names: list, progress=None, kind: str = "names") -> dict:
+def translate_names(names: list, progress=None, kind: str = "names", topics: str = "") -> dict:
     """
     -> {name: englisch} fuer alle names (unveraendert, wenn schon
     englisch). kind: "names" (Knoten), "details" (Kanten-Angaben) oder
-    "types" (Knotentypen).
+    "types" (Knotentypen). topics: die haeufigsten Knotentypen des Graphen
+    (GraphStore.topics()) - daran entscheidet das Modell mehrdeutige Woerter
+    ("Bewegung" in einem Gesundheitsgraphen -> "physical activity").
     progress(fertig, gesamt) wird nach jedem Paket aufgerufen.
     """
     todo = list(dict.fromkeys(n for n in names if (kind, n) not in _cache))
     for i in range(0, len(todo), BATCH_SIZE):
-        batch = _translate_batch(todo[i:i + BATCH_SIZE], kind)
+        batch = _translate_batch(todo[i:i + BATCH_SIZE], kind, topics)
         _cache.update({(kind, n): e for n, e in batch.items()})
         if progress:
             progress(min(i + BATCH_SIZE, len(todo)), len(todo))
     return {n: _cache[(kind, n)] for n in names}
 
 
-def translate_details(texts: list, progress=None) -> dict:
-    return translate_names(texts, progress, kind="details")
+def translate_details(texts: list, progress=None, topics: str = "") -> dict:
+    return translate_names(texts, progress, kind="details", topics=topics)
 
 
-def translate_types(types: list, progress=None) -> dict:
-    return translate_names(types, progress, kind="types")
+def translate_types(types: list, progress=None, topics: str = "") -> dict:
+    return translate_names(types, progress, kind="types", topics=topics)
 
 
 def to_english(name: str) -> str:

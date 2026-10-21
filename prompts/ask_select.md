@@ -4,7 +4,7 @@ AUFGABE:
 Waehle die Knoten, die in der Frage GENANNT oder GEMEINT sind (Ausgangspunkte
 der Suche). Beruecksichtige auch Synonyme, Abkuerzungen sowie Ober- und
 Unterbegriffe (z.B. "Diabetes" -> "type 2 diabetes", "Muskeln" -> "muscles",
-"skeletal muscle").
+"skeletal muscle", "Zinsen" -> "interest rates", "key interest rate").
 Die Knotennamen sind ENGLISCH, die Frage kann in jeder Sprache gestellt
 sein (z.B. Deutsch oder Tuerkisch) - uebersetze die Begriffe der Frage
 gedanklich ins Englische und waehle die passenden englischen Knoten.

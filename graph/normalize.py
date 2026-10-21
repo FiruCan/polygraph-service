@@ -66,11 +66,12 @@ def _top_matches(term_vec: np.ndarray, known_terms: list) -> list:
     return [(float(scores[i]), known_terms[i]) for i in order]
 
 
-def _judge_schema(candidates: tuple) -> dict:
+def judge_schema(candidates: tuple) -> dict:
     """
     Structured Output fuer den Richter: erst eine kurze Begruendung, dann
     der Treffer - per enum nur einer der Kandidaten oder null, ein
-    erfundener Name ist damit gar nicht erst moeglich.
+    erfundener Name ist damit gar nicht erst moeglich. Auch fuer das
+    erzwungene Urteil des Duplikat-Agenten (graph/dedupe.py).
 
     Begruendung VOR dem Treffer, weil das Modell ohne sie bei vielen
     aehnlichen Kandidaten den aehnlichsten waehlte statt zu pruefen, ob er
@@ -97,8 +98,7 @@ def _judge(term: str, candidates: tuple) -> Optional[str]:
 @lru_cache(maxsize=4096)
 def judge_verdict(term: str, candidates: tuple) -> tuple:
     """
-    Wie _judge, aber mit Begruendung: (Treffer oder None, Begruendung) - der
-    Duplikat-Aufraeumer (graph/dedupe.py) zeigt sie einem Menschen zur Freigabe.
+    Wie _judge, aber mit Begruendung: (Treffer oder None, Begruendung).
     """
     with open(PROMPT_PATH, "r", encoding="utf-8") as f:
         template = f.read()
@@ -107,7 +107,7 @@ def judge_verdict(term: str, candidates: tuple) -> tuple:
         model=JUDGE_MODEL,
         messages=[{"role": "user", "content": prompt}],
         think=False,
-        format=_judge_schema(candidates),
+        format=judge_schema(candidates),
         options={"num_predict": 300, "temperature": 0},
     )
     # Abgeschnittene/kaputte Antwort = im Zweifel nicht zusammenfuehren

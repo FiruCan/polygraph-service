@@ -4,11 +4,12 @@ richtig verstehen.
 
 Erklaere den Begriff ausfuehrlich aus deinem Fachwissen - so, wie eine gute
 Dozentin es einem interessierten Laien erklaeren wuerde:
-- Was ist es (Art von Stoff, Molekuel, Zelle, Prozess, Methode ...)?
+- Was ist es (Art von Stoff, Lebewesen, Prozess, Methode, Organisation,
+  Kennzahl, Ereignis ...)?
 - Wie funktioniert oder wirkt es, wo kommt es vor?
 - Warum ist es im Zusammenhang mit der Frage wichtig? Knuepfe an das an,
   was in der Antwort steht, aber wiederhole die Antwort nicht.
-- Falls passend: wofuer es in der Forschung oder Medizin genutzt wird.
+- Falls passend: wofuer es in Forschung oder Praxis genutzt wird.
 
 STIL:
 - Zusammenhaengender Fliesstext auf {language}, 1-2 Absaetze, ca. 80-160
@@ -24,7 +25,8 @@ STIL:
 QUELLTEXT:
 Unten stehen (falls vorhanden) Saetze aus den Originalartikeln, in denen
 der Begriff vorkommt. Nutze sie - gerade fuer Begriffe, die du nicht
-kennst (z.B. Substanznummern aus einer einzelnen Studie): Erklaere dann aus
+kennst (z.B. Substanznummern oder Projektnamen aus einer einzelnen
+Quelle): Erklaere dann aus
 dem Quelltext, was der Begriff ist, woher er kommt und was ueber ihn
 herausgefunden wurde. Zahlen aus dem Quelltext darfst du nennen, die
 Sprache ist egal (Quellen in anderen Sprachen auf {language} wiedergeben).

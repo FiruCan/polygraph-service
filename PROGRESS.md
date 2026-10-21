@@ -2,6 +2,135 @@
 
 ## Stand
 
+**Keine Domain mehr - das Fachgebiet kommt aus dem Graphen (fertig)**
+- Grund: die Prompts waren auf Medizin angelegt ("biomedizinischer
+  Wissensgraph", "im Gesundheitskontext", "Patienteninformationen"),
+  spaeter sollen andere Themen dazu - pro Thema ein Graph, eine Instanz.
+- `GET /vocabulary`: Typen und Relationen mit Haeufigkeit
+  (`GraphStore.vocabulary()`); polygraph nimmt die haeufigen als bekanntes
+  Vokabular der Extraktion statt einer Domain-Config.
+- `GraphStore.topics()`: die 15 haeufigsten Knotentypen (beim Import plus
+  die Typen der neuen Tripel - ein junger Graph hat kaum eigene) gehen als
+  FACHGEBIET in die Prompts fuer Namen, Kanten-Angaben, Typen
+  (`translate_*.md`) und Beschriftungen (`localize_labels.md`); daran
+  entscheidet das Modell mehrdeutige Woerter. Live: "Bewegung" ->
+  physical activity / motion / movement, "Spannung" -> tension / voltage
+  je nach Fachgebiet (Gesundheit / Physik / Finanzen).
+- Uebrige Prompts allgemein formuliert, Beispiele aus mehreren Gebieten
+  (`ask_answer.md`: Methodendetails statt Labordetails, Belegstaerke auch
+  "Schaetzung von Analysten"; `ask_check.md`, `ask_glossary.md`,
+  `ask_select.md`, `ask_explain.md`, `suggest_questions.md`,
+  `translate_texts.md`). `normalize_judge.md` und `dedupe_judge.md`
+  unveraendert (Namensmuster, schon gemischt bzw. live abgestimmt).
+- Tests: `test_store.py` (vocabulary, topics), `test_app.py` (Endpoint,
+  Fachgebiet beim Import), `test_translate.py`, `test_localize.py`.
+
+**Duplikat-Agent vollautomatisch (fertig, voller Lauf 2026-10-21)**
+- Grund: Wunsch nach Zusammenfuehren ohne menschliche Freigabe, gestuetzt
+  nur auf die Daten des Graphen - kein Allgemeinwissen, keine Vermutungen
+  ("MBI ist ein Tippfehler fuer BMI" darf nie zu einem Merge fuehren).
+- Freigabe = Agent UND Namen: `graph/dedupe.py::evidence()` prueft rein
+  aus den Namen - gleiche Woerter anders geschrieben ("schreibweise"), oder
+  jeder Buchstabe der Abkuerzung ist ein Wortanfang der Langform
+  ("abkuerzung"; Kleinbuchstaben aus demselben Wort: IgE = ImmunoGlobulin E;
+  Fuellwoerter tragen nichts bei; eine Abkuerzung in der Langform zaehlt nur
+  ganz; eine Klammer am Ende darf einen Buchstaben aus dem Wortinneren
+  nehmen: DHA = docosahexaenoic acid (DHA)). Passt eine Abkuerzung auf
+  mehrere Langformen, muss die gewaehlte mehr gemeinsame Nachbarn haben als
+  jede andere (`_rivals`; MS: multiple sclerosis 7, myelin status / muscle
+  strength / ... 0), sonst `freigegeben: false` mit `mehrdeutig`.
+- Kandidaten zusaetzlich aus den Namen (`name_partners`, ~3 s fuer 3.000
+  Knoten): der Agent hatte "multiple sclerosis" zwar gesucht und gefunden,
+  aber verworfen, weil es "keiner der Kandidaten" war. Prompt
+  `prompts/dedupe_judge.md` geerdet (nur Namen, kein Allgemeinwissen,
+  Ober-/Unterbegriffe und Synonyme mit anderen Woertern sind nicht dasselbe),
+  Suchtreffer heissen "Weitere KANDIDATEN aus der Suche".
+- Verworfen: lockere Regel mit einem Buchstaben aus dem Wortinneren -
+  liess "MS" = Masitinib, "CNS" = chronic stress, "MBI" = MS brain zu.
+- `POST /graph/backup` (Kopie von `data/graph.gml` mit Zeitstempel);
+  polygraph `dedupe.py --auto`: suchen, Backup, freigegebene zusammenfuehren.
+- Live (103 Testgruppen, 2026-10-19): 18 Paare freigegeben, alle richtig
+  (MS -> multiple sclerosis, EBV -> Epstein-Barr virus, CNS, BDNF, SLE,
+  SDMT, MTR -> magnetization transfer ratio, MBI -> Mindfulness-based
+  interventions (MBIs), viral infections -> viral infection, ...), keine
+  falsche Zusammenfuehrung; der Code stoppte "EBV infection" -> "EBV" und
+  "relapsing MS" -> "MS relapses". 2.9 s pro Gruppe (alter Richter 1.9 s).
+- Grenzen: bewusst nicht automatisch - Synonyme mit anderen Woertern
+  ("fatigue" / "exhaustion"), Buchstaben aus dem Wortinneren ("CVD" =
+  cardiovascular disease, "AMPK", "IL-6" = interleukin-6), Abkuerzungen,
+  die die Nachbarn nicht entscheiden (BBB, DHA).
+- Behalten: bei Abkuerzung und Langform immer die Langform ("Epstein-Barr
+  virus" statt "EBV") - Antworten sind fuer Laien; sonst wie bisher der
+  Name mit mehr Kanten.
+- Probelauf (`dedupe.py --auto --limit 50`, 183 s, 70 LLM-Aufrufe): 10
+  zusammengefuehrt, alle richtig (u.a. CNS, EBV, VEP, BDNF, NLR, MWF);
+  3.014 -> 3.004 Knoten. Damals galt noch "mehr Kanten bleibt" - BDNF, MWF,
+  NLR, EBV infection danach per `/nodes/rename` auf die Langform umbenannt.
+  Backups: `data/graph.backup-2026-10-19-151533.gml` (vor dem Probelauf),
+  `-153159.gml` (vor dem Umbenennen).
+- Voller Lauf (`dedupe.py --auto`, 1.343 Richter-Laeufe, 1.680
+  LLM-Aufrufe): 39 Vorschlaege, 32 freigegeben und zusammengefuehrt,
+  3.004 -> 2.972 Knoten, 4.479 -> 4.473 Kanten; Backup
+  `data/graph.backup-2026-10-21-194011.gml`. U.a. MS -> multiple sclerosis
+  (28 Kanten), MS patients, MS relapses, PPMS/SPMS -> primary/secondary
+  progressive MS, OPCs (39 Kanten), OLCs, CRS, MTR, SDMT, DHA ->
+  docosahexaenoic acid (DHA) (Nachbarn gegen "digital health
+  applications"), Mehrzahl-Varianten (relapse rates, psychiatric
+  disorders, ...). Fraglich: "walking" -> "walking (T25FW)" - die Klammer
+  ist hier keine Abkuerzung der Woerter davor, sondern ein Test. Gestoppt
+  (kein Beleg): walking capabilities / walking ability, OL identity / OLC
+  identity, disorders of bladder function control / bladder function
+  disorders; verpasst wegen Mehrdeutigkeit: BBB, NO; ohne Beleg: AMPK.
+  Dauer 187.672 s (52 Std.), weil der Mac zwischendurch schlief - reine
+  Rechenzeit laut Stichprobe gut 1 Std. Behalten bei Schreibvarianten: der
+  Name mit mehr Kanten, daher teils Mehrzahl ("inflammations", "infections").
+- Tests: `test/test_dedupe.py` (34 Namensfaelle aus den Live-Tests,
+  Mehrdeutigkeit, Kandidaten aus Namen, Langform bleibt), `test/test_app.py`
+  (Backup); polygraph `test/test_dedupe.py` (`--auto`).
+
+**Duplikat-Richter als Agent (fertig, noch nicht ueber den ganzen Graphen gelaufen)**
+- Grund: der Richter (ein Aufruf, `normalize.judge_verdict`) durfte nur
+  unter den Embedding-Kandidaten waehlen - bei Abkuerzungen fehlt dort oft
+  die Langform: "MS" bekommt 20 Kandidaten von "MS diagnosis" bis
+  "relapsing MS", "multiple sclerosis" ist nicht dabei.
+- `graph/dedupe.py::judge()` + `prompts/dedupe_judge.md`: Agent mit Ollama
+  Tool Calling wie der Frage-Agent, ohne Framework (LangGraph, smolagents,
+  Langflow erwogen: fuer eine Schleife mit zwei Werkzeugen zu schwer, und
+  deren aktuelle Versionen brauchen Python >= 3.10, hier laeuft 3.9).
+  Werkzeuge `suche_knoten` (Teilstring; Gross-/Kleinschreibung und
+  Bindestriche egal, kuerzeste Namen zuerst) und `urteil`; max. 3 Runden,
+  sonst erzwungenes JSON-Urteil (enum auf gesehene Knoten). Treffer nur aus
+  gesehenen Knoten. Die Schleife ueber alle Knoten bleibt im Code.
+- API additiv: `llm_aufrufe` im Ergebnis, `schritte` pro Vorschlag;
+  polygraph `dedupe.py` zeigt beides.
+- Verworfen: erste Fassung mit Werkzeug `kanten_von` (Tripel eines
+  Knotens) und Typen im Prompt - schaute fast immer nach (3.8 s statt 1.9 s
+  pro Gruppe) und erklaerte danach Verwandtes fuer "im Kontext synonym"
+  (Stress -> psychological stress, Helicobacter pylori -> ... infection,
+  blood concentration -> blood values); ein falscher Typ machte HLA-A*02 zu
+  H2-aa. Ebenso verworfen: Prompt-Regel "Abkuerzung = Wortanfaenge der
+  Langform" - verhinderte MBI -> BMI, liess den Agenten aber gefundene
+  Langformen uebergehen (CVD, EBV, OLCs).
+- Live (Graph mit 3.014 Knoten, 1.341 Gruppen, 164 davon mit Abkuerzung),
+  Agent gegen alten Richter auf denselben Gruppen:
+  - 43 Gruppen in Graph-Reihenfolge: 11 statt 8 Vorschlaege. Neu und richtig:
+    MS -> multiple sclerosis, "High Intensity Training (HIT)" ->
+    high-intensity training, EBV infection -> Epstein-Barr virus infections
+    (alt: -> EBV). Neu und fraglich: genetic factors -> genetics,
+    environmental factors -> external influences. 2.5 s statt 1.9 s pro Gruppe.
+  - 60 Abkuerzungs-Gruppen (30 erst zur Kontrolle gezogen): 5 richtige
+    Treffer (BDNF, CVD, EBV, SLE, NLR) statt 1 (NLR); falsch MBI -> BMI
+    ("Tippfehler") und MTR -> methotrexate (im Graphen: magnetization
+    transfer ratio), beim alten A2B5 -> A2B5+ OPCs und FF-VEP -> multifocal
+    VEP. 3.6 s statt 2.2 s pro Gruppe.
+  - Hochgerechnet ~1 Std. fuer den ganzen Graphen (alter Richter ~45 Min.).
+- Grenzen: Grenzfaelle kippen zwischen Laeufen trotz temperature 0 (OLCs,
+  genetic factors je einmal ja, einmal nein); verpasst u.a. VEP -> visual
+  evoked potentials (gefunden, aber verworfen) und SDMT (falsche Langform
+  geraten) - Freigabe deshalb inzwischen an Belege aus den Namen
+  gebunden (siehe "Duplikat-Agent vollautomatisch").
+- Tests: `test/test_dedupe.py` (Ollama gemockt).
+
 **Antwort-Pruefer (fertig)**
 - Grund: Antworten gehen als PDF weiter - eine falsch belegte Aussage ist
   dort teurer als im Graphen. Gleiches Prinzip wie der Pruef-Agent bei der
@@ -33,9 +162,7 @@
   Knoten): ~980 Richter-Aufrufe a ~4.7 s -> ~75 Min.
 - Probelauf (30 Aufrufe): 3 Vorschlaege, 2 richtig, 1 falsch ("Konzentration
   im Blut" -> "concentration") - deshalb nur mit Freigabe.
-- Offen: voller Lauf erst nach der Umstellung auf englische Namen
-  (`translate_graph.py`) - viele Duplikate ueber Sprachgrenzen loesen sich
-  dabei von selbst.
+- Voller Lauf erledigt (siehe "Duplikat-Agent vollautomatisch").
 
 **Graph komplett Englisch, Fragen/Antworten in waehlbarer Sprache (fertig, Bestand umgestellt)**
 - Grund: Knotennamen standen in der Sprache des Quelltextes - "Multiple

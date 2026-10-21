@@ -21,7 +21,9 @@ Start: uvicorn app:app --reload --port 8000
 """
 
 import os
+import shutil
 import threading
+from datetime import datetime
 from typing import Literal, Optional
 
 from fastapi import FastAPI, HTTPException, Query
@@ -164,16 +166,20 @@ def add_triples(body: TriplesIn):
         # Alle neuen Namen und Angaben vorab in wenigen Paketen uebersetzen
         # (der Graph ist immer englisch) - normalize_triple findet sie dann
         # im Cache statt einen LLM-Aufruf pro Feld zu machen.
+        # Das Fachgebiet fuer mehrdeutige Woerter ergibt sich aus dem Graphen
+        # und den neuen Tripeln selbst, nicht aus einer festen Domain.
+        topics = store.topics(t.get(f) for t in body.triples for f in TYPE_FIELDS)
         known = set(store.known_entities())
         translate_names([t[f] for t in body.triples for f in ("subject", "object")
-                         if isinstance(t.get(f), str) and t[f] not in known])
+                         if isinstance(t.get(f), str) and t[f] not in known], topics=topics)
         translate_details([t[f] for t in body.triples for f in DETAIL_FIELDS
-                           if isinstance(t.get(f), str) and t[f].strip()])
+                           if isinstance(t.get(f), str) and t[f].strip()], topics=topics)
         # Typen ebenso; ein schon bekannter Typ ist englisch (Bestand mit
         # translate_graph.py umgestellt) und braucht keinen LLM-Aufruf.
         known_types = set(store.known_types())
         types = translate_types([t[f] for t in body.triples for f in TYPE_FIELDS
-                                 if isinstance(t.get(f), str) and t[f].strip() and t[f] not in known_types])
+                                 if isinstance(t.get(f), str) and t[f].strip() and t[f] not in known_types],
+                                topics=topics)
 
         merges = []
         for triple in body.triples:
@@ -198,6 +204,17 @@ def add_triples(body: TriplesIn):
             "nodes": store.graph.number_of_nodes(),
             "edges": store.graph.number_of_edges(),
         }
+
+
+@app.get("/vocabulary")
+def vocabulary():
+    """
+    Knotentypen und Relationen des Graphen mit Haeufigkeit, haeufigste
+    zuerst. polygraph gibt die haeufigen der Extraktion als bekanntes
+    Vokabular mit - welche Domain der Graph hat, bestimmen die Artikel.
+    """
+    with store_lock:
+        return store.vocabulary()
 
 
 @app.post("/entities/similar")
@@ -227,8 +244,9 @@ def vocabulary_rename(body: RenameIn):
 def duplicates_find(body: DuplicatesIn):
     """
     Duplikat-Aufraeumer (graph/dedupe.py): Vorschlaege fuer doppelte Knoten,
-    nichts wird geaendert. Dauert lange (~20 Min. bei 2.800 Knoten) - laeuft
-    deshalb auf einer Kopie, damit Importe und Fragen nicht so lange warten.
+    freigegeben, wenn die Namen es belegen; nichts wird geaendert. Dauert
+    lange (~1 Std. bei ~3.000 Knoten) - laeuft deshalb auf einer Kopie, damit
+    Importe und Fragen nicht so lange warten.
     """
     with store_lock:
         graph = store.graph.copy()
@@ -237,7 +255,7 @@ def duplicates_find(body: DuplicatesIn):
 
 @app.post("/nodes/merge")
 def nodes_merge(body: MergeIn):
-    """Knoten 'remove' in 'keep' zusammenfuehren (nach Freigabe durch einen Menschen)."""
+    """Knoten 'remove' in 'keep' zusammenfuehren (nach Freigabe - durch den Duplikat-Agenten oder einen Menschen)."""
     with store_lock:
         try:
             stats = store.merge_nodes(body.keep, body.remove)
@@ -248,6 +266,20 @@ def nodes_merge(body: MergeIn):
         store.save(DATA_PATH)
         return {"keep": body.keep, "remove": body.remove, **stats,
                 "nodes": store.graph.number_of_nodes(), "edges": store.graph.number_of_edges()}
+
+
+@app.post("/graph/backup")
+def graph_backup():
+    """
+    Kopie des Graphen mit Zeitstempel (wie translate_graph.py apply) - vor
+    automatischen Zusammenfuehrungen (polygraph dedupe.py --auto), die sich
+    sonst nur durch Neuimport der Quellen rueckgaengig machen liessen.
+    """
+    with store_lock:
+        store.save(DATA_PATH)
+        path = os.path.join(os.path.dirname(DATA_PATH), f"graph.backup-{datetime.now():%Y-%m-%d-%H%M%S}.gml")
+        shutil.copy2(DATA_PATH, path)
+    return {"backup": os.path.basename(path)}
 
 
 @app.post("/nodes/rename")
@@ -337,11 +369,13 @@ def labels(body: LabelsIn):
     """
     Beschriftungen des Graphen (Knoten, Typen, Beziehungen, Kanten-Angaben)
     in der Sprache des Lesers, nur fuer die Anzeige (graph/localize.py).
-    cached_only=true: nur schon Uebersetztes, sofort. Ohne store_lock: liest
-    den Graphen nicht.
+    cached_only=true: nur schon Uebersetztes, sofort. store_lock nur kurz fuer
+    das Fachgebiet (haeufigste Typen), nicht waehrend der Uebersetzung.
     """
+    with store_lock:
+        topics = store.topics()
     try:
-        return {"labels": localize(body.texts, body.language, cached_only=body.cached_only)}
+        return {"labels": localize(body.texts, body.language, cached_only=body.cached_only, topics=topics)}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Uebersetzung fehlgeschlagen: {e}")
 

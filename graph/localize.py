@@ -23,6 +23,8 @@ import threading
 
 import ollama
 
+from graph.translate import NO_TOPICS
+
 LOCALIZE_MODEL = "gemma4:26b"
 BATCH_SIZE = 40
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "localize_labels.md")
@@ -89,14 +91,15 @@ def _save(language: str):
     os.replace(tmp, path)
 
 
-def _translate_batch(texts: list, language: str) -> dict:
+def _translate_batch(texts: list, language: str, topics: str = "") -> dict:
     """
     -> {original: Uebersetzung} fuer ein Paket. Fehlt ein Text in der Antwort
     oder ist sie kaputt, bleibt er unveraendert (englisch).
     """
     with open(PROMPT_PATH, "r", encoding="utf-8") as f:
         template = f.read()
-    prompt = template.format(language=language, names="\n".join(f"- {t}" for t in texts))
+    prompt = template.format(language=language, names="\n".join(f"- {t}" for t in texts),
+                             topics=topics or NO_TOPICS)
     response = ollama.chat(
         model=LOCALIZE_MODEL,
         messages=[{"role": "user", "content": prompt}],
@@ -118,11 +121,13 @@ def _translate_batch(texts: list, language: str) -> dict:
     return result
 
 
-def localize(texts: list, language: str, cached_only: bool = False) -> dict:
+def localize(texts: list, language: str, cached_only: bool = False, topics: str = "") -> dict:
     """
     -> {text: Uebersetzung in language}. cached_only: nur schon bekannte
     Uebersetzungen, ohne LLM-Aufruf - so holt die Oberflaeche fuer den ganzen
     Graphen erst alles Bekannte auf einmal und den Rest dann paketweise.
+    topics: die haeufigsten Knotentypen (GraphStore.topics()), damit
+    mehrdeutige Woerter im Sinn des Graphen uebersetzt werden.
     """
     texts = list(dict.fromkeys(t for t in texts if isinstance(t, str) and t.strip()))
     if language.strip().lower() in SOURCE_LANGUAGES:
@@ -134,7 +139,7 @@ def localize(texts: list, language: str, cached_only: bool = False) -> dict:
         return known
     todo = [t for t in texts if t not in known]
     for i in range(0, len(todo), BATCH_SIZE):
-        batch = _translate_batch(todo[i:i + BATCH_SIZE], language)  # ohne Lock: dauert
+        batch = _translate_batch(todo[i:i + BATCH_SIZE], language, topics)  # ohne Lock: dauert
         with _lock:
             _cache(language).update(batch)
             _save(language)

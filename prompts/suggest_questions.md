@@ -7,8 +7,8 @@ REGELN:
 - Die Frage muss sich mit den angegebenen Fakten beantworten lassen - frage
   nichts, wozu keine Fakten da sind.
 - Detailreich: Wenn ein Fakt Details hat, greife mindestens eines davon in
-  der Frage auf (z.B. die Bedingung, die Personengruppe, die Groessenordnung,
-  die Art der Studie) - aber verrate die Antwort nicht.
+  der Frage auf (z.B. die Bedingung, die Gruppe, den Zeitraum, die
+  Groessenordnung, die Art des Belegs) - aber verrate die Antwort nicht.
 - Bei Art "detail": frage nach dem Wie/Wann/Wie stark/Wie gut belegt der
   Beziehung (z.B. "Unter welchen Umstaenden senkt gesunder Schlaf die
   Sterblichkeit, und welche Rolle spielt dabei die Ernaehrung?").
@@ -26,8 +26,8 @@ REGELN:
   hoechstens ca. 25 Woerter; keine Relationsnamen wie "reduces_risk_of".
 - Die Fakten sind englisch. Uebertrage Begriffe in die Fragesprache, wo es
   dort eine uebliche Bezeichnung gibt ("multiple sclerosis" -> auf Deutsch
-  "Multiple Sklerose"); Fachnamen ohne solche Bezeichnung (Gene, Proteine,
-  Substanzcodes) bleiben, wie sie sind. Die Frage selbst auf {language}.
+  "Multiple Sklerose"); Fachnamen ohne solche Bezeichnung (Gene,
+  Produkte, Codes) bleiben, wie sie sind. Die Frage selbst auf {language}.
 
 AUSGANGSPUNKTE:
 {seeds}

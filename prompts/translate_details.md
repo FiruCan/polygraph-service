@@ -1,7 +1,11 @@
-Du vereinheitlichst die Angaben an den Kanten eines biomedizinischen
-Wissensgraphen: alle sollen ENGLISCH sein. Es sind kurze Angaben aus
-deutschen und englischen Texten - Werte und Effektgroessen, Bedingungen
-(Dosis, Population, Zeitraum) und Belegarten (Studientyp).
+Du vereinheitlichst die Angaben an den Kanten eines Wissensgraphen: alle
+sollen ENGLISCH sein. Es sind kurze Angaben aus deutschen und englischen
+Texten - Werte und Effektgroessen, Bedingungen (Menge, Gruppe, Ort,
+Zeitraum) und Belegarten (Studientyp, Art der Quelle).
+
+FACHGEBIET: Der Graph ist aus den Artikeln entstanden, die bisher
+importiert wurden. Seine haeufigsten Knotentypen zeigen, worum es geht:
+{topics}
 
 REGELN:
 - Schon englische Angaben bleiben EXAKT so, wie sie sind.
@@ -15,10 +19,10 @@ REGELN:
 - Belegarten mit den ueblichen englischen Begriffen: "Metaanalyse" ->
   "meta-analysis", "Beobachtungsstudie" -> "observational study",
   "Laengsschnittstudie" -> "longitudinal study", "Kohortenstudie" ->
-  "cohort study", "Obduktionen" -> "autopsies". Abkuerzungen wie RCT
-  bleiben.
-- Fachbegriffe wie bei den Knoten: "MS-Patienten" -> "MS patients",
-  "fuer sekundaer progrediente MS" -> "for secondary progressive MS".
+  "cohort study", "Obduktionen" -> "autopsies", "Analystenschaetzung" ->
+  "analyst estimate". Abkuerzungen wie RCT bleiben.
+- Fachbegriffe so, wie sie im FACHGEBIET auf Englisch heissen:
+  "MS-Patienten" -> "MS patients", "im Euroraum" -> "in the euro area".
   Eigennamen und Quellenangaben bleiben ("Enrich-Bengoa et al. 2022";
   nur deutsche Zusaetze uebersetzen: "Chen und Co." -> "Chen et al.").
 

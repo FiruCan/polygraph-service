@@ -36,6 +36,13 @@ def test_translates_and_keeps_missing_texts_unchanged():
     assert "Deutsch" in prompt and "- muscles" in prompt
 
 
+def test_prompt_names_topics_of_the_graph():
+    with patch("graph.localize.ollama.chat", return_value=answer([])) as chat:
+        localize(["interest rate"], "Deutsch", topics="central_bank, company")
+    prompt = chat.call_args.kwargs["messages"][0]["content"]
+    assert "central_bank, company" in prompt and "biomedizin" not in prompt.lower()
+
+
 def test_english_needs_no_llm():
     with patch("graph.localize.ollama.chat") as chat:
         assert localize(["muscles"], "Englisch") == {"muscles": "muscles"}
