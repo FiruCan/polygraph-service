@@ -35,7 +35,7 @@ from graph.ask import DEFAULT_LANGUAGE, ask as run_ask, explain_term, select_nod
 from graph.dedupe import DEDUPE_THRESHOLD, find_duplicates
 from graph.localize import localize, translate_texts
 from graph.normalize import normalize_triple, similar_entities
-from graph.store import GraphStore
+from graph.store import GraphStore, hierarchy_path
 from graph.suggest import suggest_questions
 from graph.translate import DETAIL_FIELDS, TYPE_FIELDS, translate_details, translate_names, translate_types
 
@@ -129,6 +129,10 @@ class RenameIn(BaseModel):
     new: str
 
 
+class TypeParentsIn(BaseModel):
+    parents: dict[str, Optional[str]]
+
+
 @app.get("/health")
 def health():
     """Lebenszeichen plus Groesse des Graphen (Knoten, Kanten)."""
@@ -210,8 +214,9 @@ def add_triples(body: TriplesIn):
 def vocabulary():
     """
     Knotentypen und Relationen des Graphen mit Haeufigkeit, haeufigste
-    zuerst. polygraph gibt die haeufigen der Extraktion als bekanntes
-    Vokabular mit - welche Domain der Graph hat, bestimmen die Artikel.
+    zuerst, dazu die Typ-Hierarchie. polygraph gibt die haeufigen der
+    Extraktion als bekanntes Vokabular mit - welche Domain der Graph hat,
+    bestimmen die Artikel.
     """
     with store_lock:
         return store.vocabulary()
@@ -229,15 +234,36 @@ def vocabulary_rename(body: RenameIn):
     """
     Relation bzw. Knotentyp im ganzen Graphen umbenennen - fuer den
     Vokabular-Steward in polygraph (nach Freigabe durch einen Menschen).
+    Bei Typen zieht die Typ-Hierarchie mit, auch fuer Typen ohne Knoten.
     """
     with store_lock:
+        hierarchy_changed = False
         if body.kind == "relation":
             changed = store.rename_relation(body.old, body.new)
         else:
             changed = store.retype_nodes(body.old, body.new)
-        if changed:
+            hierarchy_changed = store.rename_type_in_hierarchy(body.old, body.new)
+        if changed or hierarchy_changed:
             store.save(DATA_PATH)
         return {"kind": body.kind, "old": body.old, "new": body.new, "changed": changed}
+
+
+@app.post("/vocabulary/parents")
+def vocabulary_parents(body: TypeParentsIn):
+    """
+    Typ-Hierarchie setzen: pro Typ der Obertyp ("disease": "condition"),
+    null entfernt ihn - fuer den Vokabular-Steward in polygraph (nach
+    Freigabe durch einen Menschen). Ein Kreis wird abgelehnt (400), dann
+    aendert sich nichts.
+    """
+    with store_lock:
+        try:
+            changed = store.set_type_parents(body.parents)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        if changed:
+            store.save(DATA_PATH)
+        return {"changed": changed, "type_parents": len(store.type_parents)}
 
 
 @app.post("/duplicates/find")
@@ -273,12 +299,15 @@ def graph_backup():
     """
     Kopie des Graphen mit Zeitstempel (wie translate_graph.py apply) - vor
     automatischen Zusammenfuehrungen (polygraph dedupe.py --auto), die sich
-    sonst nur durch Neuimport der Quellen rueckgaengig machen liessen.
+    sonst nur durch Neuimport der Quellen rueckgaengig machen liessen. Die
+    Typ-Hierarchie wird mitkopiert (graph.backup-<Zeit>.hierarchy.json).
     """
     with store_lock:
         store.save(DATA_PATH)
         path = os.path.join(os.path.dirname(DATA_PATH), f"graph.backup-{datetime.now():%Y-%m-%d-%H%M%S}.gml")
         shutil.copy2(DATA_PATH, path)
+        if os.path.exists(hierarchy_path(DATA_PATH)):
+            shutil.copy2(hierarchy_path(DATA_PATH), hierarchy_path(path))
     return {"backup": os.path.basename(path)}
 
 

@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 data/*.gml
+data/*.hierarchy.json
 !data/.gitkeep
 .DS_Store
 .coverage

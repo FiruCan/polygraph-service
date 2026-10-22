@@ -2,6 +2,45 @@
 
 ## Stand
 
+**Typ-Hierarchie (Speicher fertig, noch leer)**
+- Grund: die Typen sind eine flache Liste, die aus den Artikeln waechst
+  (506 Typen); eine Ontologie, die mitwaechst statt vorab eine Domain
+  festzulegen: oben polygraphs domaenenneutrales Startvokabular als
+  Wurzeln, darunter pro Typ ein Obertyp ("disease" -> "condition").
+- Vorarbeit (2026-10-21): doppelte Typen zusammengefuehrt, ueber
+  `POST /vocabulary/rename` nach Freigabe - 22 Umbenennungen an 135
+  Knoten (Schreibvarianten wie "inflammatory lesions" ->
+  "inflammatory_lesions", snake_case fuer haeufige Typen, "cell_type" ->
+  "cell", "immunocytes" -> "immune_cell"); 521 -> 506 Typen. Backup
+  `data/graph.backup-2026-10-21-203121.gml`. Probelauf (gemma4:26b ordnet
+  die 52 Typen mit >= 3 Knoten je einer Wurzel zu): mit den 12 Wurzeln
+  passten 28 % der Knoten nirgends hin; polygraph hat deshalb
+  `condition`, `structure`, `activity` dazubekommen -> 5 %. Offen:
+  `cell`, `gene`, `pathogen`. Die Zuordnung schwankt zwischen Laeufen -
+  Hierarchie daher nur nach Freigabe.
+- `data/graph.hierarchy.json` neben dem Graphen (`store.hierarchy_path`,
+  Backups bekommen ihr Gegenstueck), nicht als Knoten im Graphen.
+  `GraphStore.type_parents`, gespeichert/geladen mit `save()`/`load()`,
+  atomar; ohne Hierarchie entsteht keine Datei. Nicht in git (wie
+  `data/*.gml`).
+- `GraphStore.set_type_parents()` / `POST /vocabulary/parents`: setzen und
+  entfernen, alles oder nichts, Kreise -> 400. `GET /vocabulary` liefert
+  `type_parents`.
+- `rename_type_in_hierarchy()`: `POST /vocabulary/rename` (Typ) zieht die
+  Hierarchie mit, auch ohne Knoten; ein schon vorhandener Zieltyp behaelt
+  seinen Obertyp; keine Kreise, wenn ein Typ auf seinen Ober- oder
+  Untertyp umbenannt wird.
+- `POST /graph/backup` und `translate_graph.py apply` kopieren die
+  Hierarchie mit.
+- Tests: `test_store.py` (setzen, Kreise, Speichern/Laden, Umbenennen),
+  `test_app.py` (Endpoint, Umbenennen ohne Knoten, Backup).
+- Naechste Schritte: Steward in polygraph schlaegt Obertypen vor
+  ("unterordnen"), dann nutzen - zuerst Duplikat-Pruefung (verschiedene
+  Wurzeln -> nie zusammenfuehren), dann Extraktions-Prompt, dann Fragen.
+- Hinweis: der laufende Service (seit 2026-10-19 15:32, ohne `--reload`)
+  kennt `GET /vocabulary` noch nicht (404) - Neustart noetig, sonst
+  scheitern polygraph-Importe, die vorher das Vokabular holen.
+
 **Keine Domain mehr - das Fachgebiet kommt aus dem Graphen (fertig)**
 - Grund: die Prompts waren auf Medizin angelegt ("biomedizinischer
   Wissensgraph", "im Gesundheitskontext", "Patienteninformationen"),

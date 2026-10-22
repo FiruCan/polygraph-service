@@ -135,6 +135,35 @@ def test_vocabulary_rename_type(client):
     assert r.json()["changed"] == 1
 
 
+def test_vocabulary_rename_type_moves_hierarchy_even_without_nodes(client):
+    client.post("/vocabulary/parents", json={"parents": {"illness": "condition"}})
+    r = client.post("/vocabulary/rename", json={"kind": "type", "old": "condition", "new": "state"})
+    assert r.json()["changed"] == 0  # kein Knoten hat den Typ "condition"
+    reloaded = GraphStore()
+    reloaded.load(app_module.DATA_PATH)
+    assert reloaded.type_parents == {"illness": "state"}
+
+
+def test_vocabulary_parents_sets_persists_and_lists(client):
+    client.post("/triples", json={"triples": [{**triple(), "object_type": "disease"}]})
+    r = client.post("/vocabulary/parents", json={"parents": {"disease": "condition", "cell": "structure"}})
+    assert r.json() == {"changed": 2, "type_parents": 2}
+    assert client.get("/vocabulary").json()["type_parents"] == {"cell": "structure", "disease": "condition"}
+    reloaded = GraphStore()
+    reloaded.load(app_module.DATA_PATH)
+    assert reloaded.type_parents == {"cell": "structure", "disease": "condition"}
+
+    r = client.post("/vocabulary/parents", json={"parents": {"cell": None}})
+    assert r.json() == {"changed": 1, "type_parents": 1}
+
+
+def test_vocabulary_parents_rejects_cycle(client):
+    client.post("/vocabulary/parents", json={"parents": {"immune_cell": "cell"}})
+    r = client.post("/vocabulary/parents", json={"parents": {"cell": "immune_cell"}})
+    assert r.status_code == 400
+    assert client.get("/vocabulary").json()["type_parents"] == {"immune_cell": "cell"}
+
+
 def test_vocabulary_rename_rejects_unknown_kind(client):
     r = client.post("/vocabulary/rename", json={"kind": "entity", "old": "a", "new": "b"})
     assert r.status_code == 422
@@ -237,6 +266,15 @@ def test_graph_backup_copies_current_graph(client):
     assert backup.graph.has_edge("Krafttraining", "Krebs")
 
 
+def test_graph_backup_copies_hierarchy(client):
+    client.post("/triples", json={"triples": [triple()]})
+    client.post("/vocabulary/parents", json={"parents": {"disease": "condition"}})
+    name = client.post("/graph/backup").json()["backup"]
+    backup = GraphStore()
+    backup.load(os.path.join(os.path.dirname(app_module.DATA_PATH), name))
+    assert backup.type_parents == {"disease": "condition"}
+
+
 # --- Umstellung auf englische Knotennamen -----------------------------------
 
 def test_nodes_rename_renames_merges_and_skips(client):
@@ -280,6 +318,7 @@ def test_vocabulary_lists_types_and_relations_by_count(client):
         "types": [{"name": "disease", "count": 2}, {"name": "lifestyle_factor", "count": 1},
                   {"name": "risk_factor", "count": 1}],
         "relations": [{"name": "reduces_risk_of", "count": 2}, {"name": "increases_risk_of", "count": 1}],
+        "type_parents": {},
     }
 
 

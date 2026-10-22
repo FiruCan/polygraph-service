@@ -112,9 +112,18 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   benutzte Ausgangspunkte (300, im Speicher) werden ausgelassen - keine
   Wiederholungen, bis alles einmal dran war. In der Oberflaeche: Button
   "Fragen vorschlagen", Klick auf einen Vorschlag stellt die Frage.
-- `GET /vocabulary` -> `{"types": [{"name": str, "count": int}], "relations": [{"name": str, "count": int}]}`
+- `GET /vocabulary` -> `{"types": [{"name": str, "count": int}], "relations": [{"name": str, "count": int}], "type_parents": {typ: obertyp}}`
   - Knotentypen und Relationen mit Haeufigkeit, haeufigste zuerst.
   polygraph gibt die haeufigen der Extraktion als bekanntes Vokabular mit.
+  `type_parents` ist die Typ-Hierarchie (`"disease": "condition"`), auch
+  fuer Typen ohne Knoten (die Wurzeln aus polygraphs Startvokabular).
+- `POST /vocabulary/parents` Body `{"parents": {typ: obertyp | null}}` ->
+  `{"changed": N, "type_parents": M}` - setzt Obertypen, `null` entfernt
+  einen (Vokabular-Steward, nach Freigabe). Ein Kreis
+  (`cell` -> `immune_cell` -> `cell`) wird mit 400 abgelehnt, dann aendert
+  sich nichts. Gespeichert in `data/graph.hierarchy.json` neben dem Graphen,
+  nicht als Knoten - Typen tauchen so nicht in `/graph`, Antworten oder
+  Fragevorschlaegen auf.
 - `POST /entities/similar` Body `{"names": [str], "limit": 3}` ->
   `{"matches": {name: [aehnliche bekannte Knoten]}}` - Embedding-Aehnlichkeit
   ohne LLM, fuer Entity-Linking in polygraph vor der Extraktion. Namen, die
@@ -122,7 +131,8 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
 - `POST /vocabulary/rename` Body `{"kind": "relation"|"type", "old": str, "new": str}`
   -> `{"changed": N, ...}` - benennt eine Relation bzw. einen Knotentyp im
   ganzen Graphen um (Vokabular-Steward in polygraph, nach Freigabe durch
-  einen Menschen).
+  einen Menschen). Bei Typen zieht die Typ-Hierarchie mit; gibt es den
+  neuen Typ schon, behaelt er seinen Obertyp.
 
 - `POST /explain` Body `{"term": str, ..., "language": "Deutsch"}` ->
   ausfuehrliche Erklaerung eines Begriffs in der gewaehlten Sprache.
@@ -149,8 +159,10 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   Freigabe durch den Duplikat-Agenten oder einen Menschen). 404 wenn ein
   Knoten fehlt.
 - `POST /graph/backup` -> `{"backup": "graph.backup-<Zeitstempel>.gml"}` -
-  Kopie von `data/graph.gml` (ruft polygraph `dedupe.py --auto` vor dem
-  Zusammenfuehren auf).
+  Kopie von `data/graph.gml` und, falls vorhanden, der Typ-Hierarchie als
+  `graph.backup-<Zeitstempel>.hierarchy.json` (ruft polygraph
+  `dedupe.py --auto` vor dem Zusammenfuehren auf). Zurueckholen: Service
+  stoppen, beide Dateien zurueckkopieren, Service starten.
 
 ## Bestand auf Englisch umstellen
 

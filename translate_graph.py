@@ -27,6 +27,7 @@ from datetime import datetime
 
 import requests
 
+from graph.store import hierarchy_path
 from graph.translate import DETAIL_FIELDS, translate_details, translate_names, translate_types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -105,6 +106,8 @@ def apply(url: str):
 
     backup = os.path.join(HERE, "data", f"graph.backup-{datetime.now():%Y-%m-%d-%H%M%S}.gml")
     shutil.copy2(GRAPH_PATH, backup)
+    if os.path.exists(hierarchy_path(GRAPH_PATH)):
+        shutil.copy2(hierarchy_path(GRAPH_PATH), hierarchy_path(backup))
     print(f"Backup: {backup}")
 
     totals = {"renamed": 0, "merged": 0, "skipped": []}

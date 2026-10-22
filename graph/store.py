@@ -14,6 +14,28 @@ from collections import Counter
 import networkx as nx
 
 
+def hierarchy_path(graph_path: str) -> str:
+    """
+    Datei der Typ-Hierarchie neben dem Graphen: data/graph.gml ->
+    data/graph.hierarchy.json, ein Backup graph.backup-<Zeit>.gml ->
+    graph.backup-<Zeit>.hierarchy.json - so bleiben Paare zusammen.
+    """
+    return os.path.splitext(graph_path)[0] + ".hierarchy.json"
+
+
+def _leads_back(parents: dict, start: str) -> bool:
+    """True, wenn die Obertypen von 'start' wieder bei 'start' ankommen (Kreis)."""
+    seen, current = set(), start
+    while current in parents:
+        current = parents[current]
+        if current == start:
+            return True
+        if current in seen:  # Kreis weiter oben, nicht durch start
+            return False
+        seen.add(current)
+    return False
+
+
 def load_graph(path: str) -> "GraphStore":
     """Laedt einen Graphen aus einer .gml-Datei oder baut ihn aus einer Tripel-.json."""
     store = GraphStore()
@@ -29,6 +51,10 @@ def load_graph(path: str) -> "GraphStore":
 class GraphStore:
     def __init__(self):
         self.graph = nx.MultiDiGraph()
+        # Typ-Hierarchie: Typ -> Obertyp ("disease" -> "condition"), siehe
+        # set_type_parents(). Getrennt vom Graphen, damit Typen nicht als
+        # Knoten in /graph, Antworten und Fragevorschlaegen auftauchen.
+        self.type_parents = {}
 
     def add_triple(self, triple: dict):
         """
@@ -133,6 +159,7 @@ class GraphStore:
         keine fest eingestellte Domain. polygraph gibt die haeufigen Begriffe
         der Extraktion als bekanntes Vokabular mit (GET /vocabulary), die
         Prompts hier die haeufigsten Typen als Fachgebiet (topics()).
+        Dazu die Typ-Hierarchie (type_parents), auch fuer Typen ohne Knoten.
         """
         types = Counter(data["type"] for _, data in self.graph.nodes(data=True) if data.get("type"))
         relations = Counter(data["relation"] for _, _, data in self.graph.edges(data=True)
@@ -142,7 +169,8 @@ class GraphStore:
             return [{"name": name, "count": n}
                     for name, n in sorted(counts.items(), key=lambda i: (-i[1], i[0]))]
 
-        return {"types": listed(types), "relations": listed(relations)}
+        return {"types": listed(types), "relations": listed(relations),
+                "type_parents": dict(sorted(self.type_parents.items()))}
 
     def topics(self, extra_types=(), limit: int = 15) -> str:
         """
@@ -172,13 +200,69 @@ class GraphStore:
         return changed
 
     def retype_nodes(self, old: str, new: str) -> int:
-        """Setzt den Typ aller Knoten mit Typ 'old' auf 'new', gibt die Anzahl zurueck."""
+        """
+        Setzt den Typ aller Knoten mit Typ 'old' auf 'new', gibt die Anzahl
+        zurueck. Die Typ-Hierarchie zieht nicht von selbst mit - dafuer
+        rename_type_in_hierarchy().
+        """
         changed = 0
         for _, data in self.graph.nodes(data=True):
             if data.get("type") == old:
                 data["type"] = new
                 changed += 1
         return changed
+
+    def set_type_parents(self, parents: dict) -> int:
+        """
+        Typ-Hierarchie: setzt pro Typ den Obertyp ("disease" -> "condition"),
+        None entfernt ihn. Obertypen brauchen keine Knoten - die Wurzeln
+        (polygraph configs/start_vocabulary.json) haben meist keine. Alles
+        oder nichts: ein leerer Name, ein Typ als sein eigener Obertyp oder
+        ein Kreis ("cell" -> "immune_cell" -> "cell") -> ValueError, nichts
+        aendert sich. Gibt die Anzahl geaenderter Eintraege zurueck.
+        """
+        updated = dict(self.type_parents)
+        for child, parent in parents.items():
+            if not child.strip() or (parent is not None and not parent.strip()):
+                raise ValueError("leerer Typname")
+            if parent is None:
+                updated.pop(child, None)
+            else:
+                updated[child] = parent
+        # Ein neuer Kreis muesste durch einen der geaenderten Typen laufen
+        for child in parents:
+            if _leads_back(updated, child):
+                raise ValueError(f"Kreis in der Typ-Hierarchie ueber '{child}'")
+        changed = sum(1 for child in parents if self.type_parents.get(child) != updated.get(child))
+        self.type_parents = updated
+        return changed
+
+    def rename_type_in_hierarchy(self, old: str, new: str) -> bool:
+        """
+        Zieht die Typ-Hierarchie bei einer Umbenennung mit (POST
+        /vocabulary/rename): Untertypen von 'old' haengen danach an 'new'.
+        Gibt es 'new' schon (Steward: "zuordnen"), behaelt 'new' seinen
+        Obertyp; hat es keinen, uebernimmt es den von 'old'. Ein Obertyp,
+        der einen Kreis ergaebe (z.B. 'old' war Obertyp von 'new'), wird
+        uebersprungen. Gibt zurueck, ob sich etwas geaendert hat.
+        """
+        if old == new:
+            return False
+        before = dict(self.type_parents)
+        parents = self.type_parents
+        old_parent, new_parent = parents.pop(old, None), parents.pop(new, None)
+        for child, parent in parents.items():
+            if parent == old:
+                parents[child] = new
+        for candidate in (new_parent, old_parent):
+            if candidate is None:
+                continue
+            parents[new] = new if candidate == old else candidate
+            if _leads_back(parents, new):
+                del parents[new]
+            else:
+                break
+        return parents != before
 
     def rewrite_edge_field(self, field: str, old: str, new: str) -> int:
         """Setzt das Feld auf allen Kanten mit Wert 'old' auf 'new' (z.B. "Metaanalyse" -> "meta-analysis")."""
@@ -275,13 +359,28 @@ class GraphStore:
         abgeschnittene, kaputte Datei zuruecklassen und den vorherigen,
         gueltigen Stand zerstoeren - das ist real passiert, nicht nur
         theoretisch.
+
+        Die Typ-Hierarchie kommt genauso daneben (hierarchy_path) - aber erst,
+        wenn es eine gibt, damit ein Graph ohne Hierarchie keine leere Datei
+        bekommt.
         """
         tmp_path = f"{path}.tmp"
         nx.write_gml(self.graph, tmp_path)
         os.replace(tmp_path, path)
 
+        hierarchy = hierarchy_path(path)
+        if self.type_parents or os.path.exists(hierarchy):
+            with open(f"{hierarchy}.tmp", "w", encoding="utf-8") as f:
+                json.dump(dict(sorted(self.type_parents.items())), f, ensure_ascii=False, indent=2)
+            os.replace(f"{hierarchy}.tmp", hierarchy)
+
     def load(self, path: str):
         self.graph = nx.read_gml(path)
+        hierarchy = hierarchy_path(path)
+        self.type_parents = {}
+        if os.path.exists(hierarchy):
+            with open(hierarchy, "r", encoding="utf-8") as f:
+                self.type_parents = json.load(f)
 
     def to_json(self) -> dict:
         """Serialisiert den Graphen fuer die API (GET /graph, Teilgraph in POST /ask)."""

@@ -182,6 +182,84 @@ def test_retype_nodes():
     assert store.retype_nodes("gibt_es_nicht", "x") == 0
 
 
+# --- Typ-Hierarchie -----------------------------------------------------------
+
+def test_set_type_parents_sets_removes_and_counts():
+    store = GraphStore()
+    assert store.set_type_parents({"disease": "condition", "immune_cell": "cell", "cell": "structure"}) == 3
+    assert store.set_type_parents({"disease": "condition"}) == 0  # unveraendert
+    assert store.set_type_parents({"immune_cell": None, "gibt_es_nicht": None}) == 1
+    assert store.type_parents == {"disease": "condition", "cell": "structure"}
+
+
+def test_set_type_parents_rejects_cycles_and_changes_nothing():
+    store = GraphStore()
+    store.set_type_parents({"immune_cell": "cell", "cell": "structure"})
+    for bad in ({"structure": "immune_cell"}, {"cell": "cell"}, {"disease": "condition", "": "x"},
+                {"monocytes": " "}):
+        try:
+            store.set_type_parents(bad)
+            assert False, f"kein ValueError fuer {bad}"
+        except ValueError:
+            pass
+    assert store.type_parents == {"immune_cell": "cell", "cell": "structure"}
+
+
+def test_hierarchy_saved_next_to_graph_and_loaded(tmp_path):
+    path = str(tmp_path / "graph.gml")
+    store = GraphStore()
+    store.add_triple(triple())
+    store.save(path)
+    assert not os.path.exists(tmp_path / "graph.hierarchy.json")  # keine Hierarchie, keine Datei
+
+    store.set_type_parents({"disease": "condition", "Typ mit Ümlaut": "concept"})
+    store.save(path)
+    loaded = GraphStore()
+    loaded.load(path)
+    assert loaded.type_parents == {"disease": "condition", "Typ mit Ümlaut": "concept"}
+
+    store.set_type_parents({"disease": None, "Typ mit Ümlaut": None})
+    store.save(path)  # leer, aber die Datei gab es - wird geleert, nicht stehen gelassen
+    loaded.load(path)
+    assert loaded.type_parents == {}
+
+
+def test_vocabulary_includes_hierarchy_without_nodes():
+    store = GraphStore()
+    store.add_triple(triple())
+    store.set_type_parents({"disease": "condition", "condition": "state"})  # "condition" hat keine Knoten
+    assert store.vocabulary()["type_parents"] == {"condition": "state", "disease": "condition"}
+
+
+def test_rename_type_in_hierarchy_moves_type_and_children():
+    store = GraphStore()
+    store.set_type_parents({"cell_type": "structure", "immune_cell": "cell_type"})
+    assert store.rename_type_in_hierarchy("cell_type", "cell") is True
+    assert store.type_parents == {"cell": "structure", "immune_cell": "cell"}
+    assert store.rename_type_in_hierarchy("gibt_es_nicht", "x") is False
+
+
+def test_rename_type_onto_existing_keeps_its_parent():
+    # Steward "zuordnen": "cells" -> "cell", beide schon eingeordnet
+    store = GraphStore()
+    store.set_type_parents({"cell": "structure", "cells": "concept", "T-cells": "cells"})
+    store.rename_type_in_hierarchy("cells", "cell")
+    assert store.type_parents == {"cell": "structure", "T-cells": "cell"}
+
+
+def test_rename_type_onto_own_parent_or_child_makes_no_cycle():
+    # 'old' ist Untertyp von 'new': kein "cell" -> "cell"
+    store = GraphStore()
+    store.set_type_parents({"cells": "cell"})
+    store.rename_type_in_hierarchy("cells", "cell")
+    assert store.type_parents == {}
+
+    # 'old' ist Obertyp von 'new' (ueber einen Zwischentyp): 'new' nimmt den Obertyp von 'old'
+    store.set_type_parents({"cell": "structure", "immune_cell": "cell", "monocytes": "immune_cell"})
+    store.rename_type_in_hierarchy("cell", "monocytes")
+    assert store.type_parents == {"monocytes": "structure", "immune_cell": "monocytes"}
+
+
 def test_rename_node_keeps_edges_and_type():
     store = GraphStore()
     store.add_triple(triple())
