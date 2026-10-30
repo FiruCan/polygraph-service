@@ -13,3 +13,7 @@ output/
 data/labels/
 # Datenordner pro Fachgebiet (data/medicine/, data/finance/, ...)
 data/*/
+# lokale Claude-Einstellungen und Startkonfiguration
+.claude/
+# erzeugte Review-Dateien (translate_graph.py)
+data/*.json
