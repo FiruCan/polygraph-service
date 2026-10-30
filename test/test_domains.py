@@ -163,3 +163,52 @@ def test_edges_rewrite_only_profile_fields(client):
     assert "evidence_level" in r.json()["detail"]
     assert client.post("/edges/rewrite", json={"rewrites": [
         {"field": "value", "old": "a", "new": "b"}]}).json() == {"changed": 0}
+
+
+# --- Finanz-Profil ----------------------------------------------------------
+
+def test_finance_profile_has_date_and_currency():
+    finance = get_profile("finance")
+    assert finance.qualifier_fields == ("value", "condition", "evidence_level", "as_of", "currency")
+    assert "currency" not in finance.detail_fields  # Waehrungscode wird nicht uebersetzt
+    assert "as_of" in finance.detail_fields
+    assert "company" in finance.entity_types and "acquires" in finance.relation_types
+    assert all(q.description for q in finance.qualifiers)
+
+
+def test_prompt_notes_only_for_profiles_that_have_them():
+    assert get_profile("medicine").notes("answer") == ""
+    assert get_profile("generic").notes("check") == ""
+    assert get_profile("finance").notes("answer").startswith("\n\nHINWEISE ZUM FACHGEBIET:\n")
+    assert get_profile("finance").notes("unbekannt") == ""
+
+
+def test_finance_notes_reach_suggest_prompt():
+    from graph.suggest import build_prompt
+    seeds = [{"art": "knoten", "knoten": ["ACME"], "fakten": ["ACME --reports--> revenue"]}]
+    assert "HINWEISE ZUM FACHGEBIET" not in build_prompt(seeds)
+    assert "Stichtag" in build_prompt(seeds, domain_notes=get_profile("finance").notes("suggest"))
+
+
+def test_finance_notes_reach_check_prompt():
+    from graph.ask import check_answer
+    graph = nx.MultiDiGraph()
+    assign_profile(graph, "finance")
+    graph.add_edge("ACME", "revenue", relation="reports", value="1.2 bn", as_of="Q3 2024", currency="EUR")
+    edges = list(graph.edges(keys=True))
+    reply = {"message": {"content": '[{"nr": 1, "belege": [1], "begruendung": "ok", "urteil": "gedeckt"}]'}}
+    with patch("graph.ask.ollama.chat", return_value=reply) as chat:
+        result = check_answer(graph, "ACME meldete einen Umsatz von 1,2 Milliarden Euro [1].", edges)
+    prompt = chat.call_args.kwargs["messages"][0]["content"]
+    assert result["status"] == "geprueft"
+    assert "Stichtag (as of)" in prompt
+    assert "as of: Q3 2024 | currency: EUR" in prompt
+
+
+def test_finance_instance_reports_its_profile(client):
+    assign_profile(app_module.store.graph, "finance")
+    data = client.get("/profile").json()
+    assert data["name"] == "finance"
+    names = {q["name"]: q for q in data["qualifiers"]}
+    assert names["currency"]["translate"] is False and names["as_of"]["label_de"] == "Stichtag"
+    assert "Zeitpunkt" in names["as_of"]["description"]

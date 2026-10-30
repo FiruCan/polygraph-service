@@ -97,7 +97,7 @@ REGELN:
    egal in welcher Sprache die Frage gestellt ist. Die Tripel sind
    englisch - uebertrage Begriffe in die Antwortsprache, wo es dort eine
    uebliche Bezeichnung gibt (z.B. "multiple sclerosis" -> auf Deutsch
-   "Multiple Sklerose"); Fachnamen ohne solche Bezeichnung bleiben.
+   "Multiple Sklerose"); Fachnamen ohne solche Bezeichnung bleiben.{domain_notes}
 
 TRIPEL:
 {triples}

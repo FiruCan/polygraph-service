@@ -11,3 +11,5 @@ data/*.hierarchy.json
 .pytest_cache/
 output/
 data/labels/
+# Datenordner pro Fachgebiet (data/medicine/, data/finance/, ...)
+data/*/

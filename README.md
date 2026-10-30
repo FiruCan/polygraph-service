@@ -1,6 +1,6 @@
 # polygraph-service
 
-Haelt einen Wissensgraphen (NetworkX, persistiert als `data/graph.gml`) und
+Haelt einen Wissensgraphen (NetworkX, persistiert als `data/<fachgebiet>/graph.gml`) und
 bietet ihn per HTTP an: Tripel einspeisen, Fragen stellen (GraphRAG, lokales
 Ollama), Graph abrufen. Reine API ohne eigene Oberflaeche - die
 Weboberflaeche liegt im Projekt [polygraph](../polygraph) (`kg/`, Port 8001).
@@ -16,8 +16,9 @@ Graphen selbst zu vermischen.
 (z.B. Medizin, Boerse), mit demselben Code. Was fachspezifisch ist, steht
 in einem Domaenen-Profil (`domains/`): welche Angaben die Kanten tragen
 (Qualifier wie `evidence_level`) und mit welchem Vokabular die Extraktion
-startet. Das Profil wird beim Start gewaehlt (`POLYGRAPH_DOMAIN`) und steht
-danach fest in der `graph.gml`. Das Vokabular (Knotentypen, Relationen)
+startet. Das Profil wird beim Start gewaehlt (`POLYGRAPH_DOMAIN`), steht
+danach fest in der `graph.gml` und bestimmt den Datenordner
+`data/<fachgebiet>/` - so laufen Instanzen parallel, ohne sich zu beruehren. Das Vokabular (Knotentypen, Relationen)
 waechst darueber hinaus aus den Tripeln;
 `GET /vocabulary` liefert es polygraph fuer die Extraktion, und die
 haeufigsten Knotentypen sagen den Prompts, worum es geht (z.B. ob
@@ -50,18 +51,21 @@ ollama pull bge-m3       # Normalisierungs-Kandidatensuche (Embeddings)
 ## Starten
 
 ```bash
-uvicorn app:app --reload --port 8000
-POLYGRAPH_DOMAIN=medicine uvicorn app:app --port 8000   # Profil festlegen
+POLYGRAPH_DOMAIN=medicine uvicorn app:app --port 8000
+POLYGRAPH_DOMAIN=finance uvicorn app:app --port 8060   # parallel, eigener Ordner
 ```
 
-`POLYGRAPH_DOMAIN` (`generic`, `medicine`) legt das Domaenen-Profil fest,
-beim ersten Start mit einem alten Graphen wird es sofort in
-`data/graph.gml` geschrieben. Danach genuegt der Start ohne Variable; ein
-abweichender Wert bricht den Start ab - ein anderes Fachgebiet ist eine
-eigene Instanz. Eine neue, leere Instanz ohne Angabe bekommt `generic`.
+`POLYGRAPH_DOMAIN` (`medicine`, `finance`, `generic`) ist Pflicht: es waehlt das
+Domaenen-Profil und den Datenordner `data/<fachgebiet>/` mit Graph
+(`graph.gml`), Typ-Hierarchie, Backups und Uebersetzungs-Cache (`labels/`).
+Ohne Angabe startet der Service nicht. Eine Sperre (`.lock` im Ordner)
+verhindert eine zweite Instanz auf demselben Ordner - beide wuerden sich
+sonst gegenseitig ueberschreiben. Hat der Graph im Ordner ein anderes
+Profil, bricht der Start ebenfalls ab. Ein Graph aus der Zeit vor den
+Datenordnern (`data/graph.gml`) wird nicht verschoben; der Start sagt, wie.
 
-Der Graph wird in `data/graph.gml` persistiert und beim Start automatisch
-geladen, falls vorhanden. Ansehen und befragen: Oberflaeche von polygraph
+Der Graph wird beim Start geladen, falls vorhanden, und nach jeder
+Aenderung gespeichert. Ansehen und befragen: Oberflaeche von polygraph
 starten (`uvicorn ingest_app:app --port 8001` dort) und
 `http://localhost:8001` oeffnen.
 
@@ -77,7 +81,8 @@ python3 -m pytest test -q
 ```
 
 `test_store.py`, `test_normalize.py`, `test_app.py` mocken Ollama und
-schreiben nie in `data/graph.gml` (App-Tests nutzen eine temporaere Datei).
+schreiben nie in `data/` (App-Tests nutzen temporaere Ordner, der Start
+laeuft in Tests nur ueber `test_instance.py` mit `tmp_path`).
 `test_normalize_judge_live.py` prueft den LLM-Richter gegen echtes Ollama
 (wird uebersprungen, wenn Ollama nicht laeuft) - nach jeder Aenderung an
 `prompts/normalize_judge.md` laufen lassen.
@@ -100,10 +105,10 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
 ```
 
 - `GET /health` -> `{"status": "ok", "nodes": N, "edges": M}`
-- `GET /profile` -> `{"name": "medicine", "qualifiers": [{"name": str, "label": str, "translate": bool}], "entity_types": [...], "relation_types": [...], "type_parents": {...}, "fixed": bool}` -
+- `GET /profile` -> `{"name": "medicine", "qualifiers": [{"name": str, "label": str, "label_de": str, "translate": bool, "description": str}], "entity_types": [...], "relation_types": [...], "type_parents": {...}, "fixed": bool}` -
   Domaenen-Profil der Instanz; `fixed`: schon in der `graph.gml` festgeschrieben
 - `GET /graph` -> `{"nodes": [{"id": str, "type": str|null}], "edges": [{"source": str, "target": str, "relation": str, <Qualifier des Profils>..., "confidence": ...}]}`
-  (bei `generic`/`medicine`: `value`, `condition`, `evidence_level`)
+  (`medicine`/`generic`: `value`, `condition`, `evidence_level`; `finance` zusaetzlich `as_of` (Stichtag), `currency`)
 - `POST /triples` Body `{"triples": [<Tripel>, ...]}` -> normalisiert jedes
   Tripel gegen den aktuellen Graphen und fuegt es ein. Antwort:
   `{"added": N, "merges": [["subject"|"object"|"relation", "alt", "neu"], ...], "nodes": N, "edges": M}`
@@ -135,7 +140,7 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   `{"changed": N, "type_parents": M}` - setzt Obertypen, `null` entfernt
   einen (Vokabular-Steward, nach Freigabe). Ein Kreis
   (`cell` -> `immune_cell` -> `cell`) wird mit 400 abgelehnt, dann aendert
-  sich nichts. Gespeichert in `data/graph.hierarchy.json` neben dem Graphen,
+  sich nichts. Gespeichert in `data/<fachgebiet>/graph.hierarchy.json` neben dem Graphen,
   nicht als Knoten - Typen tauchen so nicht in `/graph`, Antworten oder
   Fragevorschlaegen auf.
 - `POST /entities/similar` Body `{"names": [str], "limit": 3}` ->
@@ -173,7 +178,7 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   Freigabe durch den Duplikat-Agenten oder einen Menschen). 404 wenn ein
   Knoten fehlt.
 - `POST /graph/backup` -> `{"backup": "graph.backup-<Zeitstempel>.gml"}` -
-  Kopie von `data/graph.gml` und, falls vorhanden, der Typ-Hierarchie als
+  Kopie von `data/<fachgebiet>/graph.gml` und, falls vorhanden, der Typ-Hierarchie als
   `graph.backup-<Zeitstempel>.hierarchy.json` (ruft polygraph
   `dedupe.py --auto` vor dem Zusammenfuehren auf). Zurueckholen: Service
   stoppen, beide Dateien zurueckkopieren, Service starten.
@@ -187,7 +192,7 @@ Knoten und ~1.700 Kanten-Angaben):
 python3 translate_graph.py plan
 ```
 
-schreibt `data/translate_review.json` mit drei Listen: `knoten` (alt ->
+schreibt `data/<fachgebiet>/translate_review.json` mit drei Listen: `knoten` (alt ->
 neu, `zusammenfuehren`, `freigegeben`), `kanten` (`feld`, alt -> neu,
 `freigegeben`) und `typen` (wie `knoten`, umbenannt ueber
 `POST /vocabulary/rename`). Mit `--nur typen` (bzw. `knoten`, `kanten`)
@@ -198,14 +203,15 @@ auf `"freigegeben": false` setzen, dann:
 python3 translate_graph.py apply
 ```
 
-legt vorher `data/graph.backup-<Zeitstempel>.gml` an.
+legt vorher ueber `POST /graph/backup` ein Backup im Datenordner an.
+Fuer eine andere Instanz: `--url http://localhost:8060`.
 
 ## Projektstruktur
 
 ```
 polygraph-service/
 ├── app.py              # FastAPI-Routen (health, graph, triples, ask, ...), reine API
-├── domains/            # Domaenen-Profile: base.py (DomainProfile, Qualifier), generic.py, medicine.py
+├── domains/            # Domaenen-Profile: base.py (DomainProfile, Qualifier), generic.py, medicine.py, finance.py
 ├── graph/
 │   ├── store.py        # NetworkX-Wrapper, to_json()/from_json() fuer die API
 │   ├── normalize.py    # Synonyme zusammenfuehren (bge-m3-Embedding + gemma4:26b-Pruefung)
@@ -214,7 +220,7 @@ polygraph-service/
 ├── prompts/             # ask_select.md, ask_answer.md, normalize_judge.md
 ├── translate_graph.py   # einmalige Umstellung des Bestands auf Englisch
 ├── test/                # Unit-Tests + Live-Test fuer den Normalisierungs-Richter
-└── data/graph.gml       # persistierter Graph (git-ignoriert)
+└── data/<fachgebiet>/   # Graph, Hierarchie, Backups, labels/ pro Instanz (git-ignoriert)
 ```
 
 ## Naechste Ausbaustufen

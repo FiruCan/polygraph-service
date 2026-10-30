@@ -254,6 +254,7 @@ def _agent_answer(graph, question: str, evidence: _Evidence, language: str = DEF
     start = "\n".join(format_triple(i, graph, e) for i, e in enumerate(evidence.edges, 1))
     messages = [{"role": "user", "content": _load_prompt("ask_answer.md").format(
         triples=start or "(keine - nutze die Werkzeuge)", question=question, language=language,
+        domain_notes=profile_of(graph).notes("answer"),
     )}]
     steps, focus = [], []
 
@@ -467,7 +468,7 @@ def check_answer(graph, answer: str, evidence_edges: list, language: str = DEFAU
     prompt = _load_prompt("ask_check.md").format(
         triples="\n".join(format_triple(n, graph, evidence_edges[n - 1]) for n in numbers) or "(keine)",
         sentences="\n".join(f"{i}: {s['satz']}" for i, s in enumerate(to_check, 1)),
-        language=language,
+        language=language, domain_notes=profile_of(graph).notes("check"),
     )
     try:
         response = ollama.chat(

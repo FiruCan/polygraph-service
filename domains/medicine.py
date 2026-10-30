@@ -11,4 +11,5 @@ der Typ-Hierarchie folgen.
 from domains import generic
 from domains.base import DomainProfile
 
-PROFILE = DomainProfile("medicine", generic.QUALIFIERS, generic.ENTITY_TYPES, generic.RELATION_TYPES)
+PROFILE = DomainProfile("medicine", generic.QUALIFIERS, generic.ENTITY_TYPES, generic.RELATION_TYPES,
+                        example_text=generic.EXAMPLE_TEXT, example_output=generic.EXAMPLE_OUTPUT)

@@ -1,8 +1,8 @@
 """
 domains
 -------
-Domaenen-Profile (domains/base.py): pro Instanz ein Fachgebiet, z.B.
-"medicine". Der Name steht als Graph-Attribut in der graph.gml selbst
+Domaenen-Profile (domains/base.py): pro Instanz ein Fachgebiet,
+"medicine" oder "finance" ("generic" ohne Fachgebiet). Der Name steht als Graph-Attribut in der graph.gml selbst
 (graph.graph["profile"]) - so gehen Backups und Umstellungen nie ohne ihr
 Profil, und jeder Teil des Kerns, der den Graphen hat, kennt auch dessen
 Profil (profile_of).
@@ -12,10 +12,10 @@ und gilt danach fest: ein anderes Profil fuer denselben Graphen ist ein
 Fehler, kein Wechsel.
 """
 
-from domains import generic, medicine
+from domains import finance, generic, medicine
 from domains.base import DomainProfile, Qualifier
 
-PROFILES = {p.name: p for p in (generic.PROFILE, medicine.PROFILE)}
+PROFILES = {p.name: p for p in (generic.PROFILE, medicine.PROFILE, finance.PROFILE)}
 DEFAULT_PROFILE = generic.PROFILE.name
 
 

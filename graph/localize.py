@@ -29,6 +29,7 @@ LOCALIZE_MODEL = "gemma4:26b"
 BATCH_SIZE = 40
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "localize_labels.md")
 TEXTS_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "translate_texts.md")
+# pro Instanz data/<fachgebiet>/labels, gesetzt von app.open_instance()
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "labels")
 # Der Graph ist englisch - dafuer braucht es keine Uebersetzung.
 SOURCE_LANGUAGES = {"englisch", "english"}

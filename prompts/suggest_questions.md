@@ -27,7 +27,7 @@ REGELN:
 - Die Fakten sind englisch. Uebertrage Begriffe in die Fragesprache, wo es
   dort eine uebliche Bezeichnung gibt ("multiple sclerosis" -> auf Deutsch
   "Multiple Sklerose"); Fachnamen ohne solche Bezeichnung (Gene,
-  Produkte, Codes) bleiben, wie sie sind. Die Frage selbst auf {language}.
+  Produkte, Codes) bleiben, wie sie sind. Die Frage selbst auf {language}.{domain_notes}
 
 AUSGANGSPUNKTE:
 {seeds}

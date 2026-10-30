@@ -41,7 +41,7 @@ KEIN Grund fuer "teilweise" oder "nicht_gedeckt":
   erlaubtes Allgemeinwissen
 - kurze bildhafte Vergleiche, die nur einen Begriff veranschaulichen
   ("wie die Isolierung um ein Stromkabel")
-- weggelassene Details (der Satz muss nicht alles aus dem Tripel nennen)
+- weggelassene Details (der Satz muss nicht alles aus dem Tripel nennen){domain_notes}
 
 TRIPEL:
 {triples}

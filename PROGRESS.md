@@ -2,6 +2,53 @@
 
 ## Stand
 
+**Finanz-Profil, Service-Teil (fertig; Extraktion und Metis offen)**
+- `domains/finance.py`: Qualifier `value`, `condition`, `evidence_level`
+  (hier Belegart: Geschaeftsbericht, Analystenschaetzung, Prognose) - wie
+  in der Medizin benannt, damit Metis sie ohne Anpassung zeigt - dazu
+  `as_of` (Stichtag, wird uebersetzt) und `currency` (ISO-Code, wird nicht
+  uebersetzt). Startvokabular aus polygraph `evals/configs/finance.json`.
+- `Qualifier.description`: Feldregel fuer die Extraktion in polygraph
+  (`GET /profile`), dazu `DomainProfile.example_text`/`example_output`
+  als Beispiel im Extraktions-Prompt. Fuer `medicine`/`generic` wortgleich
+  mit dem bisherigen `prompts/extract.md` bzw. `configs/start_vocabulary.json`
+  von polygraph; das Finanz-Beispiel ist bewusst nicht aus dem Eval-Text.
+- `DomainProfile.prompt_notes` + Platzhalter `{domain_notes}` in
+  `ask_answer.md`, `ask_check.md`, `suggest_questions.md`: keine eigenen
+  Finanz-Prompts, nur Hinweise (Stichtag und Waehrung nennen, keine
+  Anlageempfehlung/Kursprognose; Pruefung: anderer Stichtag ->
+  hoechstens "teilweise"). Fuer `medicine`/`generic` sind die Prompts
+  byte-identisch zu vorher (geprueft gegen git HEAD).
+- Live-Test (Scratch-Instanz, gemma4:26b) mit vier Handtripeln aus
+  `zinsen_aktien`: "Juli 2023" -> "July 2023", `USD` bleibt; die Antwort
+  nennt den Stichtag; "Soll ich Vonovia-Aktien kaufen?" -> "steht nicht im
+  Graphen" statt Empfehlung; Fragevorschlaege greifen Stichtag/Waehrung auf.
+- 5 neue Tests in `test/test_domains.py`; 264 Tests gruen.
+- polygraph nutzt das Profil durchgehend (siehe dort): Extraktion
+  (`GET /profile`), Metis und PDF-Export zeigen die Angaben des Profils,
+  `configs/services.json` hat `finanzen` auf Port 8060. Eval
+  `zinsen_aktien` mit dem Finanz-Profil (3 Laeufe): Paar-F1 1.00 (vorher
+  0.95), Stichtag/Waehrung 5 von 5 in jedem Lauf.
+
+**Datenordner pro Fachgebiet: Instanzen laufen parallel (fertig)**
+- Grund: Medizin und Finanzen sollen gleichzeitig laufen. Bisher nutzte
+  jede Instanz `data/graph.gml`; zwei Instanzen auf derselben Datei
+  haetten sich gegenseitig ueberschrieben (jede haelt ihren Stand im
+  Speicher und speichert ihn ganz) - ein Import der einen waere beim
+  naechsten Speichern der anderen verloren gewesen.
+- `POLYGRAPH_DOMAIN` ist jetzt Pflicht und waehlt auch den Ordner
+  `data/<fachgebiet>/`: Graph, Hierarchie, Backups, Uebersetzungs-Cache
+  (`graph/localize.CACHE_DIR`). `app.open_instance()` beim Serverstart
+  (FastAPI-lifespan, nicht mehr beim Import - die Tests lesen den echten
+  Graphen dadurch nicht mehr).
+- Sperre `app.lock_data_dir()`: `fcntl.flock` auf `.lock` im Ordner,
+  gehalten bis Prozessende (auch nach Absturz frei); eine zweite Instanz
+  auf demselben Ordner bricht ab.
+- Ein alter `data/graph.gml` wird nicht automatisch verschoben; der Start
+  bricht mit der Anleitung ab. `translate_graph.py`: Backup ueber
+  `POST /graph/backup`, Review-Datei `data/<fachgebiet>/translate_review.json`.
+- `test/test_instance.py` (9 Tests); 259 Tests gruen.
+
 **Domaenen-Profile, Schritt 1: Profil-Schicht ohne Verhaltensaenderung (fertig)**
 - Grund: Medizin und Boerse sollen getrennte Graphen mit demselben Code
   werden. Bisher war der Kern zwar ohne feste Domain, hatte aber die
@@ -398,7 +445,7 @@
   -> Kollegen-Testinstanz auf 8011 (Graph geladen), nicht erreichbare URL
   (Hinweis), zurueck auf leer (eigener Graph).
 - Hinweis Ports: 8000 = eigener Service, 8001 ist lokal schon von
-  `ingest_app` belegt - Kollegen-Instanz z.B. auf 8002.
+  `ingest_app` belegt - Kollegen-Instanz z.B. auf 8060.
 
 **Frage-Agent: Antwortgeber darf Tripel nachladen (fertig)**
 - Grund: `ask()` war eine feste Pipeline - Knoten waehlen, 2 Hops holen,

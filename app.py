@@ -2,7 +2,7 @@
 app.py
 ------
 Graph-Service: haelt einen Wissensgraphen im Speicher (persistiert als
-data/graph.gml) und bietet ihn per HTTP an - fuer Ingestion (POST /triples,
+data/<fachgebiet>/graph.gml) und bietet ihn per HTTP an - fuer Ingestion (POST /triples,
 z.B. aus polygraph/main.py), Fragen (POST /ask, GraphRAG) und Darstellung
 (GET /graph). Reine API ohne eigene Oberflaeche - die Weboberflaeche liegt in
 polygraph (kg/, ausgeliefert von ingest_app.py auf http://localhost:8001).
@@ -18,17 +18,21 @@ Erlaubnis des abgefragten Service. Standard: jede Seite von localhost/127.0.0.1,
 Port. Andere Herkuenfte per Umgebungsvariable POLYGRAPH_CORS_ORIGIN_REGEX.
 
 Fachgebiet: pro Instanz ein Domaenen-Profil (domains/), gewaehlt per
-POLYGRAPH_DOMAIN (z.B. "medicine") und danach in der graph.gml festgeschrieben.
-Verlangt POLYGRAPH_DOMAIN spaeter ein anderes Profil, startet der Service
-nicht. Ohne Angabe: das gespeicherte Profil, sonst "generic".
+POLYGRAPH_DOMAIN (z.B. "medicine"). Es bestimmt auch den Datenordner
+data/<fachgebiet>/ (Graph, Hierarchie, Backups, Uebersetzungs-Cache), so
+laufen mehrere Instanzen parallel, ohne sich zu beruehren; eine Sperre
+verhindert zwei Instanzen auf demselben Ordner (open_instance). Ohne
+POLYGRAPH_DOMAIN startet der Service nicht.
 
-Start: uvicorn app:app --reload --port 8000
-       POLYGRAPH_DOMAIN=medicine uvicorn app:app --port 8000
+Start: POLYGRAPH_DOMAIN=medicine uvicorn app:app --port 8000
+       POLYGRAPH_DOMAIN=finance uvicorn app:app --port 8060
 """
 
+import fcntl
 import os
 import shutil
 import threading
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Literal, Optional
 
@@ -37,7 +41,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
-from domains import assign_profile, profile_of
+import graph.localize as label_cache
+from domains import assign_profile, get_profile, profile_of
 from graph.ask import (DEFAULT_LANGUAGE, ask as run_ask, explain_term, node_edges, search_nodes,
                        select_nodes, triple_dict)
 from graph.dedupe import DEDUPE_THRESHOLD, find_duplicates
@@ -47,23 +52,78 @@ from graph.store import GraphStore, hierarchy_path
 from graph.suggest import suggest_questions
 from graph.translate import TYPE_FIELDS, translate_details, translate_names, translate_types
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "graph.gml")
+DATA_ROOT = os.path.join(os.path.dirname(__file__), "data")
+# data/<fachgebiet>/graph.gml, gesetzt von open_instance() beim Start
+DATA_PATH = None
 
-app = FastAPI(title="polygraph-service")
+store = GraphStore()
+store_lock = threading.Lock()
+_instance_lock = None  # offene .lock-Datei, gehalten, solange der Prozess laeuft
+
+
+def lock_data_dir(directory: str):
+    """
+    Exklusive Sperre auf den Datenordner (fcntl.flock auf directory/.lock).
+    Zwei Instanzen auf demselben Graphen wuerden sich gegenseitig
+    ueberschreiben: jede haelt ihren Stand im Speicher und speichert ihn
+    ganz. Die Sperre endet mit dem Prozess, auch nach einem Absturz.
+    -> offene Datei (offen halten); RuntimeError, wenn schon gesperrt.
+    """
+    handle = open(os.path.join(directory, ".lock"), "w")
+    try:
+        fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        handle.close()
+        raise RuntimeError(f"{directory} wird schon von einem anderen polygraph-service benutzt")
+    return handle
+
+
+def open_instance(domain: str, root: str = None):
+    """
+    Beim Start: Datenordner root/<domain>/ waehlen und sperren, Graph laden,
+    Profil festlegen, Uebersetzungs-Cache in den Ordner legen. Ein Graph aus
+    der Zeit vor den Datenordnern (root/graph.gml) wird nicht verschoben -
+    der Start bricht dann mit der Anleitung dazu ab.
+    """
+    global DATA_PATH, _instance_lock
+    root = root or DATA_ROOT
+    if not domain:
+        raise RuntimeError("POLYGRAPH_DOMAIN fehlt - z.B. POLYGRAPH_DOMAIN=medicine "
+                           "(waehlt Profil und Datenordner data/<fachgebiet>/)")
+    get_profile(domain)  # unbekanntes Profil -> ValueError, bevor ein Ordner entsteht
+    directory = os.path.join(root, domain)
+    path = os.path.join(directory, "graph.gml")
+    legacy = os.path.join(root, "graph.gml")
+    if os.path.exists(legacy) and not os.path.exists(path):
+        raise RuntimeError(f"Graph noch unter {legacy} - erst in den Ordner seines Fachgebiets "
+                           f"verschieben, z.B. mkdir -p {directory} && mv {legacy} {directory}/")
+    os.makedirs(directory, exist_ok=True)
+    _instance_lock = lock_data_dir(directory)
+    if os.path.exists(path):
+        store.load(path)
+    # Ein alter Graph, der hier sein Profil bekommt, wird gleich gespeichert -
+    # sonst ginge die Zuordnung bis zum naechsten Import beim Neustart verloren.
+    if assign_profile(store.graph, domain) and os.path.exists(path):
+        store.save(path)
+    label_cache.CACHE_DIR = os.path.join(directory, "labels")
+    DATA_PATH = path
+
+
+@asynccontextmanager
+async def lifespan(app):
+    # Beim Serverstart, nicht beim Import: Tests (TestClient ohne "with")
+    # beruehren so nie einen echten Datenordner.
+    open_instance(os.environ.get("POLYGRAPH_DOMAIN"))
+    yield
+
+
+app = FastAPI(title="polygraph-service", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=os.environ.get("POLYGRAPH_CORS_ORIGIN_REGEX", r"https?://(localhost|127\.0\.0\.1)(:\d+)?"),
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
-store = GraphStore()
-store_lock = threading.Lock()
-if os.path.exists(DATA_PATH):
-    store.load(DATA_PATH)
-# Ein alter Graph, der hier sein Profil bekommt, wird gleich gespeichert -
-# sonst ginge die Zuordnung bis zum naechsten Import beim Neustart verloren.
-if assign_profile(store.graph, os.environ.get("POLYGRAPH_DOMAIN")) and os.path.exists(DATA_PATH):
-    store.save(DATA_PATH)
 
 
 class TriplesIn(BaseModel):
@@ -326,6 +386,7 @@ def graph_backup():
     automatischen Zusammenfuehrungen (polygraph dedupe.py --auto), die sich
     sonst nur durch Neuimport der Quellen rueckgaengig machen liessen. Die
     Typ-Hierarchie wird mitkopiert (graph.backup-<Zeit>.hierarchy.json).
+    Landet im Datenordner der Instanz (data/<fachgebiet>/).
     """
     with store_lock:
         store.save(DATA_PATH)

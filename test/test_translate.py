@@ -136,18 +136,23 @@ def test_plan_only_types(tmp_path, monkeypatch):
 
 
 def test_apply_renames_only_approved_types(tmp_path, monkeypatch):
-    (tmp_path / "data").mkdir()
-    (tmp_path / "graph.gml").write_text("graph [ ]")
     review = {"typen": [
         {"alt": "Krankheiten", "neu": "diseases", "zusammenfuehren": False, "freigegeben": True},
         {"alt": "Gehirn", "neu": "brain", "zusammenfuehren": False, "freigegeben": False}]}
     (tmp_path / "review.json").write_text(json.dumps(review))
-    monkeypatch.setattr(translate_graph, "HERE", str(tmp_path))
     monkeypatch.setattr(translate_graph, "REVIEW_PATH", str(tmp_path / "review.json"))
-    monkeypatch.setattr(translate_graph, "GRAPH_PATH", str(tmp_path / "graph.gml"))
     with patch("translate_graph.requests.post") as post:
-        post.return_value.json.return_value = {"changed": 3}
+        post.return_value.json.return_value = {"changed": 3, "backup": "graph.backup-x.gml"}
         translate_graph.apply("http://x")
-    post.assert_called_once_with("http://x/vocabulary/rename", timeout=600,
-                                 json={"kind": "type", "old": "Krankheiten", "new": "diseases"})
-    assert len(list((tmp_path / "data").glob("graph.backup-*.gml"))) == 1
+    # erst das Backup im Service (sein Datenordner), dann die Umbenennung
+    assert [c.args[0] for c in post.call_args_list] == ["http://x/graph/backup", "http://x/vocabulary/rename"]
+    assert post.call_args.kwargs["json"] == {"kind": "type", "old": "Krankheiten", "new": "diseases"}
+
+
+def test_review_path_is_per_domain(monkeypatch):
+    monkeypatch.setattr(translate_graph, "REVIEW_PATH", None)
+    with patch("translate_graph.requests.get") as get:
+        get.return_value.json.return_value = {"name": "finance"}
+        path = translate_graph.review_path("http://x")
+    get.assert_called_once_with("http://x/profile", timeout=60)
+    assert path == os.path.join(translate_graph.HERE, "data", "finance", "translate_review.json")

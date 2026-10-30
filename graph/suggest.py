@@ -279,7 +279,8 @@ def fallback_question(seed: dict) -> str:
     return f"What is known about {k[0]}?"
 
 
-def build_prompt(seeds: list, language: str = DEFAULT_LANGUAGE) -> str:
+def build_prompt(seeds: list, language: str = DEFAULT_LANGUAGE, domain_notes: str = "") -> str:
+    """domain_notes: DomainProfile.notes("suggest") - leer fuer Profile ohne Hinweise."""
     with open(PROMPT_PATH, "r", encoding="utf-8") as f:
         template = f.read()
     blocks = []
@@ -294,7 +295,7 @@ def build_prompt(seeds: list, language: str = DEFAULT_LANGUAGE) -> str:
         else:
             what = k[0]
         blocks.append(f"{i}. Art: {s['art']} | {what}\n" + "\n".join(f"   - {f}" for f in s["fakten"]))
-    return template.format(seeds="\n".join(blocks), language=language)
+    return template.format(seeds="\n".join(blocks), language=language, domain_notes=domain_notes)
 
 
 def suggest_questions(graph, count: int = 5, rng: random.Random = None,
@@ -308,7 +309,7 @@ def suggest_questions(graph, count: int = 5, rng: random.Random = None,
     try:
         response = ollama.chat(
             model=MODEL,
-            messages=[{"role": "user", "content": build_prompt(seeds, language)}],
+            messages=[{"role": "user", "content": build_prompt(seeds, language, profile_of(graph).notes("suggest"))}],
             think=False,
             format=QUESTIONS_SCHEMA,
             options={"num_predict": 2000, "temperature": 0.9},

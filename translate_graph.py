@@ -4,10 +4,10 @@ translate_graph.py
 Einmalige Umstellung des Bestands auf Englisch: Knotennamen, die Angaben
 an den Kanten (Freitext-Angaben des Profils, GET /profile) und die Knotentypen. Neue
 Tripel uebersetzt der Import selbst, siehe graph/translate.py. Arbeitet
-ueber die API des laufenden Service - direkt in data/graph.gml zu schreiben
+ueber die API des laufenden Service - direkt in die graph.gml zu schreiben
 wuerde der Service beim naechsten Speichern wieder ueberschreiben.
 
-    python translate_graph.py plan               # Vorschlaege -> data/translate_review.json
+    python translate_graph.py plan               # Vorschlaege -> data/<fachgebiet>/translate_review.json
     python translate_graph.py plan --nur typen   # nur Teile pruefen: knoten, kanten, typen
     python translate_graph.py apply              # Backup, dann Freigegebenes uebernehmen
 
@@ -21,20 +21,25 @@ vereint statt umbenannt; bei Typen tragen die Knoten danach denselben Typ.
 import argparse
 import json
 import os
-import shutil
 import sys
-from datetime import datetime
 
 import requests
 
-from graph.store import hierarchy_path
 from graph.translate import translate_details, translate_names, translate_types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REVIEW_PATH = os.path.join(HERE, "data", "translate_review.json")
-GRAPH_PATH = os.path.join(HERE, "data", "graph.gml")
+# data/<fachgebiet>/translate_review.json (review_path); fest gesetzt nur in Tests
+REVIEW_PATH = None
 CHUNK = 200
 PARTS = ("knoten", "kanten", "typen")
+
+
+def review_path(url: str) -> str:
+    """Review-Datei im Datenordner der Instanz - zwei Instanzen kommen sich so nicht in die Quere."""
+    if REVIEW_PATH:
+        return REVIEW_PATH
+    name = requests.get(f"{url}/profile", timeout=60).json()["name"]
+    return os.path.join(HERE, "data", name, "translate_review.json")
 
 
 def _progress(done, total):
@@ -86,10 +91,11 @@ def plan(url: str, parts=PARTS):
         review["typen"] = _renames(types, translate_types(types, progress=_progress))
         print()
 
-    with open(REVIEW_PATH, "w", encoding="utf-8") as f:
+    path = review_path(url)
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(review, f, ensure_ascii=False, indent=2)
     print("Vorschlaege - " + ", ".join(f"{part}: {len(items)}" for part, items in review.items())
-          + f" -> {REVIEW_PATH}")
+          + f" -> {path}")
     for part in ("knoten", "typen"):
         merges = [r for r in review.get(part, []) if r["zusammenfuehren"]]
         if merges:
@@ -99,7 +105,7 @@ def plan(url: str, parts=PARTS):
 
 
 def apply(url: str):
-    with open(REVIEW_PATH, encoding="utf-8") as f:
+    with open(review_path(url), encoding="utf-8") as f:
         review = json.load(f)
     renames = [r for r in review.get("knoten", []) if r.get("freigegeben")]
     rewrites = [r for r in review.get("kanten", []) if r.get("freigegeben")]
@@ -107,10 +113,9 @@ def apply(url: str):
     if not renames and not rewrites and not retypes:
         sys.exit("Nichts freigegeben.")
 
-    backup = os.path.join(HERE, "data", f"graph.backup-{datetime.now():%Y-%m-%d-%H%M%S}.gml")
-    shutil.copy2(GRAPH_PATH, backup)
-    if os.path.exists(hierarchy_path(GRAPH_PATH)):
-        shutil.copy2(hierarchy_path(GRAPH_PATH), hierarchy_path(backup))
+    # Backup macht der Service selbst (POST /graph/backup): er speichert vorher
+    # und kennt seinen Datenordner
+    backup = requests.post(f"{url}/graph/backup", timeout=600).json()["backup"]
     print(f"Backup: {backup}")
 
     totals = {"renamed": 0, "merged": 0, "skipped": []}
