@@ -172,9 +172,33 @@ class _Evidence:
         return lines
 
 
-def _tool_search(graph, begriff: str) -> tuple:
+def triple_dict(graph, edge) -> dict:
+    """Kante (u, v, key) als API-Tripel - gleiches Format fuer /ask und /nodes/neighbors."""
+    u, v, _ = edge
+    data = graph.edges[edge]
+    return {
+        "subject": u, "relation": data.get("relation"), "object": v,
+        "value": data.get("value"), "condition": data.get("condition"),
+        "evidence_level": data.get("evidence_level"), "confidence": data.get("confidence"),
+        "origin": data.get("origin"),
+    }
+
+
+def search_nodes(graph, begriff: str) -> list:
+    """Knotennamen, die den Begriff enthalten (Teilstring, Gross-/Kleinschreibung egal)."""
     needle = str(begriff).casefold()
-    hits = [n for n in graph.nodes if needle in str(n).casefold()][:MAX_SEARCH_HITS]
+    return [n for n in graph.nodes if needle in str(n).casefold()][:MAX_SEARCH_HITS]
+
+
+def node_edges(graph, knoten: str) -> list:
+    """Ein- und ausgehende Kanten eines Knotens, sicherste zuerst."""
+    edges = list(graph.in_edges(knoten, keys=True)) + list(graph.out_edges(knoten, keys=True))
+    edges.sort(key=lambda e: -float(graph.edges[e].get("confidence", 0)))
+    return edges
+
+
+def _tool_search(graph, begriff: str) -> tuple:
+    hits = search_nodes(graph, begriff)
     if not hits:
         return f"Kein Knoten enthaelt '{begriff}'.", []
     return "Gefundene Knoten:\n" + "\n".join(f"- {n}" for n in hits), []
@@ -183,9 +207,7 @@ def _tool_search(graph, begriff: str) -> tuple:
 def _tool_edges(graph, evidence: _Evidence, knoten: str) -> tuple:
     if knoten not in graph.nodes:
         return f"Knoten '{knoten}' existiert nicht - erst mit suche_knoten den exakten Namen finden.", []
-    edges = list(graph.in_edges(knoten, keys=True)) + list(graph.out_edges(knoten, keys=True))
-    edges.sort(key=lambda e: -float(graph.edges[e].get("confidence", 0)))
-    lines = evidence.add(edges[:MAX_TOOL_TRIPLES])
+    lines = evidence.add(node_edges(graph, knoten)[:MAX_TOOL_TRIPLES])
     return ("\n".join(lines) if lines else f"'{knoten}' hat keine Kanten."), [knoten]
 
 
@@ -488,16 +510,7 @@ def ask(graph, question: str, language: str = DEFAULT_LANGUAGE) -> dict:
     # selbst Einstiegspunkte finden, die select_nodes uebersehen hat.
     answer, steps, focus = _agent_answer(graph, question, evidence, language)
 
-    triples = []
-    for i, e in enumerate(evidence.edges, 1):
-        u, v, k = e
-        data = graph.edges[e]
-        triples.append({
-            "n": i, "subject": u, "relation": data.get("relation"), "object": v,
-            "value": data.get("value"), "condition": data.get("condition"),
-            "evidence_level": data.get("evidence_level"), "confidence": data.get("confidence"),
-            "origin": data.get("origin"),
-        })
+    triples = [{"n": i, **triple_dict(graph, e)} for i, e in enumerate(evidence.edges, 1)]
 
     subgraph_store = GraphStore()
     subgraph_store.graph = build_subgraph(graph, evidence.edges)

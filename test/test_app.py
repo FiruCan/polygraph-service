@@ -101,6 +101,28 @@ def test_ask_passes_chosen_language(client):
     assert ask.call_args.kwargs["language"] == "Türkisch"
 
 
+def test_nodes_search_finds_substring(client):
+    client.post("/triples", json={"triples": [triple(), triple(subject="Rauchen")]})
+    assert client.get("/nodes/search", params={"q": "krebs"}).json() == {"nodes": ["Krebs"]}
+
+
+def test_nodes_neighbors_returns_in_and_out_triples(client):
+    client.post("/triples", json={"triples": [triple(), triple(subject="Rauchen", relation="causes"),
+                                              triple(subject="Krebs", obj="Tod", relation="causes")],
+                                  "source": "https://example.org/a/b"})
+    data = client.get("/nodes/neighbors", params={"node": "Krebs"}).json()
+    assert data["node"] == "Krebs"
+    assert sorted(data["neighbors"]) == ["Krafttraining", "Rauchen", "Tod"]
+    assert len(data["triples"]) == 3
+    assert {t["origin"] for t in data["triples"]} == {"https://example.org/a/b"}
+
+
+def test_nodes_neighbors_limit_and_unknown_node(client):
+    client.post("/triples", json={"triples": [triple(), triple(subject="Rauchen")]})
+    assert len(client.get("/nodes/neighbors", params={"node": "Krebs", "limit": 1}).json()["triples"]) == 1
+    assert client.get("/nodes/neighbors", params={"node": "Gibt/es nicht"}).status_code == 404
+
+
 def test_cors_allows_other_localhost_port(client):
     r = client.get("/health", headers={"Origin": "http://localhost:8001"})
     assert r.headers["access-control-allow-origin"] == "http://localhost:8001"

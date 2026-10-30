@@ -31,7 +31,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
-from graph.ask import DEFAULT_LANGUAGE, ask as run_ask, explain_term, select_nodes
+from graph.ask import (DEFAULT_LANGUAGE, ask as run_ask, explain_term, node_edges, search_nodes,
+                       select_nodes, triple_dict)
 from graph.dedupe import DEDUPE_THRESHOLD, find_duplicates
 from graph.localize import localize, translate_texts
 from graph.normalize import normalize_triple, similar_entities
@@ -378,6 +379,34 @@ def ask_question(body: QuestionIn):
     """Frage an den Graphen (GraphRAG): Antwort, verwendete Tripel und Teilgraph."""
     with store_lock:
         return run_ask(store.graph, body.question, language=body.language)
+
+
+@app.get("/nodes/search")
+def nodes_search(q: str = Query(..., min_length=1)):
+    """Knotennamen, die q enthalten - fuer Agenten ausserhalb des Service (z.B. argos)."""
+    with store_lock:
+        return {"nodes": search_nodes(store.graph, q)}
+
+
+@app.get("/nodes/neighbors")
+def nodes_neighbors(node: str, limit: int = Query(40, ge=1, le=500)):
+    """
+    Ein- und ausgehende Tripel eines Knotens (sicherste zuerst) und seine
+    Nachbarn. Der Name kommt als Query-Parameter, weil Knotennamen "/"
+    enthalten koennen.
+    """
+    with store_lock:
+        graph = store.graph
+        if node not in graph.nodes:
+            raise HTTPException(status_code=404, detail=f"Knoten '{node}' existiert nicht")
+        edges = node_edges(graph, node)[:limit]
+        neighbors = list(dict.fromkeys(v if u == node else u for u, v, _ in edges))
+        return {
+            "node": node,
+            "type": graph.nodes[node].get("type"),
+            "triples": [triple_dict(graph, e) for e in edges],
+            "neighbors": neighbors,
+        }
 
 
 @app.post("/explain")
