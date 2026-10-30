@@ -13,6 +13,8 @@ from collections import Counter
 
 import networkx as nx
 
+from domains import profile_of
+
 
 def hierarchy_path(graph_path: str) -> str:
     """
@@ -383,7 +385,11 @@ class GraphStore:
                 self.type_parents = json.load(f)
 
     def to_json(self) -> dict:
-        """Serialisiert den Graphen fuer die API (GET /graph, Teilgraph in POST /ask)."""
+        """
+        Serialisiert den Graphen fuer die API (GET /graph, Teilgraph in POST
+        /ask). Die Kanten tragen die Qualifier des Profils als flache Felder.
+        """
+        qualifiers = profile_of(self.graph).qualifier_fields
         return {
             "nodes": [
                 {"id": str(node), "type": data.get("type")}
@@ -394,9 +400,7 @@ class GraphStore:
                     "source": str(u),
                     "target": str(v),
                     "relation": data.get("relation"),
-                    "value": data.get("value"),
-                    "condition": data.get("condition"),
-                    "evidence_level": data.get("evidence_level"),
+                    **{q: data.get(q) for q in qualifiers},
                     "confidence": data.get("confidence"),
                     "origin": data.get("origin"),
                 }

@@ -2,6 +2,43 @@
 
 ## Stand
 
+**Domaenen-Profile, Schritt 1: Profil-Schicht ohne Verhaltensaenderung (fertig)**
+- Grund: Medizin und Boerse sollen getrennte Graphen mit demselben Code
+  werden. Bisher war der Kern zwar ohne feste Domain, hatte aber die
+  medizinischen Kanten-Angaben `value`, `condition`, `evidence_level` an
+  rund zehn Stellen fest verdrahtet; die Boerse braucht andere (Stichtag,
+  Waehrung).
+- `domains/`: `DomainProfile` (Qualifier, Startvokabular, Typ-Hierarchie)
+  und `Qualifier` (Name, Label fuer /ask und Vorschlaege, ob er
+  uebersetzt wird); Profile `generic` und `medicine`, beide mit den
+  bisherigen drei Angaben. Ein Plugin-Mechanismus (Entry Points) erst,
+  wenn ein Profil ausserhalb des Repos entsteht.
+- Das Profil steht als Graph-Attribut in der `graph.gml` selbst
+  (`graph.graph["profile"]`) statt in einer eigenen Datei: Backups,
+  `translate_graph.py apply` und Teilgraphen (`ask.build_subgraph`) haben
+  es so automatisch.
+- Festlegen: `POLYGRAPH_DOMAIN` beim Start (`domains.assign_profile`); ein
+  alter Graph wird dabei sofort gespeichert. Ein abweichender Wert bricht
+  den Start ab. Ohne Angabe bekommt eine leere Instanz `generic`, ein alter
+  Graph bleibt ohne Profil (verhaelt sich wie `generic`), bis er bewusst
+  zugeordnet wird.
+- Kern liest die Angaben aus dem Profil: `GraphStore.to_json`,
+  `ask.format_triple`/`triple_dict`, Fragevorschlaege (`suggest._fact`),
+  Import (`normalize_triple(detail_fields=...)`, `translate_details`),
+  `POST /edges/rewrite` (nur Freitext-Angaben des Profils, sonst 422),
+  `translate_graph.py plan` (per `GET /profile`). `DETAIL_FIELDS` in
+  `graph/translate.py` entfaellt.
+- `GET /profile`: Name, Qualifier, Startvokabular, `fixed`.
+- API-Format unveraendert (Qualifier als flache Felder): alle 235
+  bestehenden Tests unveraendert gruen (nur der Mock von normalize_triple
+  nimmt das neue Keyword an), Metis und Argos brauchen keine Anpassung.
+  `test/test_domains.py` (14 Tests) prueft mit einem Test-Profil mit
+  anderen Angaben (`currency`), dass der Kern wirklich dem Profil folgt.
+- Offen: den Bestand einmal mit `POLYGRAPH_DOMAIN=medicine` starten.
+  Naechste Schritte: Biolink-Kategorien als Wurzeltypen im
+  Medizin-Profil, Finanz-Profil, `valid_from`/`valid_to` im Kern,
+  polygraph holt Vokabular und Qualifier per `GET /profile`.
+
 **Typ-Hierarchie (Speicher fertig, noch leer)**
 - Grund: die Typen sind eine flache Liste, die aus den Artikeln waechst
   (506 Typen); eine Ontologie, die mitwaechst statt vorab eine Domain

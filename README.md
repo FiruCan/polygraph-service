@@ -12,9 +12,13 @@ kompatible Instanzen liefern Graph/Antworten im selben JSON-Format, sodass
 sich beide von einer gemeinsamen Oberflaeche aus abfragen lassen, ohne die
 Graphen selbst zu vermischen.
 
-**Keine feste Domain:** welches Fachgebiet ein Graph hat, bestimmen die
-Artikel, die importiert werden. Pro Thema laeuft eine eigene Instanz. Das
-Vokabular (Knotentypen, Relationen) waechst aus den Tripeln;
+**Ein Fachgebiet pro Instanz:** pro Thema laeuft eine eigene Instanz
+(z.B. Medizin, Boerse), mit demselben Code. Was fachspezifisch ist, steht
+in einem Domaenen-Profil (`domains/`): welche Angaben die Kanten tragen
+(Qualifier wie `evidence_level`) und mit welchem Vokabular die Extraktion
+startet. Das Profil wird beim Start gewaehlt (`POLYGRAPH_DOMAIN`) und steht
+danach fest in der `graph.gml`. Das Vokabular (Knotentypen, Relationen)
+waechst darueber hinaus aus den Tripeln;
 `GET /vocabulary` liefert es polygraph fuer die Extraktion, und die
 haeufigsten Knotentypen sagen den Prompts, worum es geht (z.B. ob
 "Bewegung" "physical activity" oder "motion" heisst).
@@ -47,7 +51,14 @@ ollama pull bge-m3       # Normalisierungs-Kandidatensuche (Embeddings)
 
 ```bash
 uvicorn app:app --reload --port 8000
+POLYGRAPH_DOMAIN=medicine uvicorn app:app --port 8000   # Profil festlegen
 ```
+
+`POLYGRAPH_DOMAIN` (`generic`, `medicine`) legt das Domaenen-Profil fest,
+beim ersten Start mit einem alten Graphen wird es sofort in
+`data/graph.gml` geschrieben. Danach genuegt der Start ohne Variable; ein
+abweichender Wert bricht den Start ab - ein anderes Fachgebiet ist eine
+eigene Instanz. Eine neue, leere Instanz ohne Angabe bekommt `generic`.
 
 Der Graph wird in `data/graph.gml` persistiert und beim Start automatisch
 geladen, falls vorhanden. Ansehen und befragen: Oberflaeche von polygraph
@@ -89,7 +100,10 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
 ```
 
 - `GET /health` -> `{"status": "ok", "nodes": N, "edges": M}`
-- `GET /graph` -> `{"nodes": [{"id": str, "type": str|null}], "edges": [{"source": str, "target": str, "relation": str, "value": ..., "condition": ..., "evidence_level": ..., "confidence": ...}]}`
+- `GET /profile` -> `{"name": "medicine", "qualifiers": [{"name": str, "label": str, "translate": bool}], "entity_types": [...], "relation_types": [...], "type_parents": {...}, "fixed": bool}` -
+  Domaenen-Profil der Instanz; `fixed`: schon in der `graph.gml` festgeschrieben
+- `GET /graph` -> `{"nodes": [{"id": str, "type": str|null}], "edges": [{"source": str, "target": str, "relation": str, <Qualifier des Profils>..., "confidence": ...}]}`
+  (bei `generic`/`medicine`: `value`, `condition`, `evidence_level`)
 - `POST /triples` Body `{"triples": [<Tripel>, ...]}` -> normalisiert jedes
   Tripel gegen den aktuellen Graphen und fuegt es ein. Antwort:
   `{"added": N, "merges": [["subject"|"object"|"relation", "alt", "neu"], ...], "nodes": N, "edges": M}`
@@ -140,7 +154,7 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   -> `{"renamed": N, "merged": N, "skipped": [...], ...}` - benennt Knoten
   um; existiert der neue Name schon, werden beide zusammengefuehrt.
   Speichert einmal am Ende.
-- `POST /edges/rewrite` Body `{"rewrites": [{"field": "value"|"condition"|"evidence_level", "old": str, "new": str}, ...]}`
+- `POST /edges/rewrite` Body `{"rewrites": [{"field": <Freitext-Qualifier des Profils>, "old": str, "new": str}, ...]}`
   -> `{"changed": N}` - ersetzt eine Angabe auf allen Kanten.
 - `POST /duplicates/find` Body `{"threshold": 0.75, "limit": null}` ->
   `{"vorschlaege": [{"behalten": str, "entfernen": str, "begruendung": str, "schritte": [str], "beleg": "schreibweise"|"abkuerzung"|null, "mehrdeutig": [str], "aehnlichkeit": float, "kanten": {...}, "typen": {...}, "freigegeben": bool}], "richter_aufrufe": int, "llm_aufrufe": int, "knoten": int, "dauer_s": float}`
@@ -191,6 +205,7 @@ legt vorher `data/graph.backup-<Zeitstempel>.gml` an.
 ```
 polygraph-service/
 ├── app.py              # FastAPI-Routen (health, graph, triples, ask, ...), reine API
+├── domains/            # Domaenen-Profile: base.py (DomainProfile, Qualifier), generic.py, medicine.py
 ├── graph/
 │   ├── store.py        # NetworkX-Wrapper, to_json()/from_json() fuer die API
 │   ├── normalize.py    # Synonyme zusammenfuehren (bge-m3-Embedding + gemma4:26b-Pruefung)

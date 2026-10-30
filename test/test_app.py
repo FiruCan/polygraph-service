@@ -23,7 +23,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DATA_PATH", str(tmp_path / "graph.gml"))
     monkeypatch.setattr(app_module, "store", GraphStore())
     # Normalisierung ohne Ollama: Begriffe bleiben, wie sie sind
-    with patch("app.normalize_triple", side_effect=lambda t, e, r: dict(t)), \
+    with patch("app.normalize_triple", side_effect=lambda t, e, r, **kw: dict(t)), \
          patch("app.translate_names") as names, patch("app.translate_details") as details, \
          patch("app.translate_types", side_effect=lambda types, topics="": {t: t for t in types}) as types:
         client = TestClient(app_module.app)
@@ -71,7 +71,7 @@ def test_without_source_nothing_is_removed(client):
 
 
 def test_merges_are_reported(client):
-    renamed = lambda t, e, r: {**t, "subject": "Interleukin-6"} if t["subject"] == "IL-6" else dict(t)
+    renamed = lambda t, e, r, **kw: {**t, "subject": "Interleukin-6"} if t["subject"] == "IL-6" else dict(t)
     with patch("app.normalize_triple", side_effect=renamed):
         r = client.post("/triples", json={"triples": [triple(subject="IL-6")]}).json()
     assert r["merges"] == [["subject", "IL-6", "Interleukin-6"]]

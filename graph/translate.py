@@ -8,8 +8,9 @@ des Textes"), ohne Uebersetzung stehen sonst "Multiple Sklerose" und
 in normalize.py findet solche Paare ueber Sprachgrenzen hinweg nur
 unzuverlaessig.
 
-Dasselbe gilt fuer die Angaben an den Kanten (value, condition,
-evidence_level): "1,9 bis 3,3 Prozent" -> "1.9 to 3.3 percent",
+Dasselbe gilt fuer die Angaben an den Kanten (die Qualifier des Profils
+mit translate=True, z.B. value, condition, evidence_level):
+"1,9 bis 3,3 Prozent" -> "1.9 to 3.3 percent",
 "Metaanalyse" -> "meta-analysis". Ebenso die Knotentypen ("Krankheiten" ->
 "diseases"). Alles im Graphen ist englisch - nur Fragen und Antworten gibt
 es in der Sprache, die der Leser waehlt.
@@ -36,8 +37,6 @@ BATCH_SIZE = 40
 PROMPT_DIR = os.path.join(os.path.dirname(__file__), "..", "prompts")
 PROMPTS = {"names": "translate_names.md", "details": "translate_details.md",
            "types": "translate_types.md"}
-# Kanten-Felder mit Freitext aus dem Quelltext (confidence ist eine Zahl)
-DETAIL_FIELDS = ("value", "condition", "evidence_level")
 # Tripel-Felder mit den Typen von Subjekt und Objekt
 TYPE_FIELDS = ("subject_type", "object_type")
 # Fachgebiet im Prompt, solange der Graph noch keine Typen hat

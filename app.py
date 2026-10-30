@@ -17,7 +17,13 @@ fragt diesen Service oder eine Kollegen-Instanz ab - dafuer braucht sie die
 Erlaubnis des abgefragten Service. Standard: jede Seite von localhost/127.0.0.1, beliebiger
 Port. Andere Herkuenfte per Umgebungsvariable POLYGRAPH_CORS_ORIGIN_REGEX.
 
+Fachgebiet: pro Instanz ein Domaenen-Profil (domains/), gewaehlt per
+POLYGRAPH_DOMAIN (z.B. "medicine") und danach in der graph.gml festgeschrieben.
+Verlangt POLYGRAPH_DOMAIN spaeter ein anderes Profil, startet der Service
+nicht. Ohne Angabe: das gespeicherte Profil, sonst "generic".
+
 Start: uvicorn app:app --reload --port 8000
+       POLYGRAPH_DOMAIN=medicine uvicorn app:app --port 8000
 """
 
 import os
@@ -31,6 +37,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
+from domains import assign_profile, profile_of
 from graph.ask import (DEFAULT_LANGUAGE, ask as run_ask, explain_term, node_edges, search_nodes,
                        select_nodes, triple_dict)
 from graph.dedupe import DEDUPE_THRESHOLD, find_duplicates
@@ -38,7 +45,7 @@ from graph.localize import localize, translate_texts
 from graph.normalize import normalize_triple, similar_entities
 from graph.store import GraphStore, hierarchy_path
 from graph.suggest import suggest_questions
-from graph.translate import DETAIL_FIELDS, TYPE_FIELDS, translate_details, translate_names, translate_types
+from graph.translate import TYPE_FIELDS, translate_details, translate_names, translate_types
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "graph.gml")
 
@@ -53,6 +60,10 @@ store = GraphStore()
 store_lock = threading.Lock()
 if os.path.exists(DATA_PATH):
     store.load(DATA_PATH)
+# Ein alter Graph, der hier sein Profil bekommt, wird gleich gespeichert -
+# sonst ginge die Zuordnung bis zum naechsten Import beim Neustart verloren.
+if assign_profile(store.graph, os.environ.get("POLYGRAPH_DOMAIN")) and os.path.exists(DATA_PATH):
+    store.save(DATA_PATH)
 
 
 class TriplesIn(BaseModel):
@@ -115,7 +126,7 @@ class NodeRenameIn(BaseModel):
 
 
 class EdgeRewrite(BaseModel):
-    field: Literal["value", "condition", "evidence_level"]
+    field: str  # eine Kanten-Angabe des Profils (detail_fields), geprueft in edges_rewrite
     old: str
     new: str
 
@@ -174,10 +185,11 @@ def add_triples(body: TriplesIn):
         # Das Fachgebiet fuer mehrdeutige Woerter ergibt sich aus dem Graphen
         # und den neuen Tripeln selbst, nicht aus einer festen Domain.
         topics = store.topics(t.get(f) for t in body.triples for f in TYPE_FIELDS)
+        detail_fields = profile_of(store.graph).detail_fields
         known = set(store.known_entities())
         translate_names([t[f] for t in body.triples for f in ("subject", "object")
                          if isinstance(t.get(f), str) and t[f] not in known], topics=topics)
-        translate_details([t[f] for t in body.triples for f in DETAIL_FIELDS
+        translate_details([t[f] for t in body.triples for f in detail_fields
                            if isinstance(t.get(f), str) and t[f].strip()], topics=topics)
         # Typen ebenso; ein schon bekannter Typ ist englisch (Bestand mit
         # translate_graph.py umgestellt) und braucht keinen LLM-Aufruf.
@@ -188,7 +200,8 @@ def add_triples(body: TriplesIn):
 
         merges = []
         for triple in body.triples:
-            normalized = normalize_triple(triple, store.known_entities(), store.known_relations())
+            normalized = normalize_triple(triple, store.known_entities(), store.known_relations(),
+                                          detail_fields=detail_fields)
             for field in TYPE_FIELDS:
                 if isinstance(triple.get(field), str) and triple[field] in types:
                     normalized[field] = types[triple[field]]
@@ -209,6 +222,17 @@ def add_triples(body: TriplesIn):
             "nodes": store.graph.number_of_nodes(),
             "edges": store.graph.number_of_edges(),
         }
+
+
+@app.get("/profile")
+def profile():
+    """
+    Domaenen-Profil dieser Instanz (domains/): Name, Kanten-Angaben
+    (qualifiers) und Startvokabular - fuer polygraph (Extraktion) und andere
+    Clients. fixed: ob das Profil schon in der graph.gml festgeschrieben ist.
+    """
+    with store_lock:
+        return {**profile_of(store.graph).to_json(), "fixed": "profile" in store.graph.graph}
 
 
 @app.get("/vocabulary")
@@ -341,9 +365,15 @@ def edges_rewrite(body: EdgeRewriteIn):
     """
     Angaben an Kanten ersetzen (Umstellung auf Englisch, translate_graph.py):
     jede Kante, deren Feld genau 'old' ist, bekommt 'new'. Gespeichert wird
-    einmal am Ende.
+    einmal am Ende. Nur Kanten-Angaben des Profils (detail_fields), sonst 422.
     """
     with store_lock:
+        fields = profile_of(store.graph).detail_fields
+        unknown = sorted({r.field for r in body.rewrites} - set(fields))
+        if unknown:
+            raise HTTPException(status_code=422,
+                                detail=f"Keine Kanten-Angabe des Profils: {', '.join(unknown)} "
+                                       f"(erlaubt: {', '.join(fields)})")
         changed = sum(store.rewrite_edge_field(r.field, r.old, r.new) for r in body.rewrites)
         if changed:
             store.save(DATA_PATH)

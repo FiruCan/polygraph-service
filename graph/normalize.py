@@ -31,7 +31,8 @@ from typing import Optional
 import numpy as np
 import ollama
 
-from graph.translate import DETAIL_FIELDS, detail_to_english, to_english
+from domains import generic
+from graph.translate import detail_to_english, to_english
 
 EMBED_MODEL = "bge-m3"
 JUDGE_MODEL = "gemma4:26b"
@@ -180,12 +181,13 @@ def similar_entities(names: list, known_terms: list, limit: int = 3,
     return result
 
 
-def normalize_triple(triple: dict, known_entities: list, known_relations: list) -> dict:
+def normalize_triple(triple: dict, known_entities: list, known_relations: list,
+                     detail_fields: tuple = generic.PROFILE.detail_fields) -> dict:
     """
     Ersetzt subject/object/relation im Tripel durch den kanonischen,
     bereits bekannten Begriff, falls das LLM sie als identisch bestaetigt.
-    Subjekt und Objekt werden vorher ins Englische uebersetzt, ebenso
-    value, condition und evidence_level.
+    Subjekt und Objekt werden vorher ins Englische uebersetzt, ebenso die
+    Kanten-Angaben in detail_fields (DomainProfile.detail_fields).
     Modifiziert eine Kopie, nicht das Original.
     """
     normalized = dict(triple)
@@ -196,7 +198,7 @@ def normalize_triple(triple: dict, known_entities: list, known_relations: list) 
         # exakt bekannter Name braucht keinen LLM-Aufruf.
         term = triple[field] if triple[field] in known else to_english(triple[field])
         normalized[field] = find_match(term, known_entities) or term
-    for field in DETAIL_FIELDS:
+    for field in detail_fields:
         if isinstance(triple.get(field), str) and triple[field].strip():
             normalized[field] = detail_to_english(triple[field])
     normalized["relation"] = find_match(triple["relation"], known_relations) or triple["relation"]

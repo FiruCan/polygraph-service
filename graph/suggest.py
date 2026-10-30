@@ -46,6 +46,7 @@ from collections import deque
 import networkx as nx
 import ollama
 
+from domains import profile_of
 from graph.ask import DEFAULT_LANGUAGE
 
 MODEL = "gemma4:26b"
@@ -90,15 +91,14 @@ class SuggestionHistory:
 HISTORY = SuggestionHistory()
 
 
-def _fact(u, v, data) -> str:
-    details = [f"{label}: {data[key]}" for key, label in
-               (("value", "Wert"), ("condition", "Bedingung"), ("evidence_level", "Evidenz"))
-               if data.get(key) not in (None, "")]
+def _fact(u, v, data, qualifiers) -> str:
+    """qualifiers: die Kanten-Angaben des Profils (DomainProfile.qualifiers)."""
+    details = [f"{q.label_de}: {data[q.name]}" for q in qualifiers if data.get(q.name) not in (None, "")]
     return f"{u} --{data.get('relation')}--> {v}" + (f" [{'; '.join(details)}]" if details else "")
 
 
-def _has_detail(data) -> bool:
-    return any(data.get(k) not in (None, "") for k in ("value", "condition", "evidence_level"))
+def _has_detail(data, qualifiers) -> bool:
+    return any(data.get(q.name) not in (None, "") for q in qualifiers)
 
 
 def _node_facts(graph, node, rng) -> list:
@@ -106,18 +106,19 @@ def _node_facts(graph, node, rng) -> list:
     # Kanten mit Details zuerst, sonst zufaellig - so sieht jede Frage zum
     # selben Knoten andere Fakten.
     rng.shuffle(edges)
-    edges.sort(key=lambda e: not _has_detail(e[2]))
-    return [_fact(u, v, d) for u, v, d in edges[:MAX_FACTS]]
+    qualifiers = profile_of(graph).qualifiers
+    edges.sort(key=lambda e: not _has_detail(e[2], qualifiers))
+    return [_fact(u, v, d, qualifiers) for u, v, d in edges[:MAX_FACTS]]
 
 
 def _path_facts(graph, path: list) -> list:
     """Je eine Kante pro Schritt - in welcher Richtung auch immer sie im Graphen steht."""
-    facts = []
+    facts, qualifiers = [], profile_of(graph).qualifiers
     for a, b in zip(path, path[1:]):
         if graph.has_edge(a, b):
-            facts.append(_fact(a, b, next(iter(graph[a][b].values()))))
+            facts.append(_fact(a, b, next(iter(graph[a][b].values())), qualifiers))
         else:
-            facts.append(_fact(b, a, next(iter(graph[b][a].values()))))
+            facts.append(_fact(b, a, next(iter(graph[b][a].values())), qualifiers))
     return facts
 
 
@@ -136,7 +137,9 @@ class _SeedFinder:
         self.undirected = graph.to_undirected(as_view=True)
         self.nodes = [n for n in graph.nodes if graph.degree(n) >= 2] or list(graph.nodes)
         self.weights = [math.sqrt(graph.degree(n)) for n in self.nodes]
-        self.detail_edges = [(u, v, d) for u, v, d in graph.edges(data=True) if _has_detail(d)]
+        self.qualifiers = profile_of(graph).qualifiers
+        self.detail_edges = [(u, v, d) for u, v, d in graph.edges(data=True)
+                             if _has_detail(d, self.qualifiers)]
         self.focus = set(focus or ())
         # Startknoten fuer "knoten"/"pfad", Ziele fuer "vergleich": ohne Thema
         # alle vernetzten Knoten, mit Thema die Themenknoten bzw. diese samt Nachbarn
@@ -169,7 +172,7 @@ class _SeedFinder:
             key = ("detail", u, d.get("relation"), v)
             if not self._fresh(key) or u in self.used_nodes or v in self.used_nodes:
                 continue
-            main = _fact(u, v, d)
+            main = _fact(u, v, d, self.qualifiers)
             context = [f for f in _node_facts(self.graph, u, self.rng) if f != main][:CONTEXT_FACTS]
             return self._take(key, {"art": "detail", "knoten": [u, v], "fakten": [main] + context})
         return None
@@ -223,7 +226,8 @@ class _SeedFinder:
             key = ("vergleich", frozenset((a, b)), target)
             if not self._fresh(key):
                 continue
-            facts = [_fact(a, target, incoming[a]), _fact(b, target, incoming[b])]
+            facts = [_fact(a, target, incoming[a], self.qualifiers),
+                     _fact(b, target, incoming[b], self.qualifiers)]
             return self._take(key, {"art": "vergleich", "knoten": [a, b, target], "fakten": facts})
         return None
 

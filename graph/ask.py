@@ -31,6 +31,8 @@ from itertools import combinations
 import networkx as nx
 import ollama
 
+from domains import profile_of
+
 MODEL = "gemma4:26b"
 # Sprache von Antworten und Erklaerungen, wenn der Aufrufer keine waehlt
 DEFAULT_LANGUAGE = "Deutsch"
@@ -109,15 +111,15 @@ def format_triple(number: int, graph, edge) -> str:
     u, v, k = edge
     data = graph.edges[edge]
     parts = [f"[{number}] {u} --{data.get('relation')}--> {v}"]
-    for key, label in (("value", "value"), ("condition", "condition"),
-                       ("evidence_level", "evidence"), ("confidence", "confidence")):
+    labels = [(q.name, q.label) for q in profile_of(graph).qualifiers] + [("confidence", "confidence")]
+    for key, label in labels:
         if data.get(key) is not None:
             parts.append(f"{label}: {data[key]}")
     return " | ".join(parts)
 
 
 def build_subgraph(graph, edges: list):
-    sub = nx.MultiDiGraph()
+    sub = nx.MultiDiGraph(**graph.graph)  # mit Profil, sonst fehlen dessen Kanten-Angaben
     for u, v, k in edges:
         sub.add_node(u, **graph.nodes[u])
         sub.add_node(v, **graph.nodes[v])
@@ -178,9 +180,8 @@ def triple_dict(graph, edge) -> dict:
     data = graph.edges[edge]
     return {
         "subject": u, "relation": data.get("relation"), "object": v,
-        "value": data.get("value"), "condition": data.get("condition"),
-        "evidence_level": data.get("evidence_level"), "confidence": data.get("confidence"),
-        "origin": data.get("origin"),
+        **{q: data.get(q) for q in profile_of(graph).qualifier_fields},
+        "confidence": data.get("confidence"), "origin": data.get("origin"),
     }
 
 

@@ -2,7 +2,7 @@
 translate_graph.py
 ------------------
 Einmalige Umstellung des Bestands auf Englisch: Knotennamen, die Angaben
-an den Kanten (value, condition, evidence_level) und die Knotentypen. Neue
+an den Kanten (Freitext-Angaben des Profils, GET /profile) und die Knotentypen. Neue
 Tripel uebersetzt der Import selbst, siehe graph/translate.py. Arbeitet
 ueber die API des laufenden Service - direkt in data/graph.gml zu schreiben
 wuerde der Service beim naechsten Speichern wieder ueberschreiben.
@@ -28,7 +28,7 @@ from datetime import datetime
 import requests
 
 from graph.store import hierarchy_path
-from graph.translate import DETAIL_FIELDS, translate_details, translate_names, translate_types
+from graph.translate import translate_details, translate_names, translate_types
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REVIEW_PATH = os.path.join(HERE, "data", "translate_review.json")
@@ -69,7 +69,10 @@ def plan(url: str, parts=PARTS):
         print()
 
     if "kanten" in parts:
-        texts = {(f, e[f]) for e in graph["edges"] for f in DETAIL_FIELDS
+        # welche Kanten-Angaben Freitext sind, sagt das Profil der Instanz
+        fields = [q["name"] for q in requests.get(f"{url}/profile", timeout=60).json()["qualifiers"]
+                  if q["translate"]]
+        texts = {(f, e[f]) for e in graph["edges"] for f in fields
                  if isinstance(e.get(f), str) and e[f].strip()}
         print(f"{len(texts)} Kanten-Angaben werden geprueft ...")
         details = translate_details(sorted({t for _, t in texts}), progress=_progress)
