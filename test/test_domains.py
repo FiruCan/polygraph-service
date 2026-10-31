@@ -40,11 +40,42 @@ def markets(monkeypatch):
 
 # --- Register und Festlegen -------------------------------------------------
 
-def test_medicine_keeps_the_edge_fields_of_the_existing_graph():
-    fields = ("value", "condition", "evidence_level")
-    assert get_profile("medicine").qualifier_fields == fields
-    assert get_profile("medicine").detail_fields == fields
-    assert get_profile("generic").qualifier_fields == fields
+def test_generic_keeps_the_three_edge_fields():
+    assert get_profile("generic").qualifier_fields == ("value", "condition", "evidence_level")
+
+
+def test_medicine_has_own_fields_for_group_model_dose_duration():
+    medicine = get_profile("medicine")
+    fields = ("value", "population", "model", "dose", "duration", "condition", "evidence_level")
+    assert medicine.qualifier_fields == fields
+    assert medicine.detail_fields == fields  # alles Freitext, wird uebersetzt
+    assert all(q.description for q in medicine.qualifiers)
+    assert all(set(t) >= set(fields) for t in medicine.example_output)
+
+
+def test_medicine_keeps_one_edge_per_group_of_one_source():
+    store = GraphStore()
+    assign_profile(store.graph, "medicine")
+    base = {"subject": "Metformin", "relation": "reduces", "object": "HbA1c", "source": "a"}
+    store.add_triple({**base, "population": "adults", "value": "1.1 %"})
+    store.add_triple({**base, "population": "children", "value": "0.4 %"})
+    store.add_triple({**base, "population": "adults", "value": "1.2 %"})  # selbe Aussage -> Update
+    edges = store.graph.get_edge_data("Metformin", "HbA1c")
+    assert sorted((e["population"], e["value"]) for e in edges.values()) == [("adults", "1.2 %"), ("children", "0.4 %")]
+
+
+def test_medicine_notes_reach_check_prompt():
+    from graph.ask import check_answer
+    graph = nx.MultiDiGraph()
+    assign_profile(graph, "medicine")
+    graph.add_edge("clemastine", "remyelination", relation="promotes", model="mice")
+    edges = list(graph.edges(keys=True))
+    reply = {"message": {"content": '[{"nr": 1, "belege": [1], "begruendung": "ok", "urteil": "gedeckt"}]'}}
+    with patch("graph.ask.ollama.chat", return_value=reply) as chat:
+        check_answer(graph, "Clemastin foerdert die Remyelinisierung [1].", edges)
+    prompt = chat.call_args.kwargs["messages"][0]["content"]
+    assert "Studienmodell (model)" in prompt
+    assert "model: mice" in prompt
 
 
 def test_unknown_profile_is_an_error():
@@ -177,8 +208,9 @@ def test_finance_profile_has_date_and_currency():
 
 
 def test_prompt_notes_only_for_profiles_that_have_them():
-    assert get_profile("medicine").notes("answer") == ""
+    assert get_profile("generic").notes("answer") == ""
     assert get_profile("generic").notes("check") == ""
+    assert "model" in get_profile("medicine").notes("answer")
     assert get_profile("finance").notes("answer").startswith("\n\nHINWEISE ZUM FACHGEBIET:\n")
     assert get_profile("finance").notes("unbekannt") == ""
 
@@ -215,8 +247,8 @@ def test_finance_instance_reports_its_profile(client):
     assert "Subjekt einer Kennzahl" in data["extract_notes"]
 
 
-def test_extract_notes_only_for_finance():
-    assert get_profile("medicine").to_json()["extract_notes"] == ""
+def test_extract_notes_only_for_profiles_that_have_them():
+    assert "eigene Tripel" in get_profile("medicine").to_json()["extract_notes"]
     assert get_profile("generic").to_json()["extract_notes"] == ""
     assert "\"decreases\"" in get_profile("finance").to_json()["extract_notes"]
 

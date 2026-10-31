@@ -108,7 +108,7 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
 - `GET /profile` -> `{"name": "medicine", "qualifiers": [{"name": str, "label": str, "label_de": str, "translate": bool, "description": str}], "entity_types": [...], "relation_types": [...], "type_parents": {...}, "fixed": bool}` -
   Domaenen-Profil der Instanz; `fixed`: schon in der `graph.gml` festgeschrieben
 - `GET /graph` -> `{"nodes": [{"id": str, "type": str|null}], "edges": [{"source": str, "target": str, "relation": str, <Qualifier des Profils>..., "confidence": ...}]}`
-  (`medicine`/`generic`: `value`, `condition`, `evidence_level`; `finance` zusaetzlich `as_of` (Stichtag), `currency`)
+  (`generic`: `value`, `condition`, `evidence_level`; `medicine` zusaetzlich `population`, `model` (Tiermodell, in vitro), `dose`, `duration`; `finance` zusaetzlich `as_of` (Stichtag), `currency`)
 - `POST /triples` Body `{"triples": [<Tripel>, ...]}` -> normalisiert jedes
   Tripel gegen den aktuellen Graphen und fuegt es ein. Antwort:
   `{"added": N, "merges": [["subject"|"object"|"relation", "alt", "neu"], ...], "nodes": N, "edges": M}`

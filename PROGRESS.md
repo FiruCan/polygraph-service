@@ -2,6 +2,41 @@
 
 ## Stand
 
+**Medizin-Profil: eigene Qualifier fuer Gruppe, Modell, Dosis, Dauer (fertig; Bestand und Metis-Texte offen)**
+- Grund: Probelauf (2026-10-31, gemma4:26b, 24 Min., nur lesend) ueber die
+  1.339 verschiedenen `condition`-Texte an 1.997 der 4.473 Kanten, je Teil
+  eine Kategorie: Patientengruppe 31 % der Kanten, Studienangaben 13 % (172
+  davon ohne `evidence_level`), Ort 12 %, Dauer 11 %, Zustand 11 %,
+  Tiermodell/in vitro 9 % (126 Tier, 27 in vitro), Mechanismus 8 % (die
+  Haelfte nennt vorhandene Knoten), Dosis 5 %, Kalenderdatum 1 %.
+  Stichprobe von 40: ~34 richtig, Fehler an den Grenzen (Gruppe/Modell).
+- `domains/medicine.py`: Qualifier `value`, `population`, `model`, `dose`,
+  `duration`, `condition` (nur noch Ort, Zustand, Voraussetzung),
+  `evidence_level` (Studiendesign, gehoert nicht mehr in `condition`); alle
+  Freitext, werden uebersetzt. Eigenes Extraktions-Beispiel (Metformin,
+  Ausdauertraining bei Ratten mit Mechanismus als eigene Tripel), nicht aus
+  `ms_therapie.txt`.
+- `prompt_notes`: `extract` (Mechanismus als eigene Tripel, Richtung in die
+  Relation, Ziel als Objekt - aus Kanten wie complications --causes-->
+  life expectancy mit "decreased"), `answer` (Modell ausdruecklich nennen,
+  nicht als Befund an Menschen), `check` (Tiermodell als Mensch oder ueber
+  die Gruppe hinaus verallgemeinert -> hoechstens "teilweise"), `suggest`.
+- `edge_key_fields = ("population", "model", "dose", "duration")`: dieselbe
+  Aussage einer Quelle fuer Erwachsene und fuer Kinder bleibt zwei Kanten;
+  `condition` nicht, Verhalten fuer den Bestand unveraendert.
+- Live (polygraph `extract_triples` mit dem Profil, nichts importiert):
+  Ocrelizumab --reduces--> Schubrate mit Gruppe, Dosis, Dauer, Wert und
+  "Phase-II-Studie" in `evidence_level`; Clemastin mit
+  `model: Cuprizon-Mausmodell`, Mechanismus als eigenes Tripel (die zweite
+  Haelfte der Kette, Differenzierung --> Remyelinisierung, fehlte).
+- Tests: `test/test_domains.py` (Felder, Kante je Gruppe, Hinweis im
+  Pruef-Prompt); 247 gruen ohne den Live-Test.
+- Offen: Neustart der Medizin-Instanz (Port 8000, vorher laufende Importe
+  pruefen); Metis/PDF zeigen die neuen Felder unter ihrem Feldnamen, bis
+  `kg/i18n.js` Texte fuer `population`, `model`, `dose`, `duration` hat;
+  Bestand umstellen (Vorschlagsliste alte `condition` -> neue Felder, nach
+  Freigabe ueber einen Endpoint).
+
 **Finanz-Profil, Schritt 2: Stichtag im Kantenschluessel, Vokabular, Extraktionsregeln (fertig)**
 - Grund: Testlaeufe mit drei neuen Finanztexten (Quartal, Zinsen,
   Beteiligungen) und der Bestand in `data/finance/` zeigten: eine Quelle mit
