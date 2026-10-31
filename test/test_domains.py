@@ -212,3 +212,51 @@ def test_finance_instance_reports_its_profile(client):
     names = {q["name"]: q for q in data["qualifiers"]}
     assert names["currency"]["translate"] is False and names["as_of"]["label_de"] == "Stichtag"
     assert "Zeitpunkt" in names["as_of"]["description"]
+    assert "Subjekt einer Kennzahl" in data["extract_notes"]
+
+
+def test_extract_notes_only_for_finance():
+    assert get_profile("medicine").to_json()["extract_notes"] == ""
+    assert get_profile("generic").to_json()["extract_notes"] == ""
+    assert "\"decreases\"" in get_profile("finance").to_json()["extract_notes"]
+
+
+def finance_store():
+    store = GraphStore()
+    assign_profile(store.graph, "finance")
+    return store
+
+
+def test_finance_keeps_one_edge_per_date_of_one_source():
+    store = finance_store()
+    base = {"subject": "VW", "relation": "reports", "object": "operating profit", "source": "q3.pdf"}
+    store.add_triple({**base, "value": "2.9 bn", "as_of": "Q3 2024"})
+    store.add_triple({**base, "value": "4.9 bn", "as_of": "Q3 2023"})
+    store.add_triple({**base, "value": "3.0 bn", "as_of": "Q3 2024"})  # selbe Aussage -> Update
+    edges = store.graph.get_edge_data("VW", "operating profit")
+    assert sorted((e["as_of"], e["value"]) for e in edges.values()) == [("Q3 2023", "4.9 bn"), ("Q3 2024", "3.0 bn")]
+
+
+def test_finance_keeps_one_edge_per_condition_of_one_source():
+    store = finance_store()
+    base = {"subject": "BMW", "relation": "reports", "object": "EBIT margin", "source": "q3.pdf", "as_of": "Q3 2024"}
+    store.add_triple({**base, "value": "4.7 %"})
+    store.add_triple({**base, "value": "2.3 %", "condition": "automotive segment"})
+    assert len(store.graph.get_edge_data("BMW", "EBIT margin")) == 2
+
+
+def test_medicine_still_updates_same_relation_of_one_source():
+    store = GraphStore()
+    assign_profile(store.graph, "medicine")
+    base = {"subject": "Metformin", "relation": "reduces", "object": "HbA1c", "source": "a"}
+    store.add_triple({**base, "condition": "adults"})
+    store.add_triple({**base, "condition": "children"})
+    assert len(store.graph.get_edge_data("Metformin", "HbA1c")) == 1
+
+
+def test_finance_merge_keeps_edges_with_other_date():
+    store = finance_store()
+    store.add_triple({"subject": "VW", "relation": "reports", "object": "revenue", "source": "a", "as_of": "2023"})
+    store.add_triple({"subject": "Volkswagen", "relation": "reports", "object": "revenue", "source": "a", "as_of": "2024"})
+    stats = store.merge_nodes("Volkswagen", "VW")
+    assert stats["moved"] == 1 and len(store.graph.get_edge_data("Volkswagen", "revenue")) == 2

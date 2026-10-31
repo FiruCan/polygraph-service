@@ -2,6 +2,36 @@
 
 ## Stand
 
+**Finanz-Profil, Schritt 2: Stichtag im Kantenschluessel, Vokabular, Extraktionsregeln (fertig)**
+- Grund: Testlaeufe mit drei neuen Finanztexten (Quartal, Zinsen,
+  Beteiligungen) und der Bestand in `data/finance/` zeigten: eine Quelle mit
+  Wert und Vorjahreswert ergab eine einzige Kante (der Vorjahreswert
+  ueberschrieb den aktuellen); "Das EBIT sank" wurde EBIT --reports--> EBIT
+  und vom Pruef-Agenten verworfen; "sank"/"herabgestuft" verschwanden in
+  `affects_metric`; EZB und Moody's wurden `company`.
+- `DomainProfile.edge_key_fields`: Finanzen `("as_of", "condition")` -
+  `GraphStore._find_edge_key` (add_triple, merge_nodes) legt nur noch
+  zusammen, wenn auch diese gleich sind. generic leer, Verhalten
+  unveraendert (Medizin nutzt es inzwischen fuer population/model/dose/
+  duration, siehe dort). Re-Import einer Quelle loescht ihre Kanten vorher, es
+  entstehen also keine Doppel durch abweichende Formulierungen.
+- Finanz-Vokabular: Typen `central_bank`, `rating_agency`, `currency`;
+  Relationen `increases`, `decreases`, `sets`, `holds_stake_in`,
+  `pays_dividend`, `rates`, `forecasts`.
+- `prompt_notes["extract"]`, in `GET /profile` als `extract_notes` (roh):
+  Fachregeln fuer den Extraktions-Prompt in polygraph (Subjekt einer
+  Kennzahl ist das Unternehmen, je Zeitpunkt ein Tripel, Wirkrichtung in
+  der Relation, Kennzahlen keine Relationen, "je Aktie" im value,
+  Zentralbank/Rating/Funktion). Beispiele bewusst nicht aus den Testtexten.
+  Fuer `generic` leer - dessen Extraktions-Prompt ist byte-identisch zu
+  vorher (Medizin hat inzwischen eigene Extraktionsregeln).
+- Ergebnis (gemma4:26b) siehe polygraph PROGRESS.md; 6 neue Tests in
+  `test/test_domains.py`, 247 Tests gruen (ohne den Live-Test, mit dem Medizin-Umbau).
+- Wirkt erst nach Neustart der Finanz-Instanz (Port 8060).
+- Danach: `as_of`-Regel nutzt das Erscheinungsdatum, das polygraph jetzt
+  mitgibt ("heute" -> Datum, "seit Jahresbeginn" -> mit Jahr; ohne
+  Zeitangabe im Text nicht einsetzen). Ergebnisse in polygraph PROGRESS.md.
+
 **Finanz-Profil, Service-Teil (fertig; Extraktion und Metis offen)**
 - `domains/finance.py`: Qualifier `value`, `condition`, `evidence_level`
   (hier Belegart: Geschaeftsbericht, Analystenschaetzung, Prognose) - wie

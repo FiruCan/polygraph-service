@@ -73,7 +73,8 @@ class GraphStore:
         Existiert zwischen Subjekt und Objekt bereits eine Kante mit
         derselben Relation UND demselben "origin" (z.B. weil dieselbe Quelle
         zweimal importiert wurde), wird diese Kante aktualisiert statt eine
-        zusaetzliche parallele Kante anzulegen. Behauptet eine ANDERE Quelle
+        zusaetzliche parallele Kante anzulegen (bei Profilen mit
+        edge_key_fields nur, wenn auch z.B. der Stichtag gleich ist). Behauptet eine ANDERE Quelle
         (oder keine) dieselbe Relation zwischen denselben Knoten, bleibt das
         eine eigene Kante - das ist keine Duplizierung, sondern zwei
         Belegstellen fuer dieselbe Aussage.
@@ -91,7 +92,7 @@ class GraphStore:
             edge_props["origin"] = triple["source"]
 
         existing_key = self._find_edge_key(
-            triple["subject"], triple["object"], triple.get("relation"), triple.get("source")
+            triple["subject"], triple["object"], triple.get("relation"), triple.get("source"), edge_props
         )
         if existing_key is not None:
             self.graph.edges[triple["subject"], triple["object"], existing_key].update(edge_props)
@@ -115,12 +116,20 @@ class GraphStore:
         if node_type is not None:
             self.graph.nodes[node]["type"] = node_type
 
-    def _find_edge_key(self, u: str, v: str, relation, source=None):
-        """Key der Kante u->v mit gegebener Relation UND Quelle ("origin"), falls vorhanden, sonst None."""
+    def _find_edge_key(self, u: str, v: str, relation, source=None, props=None):
+        """
+        Key der Kante u->v mit gegebener Relation UND Quelle ("origin"), falls
+        vorhanden, sonst None. Hat das Profil edge_key_fields (Finanzen:
+        as_of, condition), muessen auch diese mit props uebereinstimmen - sonst
+        ersetzt der Vorjahreswert einer Quelle den aktuellen.
+        """
         if not self.graph.has_edge(u, v):
             return None
+        props = props or {}
+        key_fields = profile_of(self.graph).edge_key_fields
         for key, data in self.graph[u][v].items():
-            if data.get("relation") == relation and data.get("origin") == source:
+            if (data.get("relation") == relation and data.get("origin") == source
+                    and all(data.get(f) == props.get(f) for f in key_fields)):
                 return key
         return None
 
@@ -304,7 +313,7 @@ class GraphStore:
             if u == v:
                 stats["dropped_self_loops"] += 1
                 continue
-            existing = self._find_edge_key(u, v, data.get("relation"), data.get("origin"))
+            existing = self._find_edge_key(u, v, data.get("relation"), data.get("origin"), data)
             if existing is None:
                 self.graph.add_edge(u, v, **data)
                 stats["moved"] += 1

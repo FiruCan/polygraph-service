@@ -38,12 +38,18 @@ class DomainProfile:
     relation_types: tuple = ()
     type_parents: dict = field(default_factory=dict)
     # Prompt -> fachliche Hinweise: "answer" (ask_answer.md), "check"
-    # (ask_check.md), "suggest" (suggest_questions.md)
+    # (ask_check.md), "suggest" (suggest_questions.md), "extract" (in polygraph
+    # prompts/extract.md, ueber GET /profile)
     prompt_notes: dict = field(default_factory=dict)
     # Beispiel fuer den Extraktions-Prompt in polygraph: ein Text und die
     # Tripel daraus, mit allen Qualifiern des Profils
     example_text: str = ""
     example_output: tuple = ()
+    # Qualifier, die eine Aussage von einer gleichlautenden unterscheiden:
+    # dieselbe Kennzahl einer Quelle fuer Q3 2024 und das Vorjahresquartal
+    # sind zwei Kanten, nicht eine, die die andere ueberschreibt
+    # (GraphStore._find_edge_key). Leer: Relation + Quelle wie bisher.
+    edge_key_fields: tuple = ()
 
     @property
     def qualifier_fields(self) -> tuple:
@@ -74,4 +80,7 @@ class DomainProfile:
             "type_parents": dict(sorted(self.type_parents.items())),
             "example_text": self.example_text,
             "example_output": list(self.example_output),
+            # Fachregeln fuer den Extraktions-Prompt in polygraph ({domain_notes}
+            # in prompts/extract.md), roh - polygraph setzt die Ueberschrift
+            "extract_notes": self.prompt_notes.get("extract", "").strip(),
         }

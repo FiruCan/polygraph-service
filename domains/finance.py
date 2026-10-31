@@ -25,9 +25,13 @@ QUALIFIERS = (
         "  \"Quartalsbericht\", \"Analystenschaetzung\", \"Prognose\", \"Ankuendigung\").\n"
         "  Sonst: null. Nicht raten.")),
     Qualifier("as_of", "as of", "Stichtag", description=(
-        "Zeitpunkt oder Zeitraum, auf den sich die Aussage bezieht, woertlich\n"
-        "  aus dem Text (z.B. \"Juli 2023\", \"zweites Quartal 2024\", \"2021\"). Sonst: null.\n"
-        "  Nicht raten - auch nicht aus dem Erscheinungsdatum des Artikels.")),
+        "Zeitpunkt oder Zeitraum, auf den sich die Aussage bezieht, aus dem Text\n"
+        "  (z.B. \"Juli 2023\", \"zweites Quartal 2024\", \"2021\"). Ist die Angabe relativ (\"heute\",\n"
+        "  \"gestern\", \"seit Jahresbeginn\", \"drittes Quartal\" ohne Jahr) und steht unten ein\n"
+        "  Erscheinungsdatum, ergaenze damit Datum bzw. Jahr (bei Erscheinungsdatum 2025-03-14:\n"
+        "  \"heute\" -> \"14.03.2025\", \"seit Jahresbeginn\" -> \"seit Jahresbeginn 2025\").\n"
+        "  Ohne Erscheinungsdatum woertlich lassen. Nennt der Text keine Zeit: null - das\n"
+        "  Erscheinungsdatum dann nicht einsetzen.")),
     Qualifier("currency", "currency", "Waehrung", translate=False, description=(
         "Waehrung eines Betrags in \"value\" als ISO-Code (z.B. \"EUR\" fuer Euro,\n"
         "  \"USD\" fuer US-Dollar), nur wenn der Text sie nennt. Sonst: null.")),
@@ -35,12 +39,14 @@ QUALIFIERS = (
 
 ENTITY_TYPES = (
     "company", "sector", "person", "financial_metric", "event", "regulation", "product",
+    "central_bank", "rating_agency", "currency",
 )
 
 RELATION_TYPES = (
     "influences", "competes_with", "reports", "acquires", "affects_metric", "employed_by",
     "increases_risk_of", "triggers_decline_of", "correlates_with", "belongs_to_class",
-    "regulated_by",
+    "regulated_by", "increases", "decreases", "sets", "holds_stake_in", "pays_dividend", "rates",
+    "forecasts",
 )
 
 PROMPT_NOTES = {
@@ -60,6 +66,34 @@ PROMPT_NOTES = {
     "suggest": (
         "- Hat ein Fakt einen Stichtag, greife ihn in der Frage auf (z.B. \"im Juli 2023\").\n"
         "- Keine Fragen nach Kaufempfehlungen oder kuenftigen Kursen."
+    ),
+    # Aus Testlaeufen mit Quartals-, Zins- und Beteiligungstexten: ohne diese
+    # Regeln wurde die Kennzahl zum Subjekt (EBIT --reports--> EBIT, vom
+    # Pruef-Agenten verworfen), der Vorjahreswert ging verloren, "sank" und
+    # "herabgestuft" verschwanden in affects_metric und "je Aktie" im value.
+    # Beispiele absichtlich nicht aus diesen Testtexten (wie EXAMPLE_TEXT)
+    "extract": (
+        "- Subjekt einer Kennzahl (Umsatz, EBIT, Marge, Dividende, Kurs, Rendite) ist das\n"
+        "  Unternehmen, der Markt oder das Wertpapier, dem sie gehoert - nie die Kennzahl selbst.\n"
+        "  \"Der Umsatz sank um 8 Prozent\" in einem Text ueber Henkel ergibt Henkel --reports--> Umsatz.\n"
+        "- Nennt der Text fuer dieselbe Kennzahl Werte zu mehreren Zeitpunkten (aktuell und\n"
+        "  Vorjahr, alte und neue Prognose), erzeuge je Zeitpunkt ein eigenes Tripel mit eigenem\n"
+        "  \"as_of\". Ein relativer Zeitpunkt (\"Vorjahresquartal\") wird ausgeschrieben, wenn der\n"
+        "  Text ihn eindeutig macht (\"drittes Quartal 2023\" neben \"drittes Quartal 2024\").\n"
+        "- Wirkt etwas auf eine andere Groesse (Zinsen auf Kurse, Nachfrage auf Gewinn), gehoert\n"
+        "  die Richtung in die Relation: \"increases\" bzw. \"decreases\" statt \"affects_metric\"\n"
+        "  oder \"influences\". Veraendert sich eine eigene Kennzahl des Subjekts (\"Henkel verlor\n"
+        "  8 Prozent Umsatz\"), ist das \"reports\" mit der Richtung im \"value\" (\"minus 8 Prozent\").\n"
+        "- Kennzahlen sind keine Relationen (nicht \"growth\", \"valuation\", \"P/E\"): das\n"
+        "  Unternehmen --reports--> die Kennzahl, der Wert steht in \"value\".\n"
+        "- Angaben je Aktie oder je Einheit bleiben im \"value\" (\"2,10 je Aktie\"), auch wenn\n"
+        "  die Waehrung in \"currency\" steht.\n"
+        "- Zentralbanken sind \"central_bank\", Ratingagenturen \"rating_agency\", nicht\n"
+        "  \"company\". Setzt eine Zentralbank einen Zins fest oder laesst ihn unveraendert:\n"
+        "  Zentralbank --sets--> Leitzins mit dem Stand in \"value\". Ein Rating: Agentur\n"
+        "  --rates--> Bewertetes, Note und Richtung in \"value\" (\"BBB+, hochgestuft\").\n"
+        "- Eine Person mit Funktion (\"Finanzvorstand Jan Weber\") ergibt Person\n"
+        "  --employed_by--> Unternehmen, die Funktion in \"value\"."
     ),
 }
 
@@ -85,4 +119,5 @@ EXAMPLE_OUTPUT = (
 )
 
 PROFILE = DomainProfile("finance", QUALIFIERS, ENTITY_TYPES, RELATION_TYPES, prompt_notes=PROMPT_NOTES,
-                        example_text=EXAMPLE_TEXT, example_output=EXAMPLE_OUTPUT)
+                        example_text=EXAMPLE_TEXT, example_output=EXAMPLE_OUTPUT,
+                        edge_key_fields=("as_of", "condition"))
