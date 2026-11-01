@@ -42,11 +42,13 @@ ENTITY_TYPES = (
     "central_bank", "rating_agency", "currency",
 )
 
+# produces und plans: im Finanz-Graphen 12- bzw. 16-mal ohne passende Profil-
+# Relation (Hersteller -> Produkt, Ziele und Vorhaben eines Unternehmens)
 RELATION_TYPES = (
     "influences", "competes_with", "reports", "acquires", "affects_metric", "employed_by",
     "increases_risk_of", "triggers_decline_of", "correlates_with", "belongs_to_class",
     "regulated_by", "increases", "decreases", "sets", "holds_stake_in", "pays_dividend", "rates",
-    "forecasts",
+    "forecasts", "produces", "plans",
 )
 
 PROMPT_NOTES = {
