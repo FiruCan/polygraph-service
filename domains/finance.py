@@ -72,10 +72,15 @@ PROMPT_NOTES = {
     # Pruef-Agenten verworfen), der Vorjahreswert ging verloren, "sank" und
     # "herabgestuft" verschwanden in affects_metric und "je Aktie" im value.
     # Beispiele absichtlich nicht aus diesen Testtexten (wie EXAMPLE_TEXT)
+    # Aktienkurs eigens genannt: "Die Aktie stieg" ergab trotz der Regel Aktie
+    # --sets--> Kurs bzw. X --increases--> Aktie (Eval kurs_heute)
     "extract": (
         "- Subjekt einer Kennzahl (Umsatz, EBIT, Marge, Dividende, Kurs, Rendite) ist das\n"
         "  Unternehmen, der Markt oder das Wertpapier, dem sie gehoert - nie die Kennzahl selbst.\n"
         "  \"Der Umsatz sank um 8 Prozent\" in einem Text ueber Henkel ergibt Henkel --reports--> Umsatz.\n"
+        "  Ebenso Aktienkurs und Boersenwert: \"Die Aktie von Henkel stieg um 2 Prozent auf 80 Euro\"\n"
+        "  ergibt Henkel --reports--> Aktienkurs (value \"plus 2 Prozent auf 80 Euro\"), nicht\n"
+        "  Aktie --> Kurs und nicht Henkel --increases--> Aktie.\n"
         "- Nennt der Text fuer dieselbe Kennzahl Werte zu mehreren Zeitpunkten (aktuell und\n"
         "  Vorjahr, alte und neue Prognose), erzeuge je Zeitpunkt ein eigenes Tripel mit eigenem\n"
         "  \"as_of\". Ein relativer Zeitpunkt (\"Vorjahresquartal\") wird ausgeschrieben, wenn der\n"
