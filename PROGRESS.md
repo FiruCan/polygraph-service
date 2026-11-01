@@ -32,8 +32,8 @@
 - Tests: `test/test_domains.py` (Felder, Kante je Gruppe, Hinweis im
   Pruef-Prompt); 247 gruen ohne den Live-Test.
 - Offen: Neustart der Medizin-Instanz (Port 8000, vorher laufende Importe
-  pruefen); Metis/PDF zeigen die neuen Felder unter ihrem Feldnamen, bis
-  `kg/i18n.js` Texte fuer `population`, `model`, `dose`, `duration` hat;
+  pruefen; erledigt 2026-11-01); Metis/PDF-Texte fuer `population`,
+  `model`, `dose`, `duration` (erledigt in polygraph `kg/i18n.js`);
   Bestand umstellen (Vorschlagsliste alte `condition` -> neue Felder, nach
   Freigabe ueber einen Endpoint).
 
