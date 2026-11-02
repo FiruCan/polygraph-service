@@ -60,8 +60,15 @@
 - Offen: Neustart der Medizin-Instanz (Port 8000, vorher laufende Importe
   pruefen; erledigt 2026-11-01); Metis/PDF-Texte fuer `population`,
   `model`, `dose`, `duration` (erledigt in polygraph `kg/i18n.js`);
-  Bestand umstellen (Vorschlagsliste alte `condition` -> neue Felder, nach
-  Freigabe ueber einen Endpoint).
+  Bestand umstellen (erledigt 2026-11-02, offline, Backup
+  `data/medicine/graph.backup-2026-11-02-195349.gml`): aus der Zerlegung
+  des Probelaufs 1.163 der 1.996 Kanten mit `condition` umgestellt -
+  population 624, duration 228, model 173, dose 100, evidence_level 72
+  (nur Studiendesign, keine Zitate oder Fallzahlen; ein vorhandenes bleibt,
+  der Teil geht dann in condition), Rest in condition 296; 831 nur mit
+  Ort/Zustand/Mechanismus unveraendert, 2 mit nicht woertlichen Teilen
+  unveraendert. Stichprobe 15 Texte mit mehreren Teilen: 3 im Nachbarfeld
+  (z.B. "human OPCs" als Gruppe statt Modell), nichts verloren.
 
 **Finanz-Profil, Schritt 2: Stichtag im Kantenschluessel, Vokabular, Extraktionsregeln (fertig)**
 - Grund: Testlaeufe mit drei neuen Finanztexten (Quartal, Zinsen,
