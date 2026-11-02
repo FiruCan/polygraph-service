@@ -2,6 +2,32 @@
 
 ## Stand
 
+**Finanz-Profil: feste Relationsliste, Waehrungscode als Muster (fertig)**
+- Grund: nach dem Neu-Import 51 eigene Relationen des Modells
+  (performance_1m, growth, supports, ...) an 254 Kanten; dazu Waehrungen
+  als "Euro" statt "EUR".
+- `domains/base.py`: `Qualifier.pattern` (Regex, die Extraktion setzt es als
+  JSON-Schema-`pattern`), `DomainProfile.closed_relations` (die Extraktion
+  darf nur Relationen aus dem Profil waehlen, als `enum` im Schema); beides
+  in `to_json`.
+- `domains/finance.py`: `closed_relations=True`, `currency` mit
+  `^[A-Z]{3}$`, Extraktionsregel "nur bekannte Relationen, passt keine,
+  Aussage weglassen".
+- Gemessen (polygraph, 8 Finanztexte x 3 Laeufe, offen gegen fest):
+  Paar-F1 0,934 -> 0,936, strikt 0,895 -> 0,904, Qualifier 0,990 -> 0,986;
+  Laeufe mit Relation ausserhalb des Profils 1 -> 0 von 24. zinsen_fed
+  strikt 1,00 -> 0,94 (in 2 Laeufen eine Aussage weniger), beteiligungen
+  0,70 -> 0,80.
+- Graph bereinigt (offline, Backups `graph.backup-2026-11-01-112451.gml`
+  vor dem Neu-Import und `-145454` vor den Kurs-Korrekturen): Relationen
+  umbenannt, 41 Kanten aus Haftungs-/Impressumstexten und 4 investors
+  --focus_on--> geloescht, Kurs-Kanten auf reports, "Applied Materials
+  stock" in "Applied Materials"; 399 Knoten, 564 Kanten, 15 Kanten
+  ausserhalb des Profils (keine Relation >= 3).
+- Tests: `test/test_domains.py`; 248 gruen ohne den Live-Test.
+- Offen: Neustart der Finanz-Instanz (Port 8060), damit sie das Profil
+  ausliefert.
+
 **Medizin-Profil: eigene Qualifier fuer Gruppe, Modell, Dosis, Dauer (fertig; Bestand und Metis-Texte offen)**
 - Grund: Probelauf (2026-10-31, gemma4:26b, 24 Min., nur lesend) ueber die
   1.339 verschiedenen `condition`-Texte an 1.997 der 4.473 Kanten, je Teil

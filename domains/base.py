@@ -21,13 +21,16 @@ class Qualifier:
     - ein Waehrungscode braucht das nicht. description: Regel fuer die
     Extraktion in polygraph (GET /profile), steht dort woertlich als
     '- "<name>": <description>' im Prompt - Zeilenumbrueche mit zwei
-    Leerzeichen Einzug wie in polygraph prompts/extract.md.
+    Leerzeichen Einzug wie in polygraph prompts/extract.md. pattern: Regex,
+    die polygraph ins JSON-Schema der Extraktion setzt (Ollama haelt sie ein,
+    z.B. "^[A-Z]{3}$" fuer einen Waehrungscode); leer: beliebiger Text.
     """
     name: str
     label: str
     label_de: str
     translate: bool = True
     description: str = ""
+    pattern: str = ""
 
 
 @dataclass(frozen=True)
@@ -50,6 +53,11 @@ class DomainProfile:
     # sind zwei Kanten, nicht eine, die die andere ueberschreibt
     # (GraphStore._find_edge_key). Leer: Relation + Quelle wie bisher.
     edge_key_fields: tuple = ()
+    # Nur die Relationen des Profils: polygraph setzt sie als feste Liste ins
+    # JSON-Schema, das Modell kann keine eigenen mehr erfinden und haeufige
+    # Begriffe aus dem Graphen kommen nicht dazu. Aus: wie bisher, neue
+    # Relationen moeglich (relation_is_new).
+    closed_relations: bool = False
 
     @property
     def qualifier_fields(self) -> tuple:
@@ -73,7 +81,8 @@ class DomainProfile:
         return {
             "name": self.name,
             "qualifiers": [{"name": q.name, "label": q.label, "label_de": q.label_de,
-                            "translate": q.translate, "description": q.description}
+                            "translate": q.translate, "description": q.description,
+                            "pattern": q.pattern}
                            for q in self.qualifiers],
             "entity_types": list(self.entity_types),
             "relation_types": list(self.relation_types),
@@ -83,4 +92,5 @@ class DomainProfile:
             # Fachregeln fuer den Extraktions-Prompt in polygraph ({domain_notes}
             # in prompts/extract.md), roh - polygraph setzt die Ueberschrift
             "extract_notes": self.prompt_notes.get("extract", "").strip(),
+            "closed_relations": self.closed_relations,
         }

@@ -34,7 +34,8 @@ QUALIFIERS = (
         "  Erscheinungsdatum dann nicht einsetzen.")),
     Qualifier("currency", "currency", "Waehrung", translate=False, description=(
         "Waehrung eines Betrags in \"value\" als ISO-Code (z.B. \"EUR\" fuer Euro,\n"
-        "  \"USD\" fuer US-Dollar), nur wenn der Text sie nennt. Sonst: null.")),
+        "  \"USD\" fuer US-Dollar), nur wenn der Text sie nennt. Sonst: null."),
+              pattern="^[A-Z]{3}$"),
 )
 
 ENTITY_TYPES = (
@@ -100,7 +101,9 @@ PROMPT_NOTES = {
         "  Zentralbank --sets--> Leitzins mit dem Stand in \"value\". Ein Rating: Agentur\n"
         "  --rates--> Bewertetes, Note und Richtung in \"value\" (\"BBB+, hochgestuft\").\n"
         "- Eine Person mit Funktion (\"Finanzvorstand Jan Weber\") ergibt Person\n"
-        "  --employed_by--> Unternehmen, die Funktion in \"value\"."
+        "  --employed_by--> Unternehmen, die Funktion in \"value\".\n"
+        "- Nur Relationen aus der Liste der bekannten Relationen, keine neuen. Passt keine,\n"
+        "  lass die Aussage weg, statt eine unpassende zu waehlen."
     ),
 }
 
@@ -127,4 +130,7 @@ EXAMPLE_OUTPUT = (
 
 PROFILE = DomainProfile("finance", QUALIFIERS, ENTITY_TYPES, RELATION_TYPES, prompt_notes=PROMPT_NOTES,
                         example_text=EXAMPLE_TEXT, example_output=EXAMPLE_OUTPUT,
-                        edge_key_fields=("as_of", "condition"))
+                        edge_key_fields=("as_of", "condition"),
+                        # Nach dem Neu-Import 51 eigene Relationen des Modells
+                        # (performance_1m, growth, supports, ...), 254 Kanten
+                        closed_relations=True)

@@ -253,6 +253,15 @@ def test_extract_notes_only_for_profiles_that_have_them():
     assert "\"decreases\"" in get_profile("finance").to_json()["extract_notes"]
 
 
+def test_finance_closes_relations_and_pins_the_currency_code():
+    data = get_profile("finance").to_json()
+    assert data["closed_relations"] is True
+    patterns = {q["name"]: q["pattern"] for q in data["qualifiers"]}
+    assert patterns["currency"] == "^[A-Z]{3}$" and patterns["value"] == ""
+    assert get_profile("medicine").to_json()["closed_relations"] is False
+    assert get_profile("generic").to_json()["closed_relations"] is False
+
+
 def finance_store():
     store = GraphStore()
     assign_profile(store.graph, "finance")
