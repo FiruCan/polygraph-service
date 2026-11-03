@@ -2,6 +2,16 @@
 
 ## Stand
 
+**Medizin-Profil: Land oder Region in condition (fertig)**
+- Grund: in der Medizin-Eval (polygraph, jetzt mit den Profil-Feldern)
+  fiel "Fingolimod ist in der EU zugelassen" -> condition "in der EU" in 2
+  von 3 Laeufen weg - condition war auf Ort im Koerper, Zustand und
+  Voraussetzung beschraenkt, fuer Laender gab es kein Feld.
+- `domains/medicine.py`: condition nennt "Land oder Region (z.B. in der
+  EU)"; danach 3 von 3 Laeufen mit "in der EU".
+- Offen: Neustart der Medizin-Instanz (Port 8000), damit sie die Regel
+  ausliefert.
+
 **Finanz-Profil: feste Relationsliste, Waehrungscode als Muster (fertig)**
 - Grund: nach dem Neu-Import 51 eigene Relationen des Modells
   (performance_1m, growth, supports, ...) an 254 Kanten; dazu Waehrungen

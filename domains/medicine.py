@@ -8,10 +8,11 @@ Mensch), dose und duration. Grundlage: Probelauf ueber die 1.997 Bedingungen
 des Medizin-Graphen (2026-10-31) - ein Drittel nannte eine Patientengruppe,
 je rund ein Zehntel Dauer, Studienmodell oder Studiendesign; Letzteres stand
 in "condition" statt in "evidence_level". "condition" bleibt fuer den Rest
-(Ort im Koerper, Zustand, Voraussetzung).
+(Ort im Koerper, Zustand, Voraussetzung, Land oder Region).
 
-Bestehende Kanten behalten ihre alte "condition"; die neuen Felder sind dort
-leer, bis der Bestand umgestellt wird.
+Der Bestand ist umgestellt (2026-11-02, aus der Zerlegung des Probelaufs):
+1.163 der 1.996 Kanten mit "condition" haben ihre Teile jetzt in den neuen
+Feldern.
 """
 
 from domains import generic
@@ -38,8 +39,9 @@ QUALIFIERS = (
         "  \"innerhalb von 24 Wochen\", \"in der Kindheit\", \"waehrend eines Schubs\").\n"
         "  Sonst: null.")),
     Qualifier("condition", "condition", "Bedingung", description=(
-        "Weitere Umstaende, unter denen die Aussage gilt: Ort im Koerper, Zustand oder\n"
-        "  Voraussetzung (z.B. \"in der weissen Substanz\", \"bei erhaltenen Axonen\").\n"
+        "Weitere Umstaende, unter denen die Aussage gilt: Ort im Koerper, Zustand,\n"
+        "  Voraussetzung, Land oder Region (z.B. \"in der weissen Substanz\", \"bei erhaltenen\n"
+        "  Axonen\", \"in der EU\").\n"
         "  Gruppe, Modell, Dosis, Dauer und Studiendesign stehen in ihren eigenen Feldern,\n"
         "  nicht hier. Sonst: null.")),
     Qualifier("evidence_level", "evidence", "Evidenz", description=(
