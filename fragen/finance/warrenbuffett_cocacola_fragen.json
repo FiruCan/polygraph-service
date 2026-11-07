@@ -1,0 +1,215 @@
+{
+  "_hinweis": "Fragen im Stil von Warren Buffett (mit Munger und Fisher) an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, eine Lücke, keine Kaufempfehlung. Reihenfolge = Buffetts Prüfreihenfolge: erst das Geschäft verstehen, dann Burggraben, Zahlen, Management, Risiken. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Warren Buffett: Coca-Cola",
+  "firma": "Coca-Cola",
+  "ticker": "KO",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-07: kein Knoten Coca-Cola, kein KO; Berkshire Hathaway nur mit holds_stake_in Alphabet",
+  "fragen": [
+    {
+      "id": "geschaeft_produkte",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Welche Marken und Produkte stellt Coca-Cola her, und welche bringen den meisten Umsatz?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --produces--> Sprite",
+        "Coca-Cola --reports--> Umsatz (condition: Segment, as_of: Jahr, currency: USD)"
+      ]
+    },
+    {
+      "id": "geschaeft_regionen",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "In welchen Regionen erzielt Coca-Cola seinen Umsatz, und wie hoch ist der Anteil der einzelnen Regionen?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --reports--> Umsatz (value: Anteil in Prozent, condition: Region, as_of: Jahr)"
+      ]
+    },
+    {
+      "id": "geschaeft_abfueller",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "An welchen Abfüllern hält Coca-Cola Beteiligungen, und wie viel Umsatz macht Coca-Cola mit dem Verkauf von Konzentrat an die Abfüller?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --holds_stake_in--> Coca-Cola Europacific Partners (value: Anteil in Prozent)",
+        "Coca-Cola --reports--> Umsatz mit Konzentrat (value, as_of)"
+      ],
+      "luecke": "Liefer- und Kundenbeziehung (Konzentrat an Abfüller) hat keine Relation, siehe luecken.relation_lieferung"
+    },
+    {
+      "id": "burggraben_wettbewerb",
+      "stufe": "2 Burggraben",
+      "frage": "Mit wem konkurriert Coca-Cola, und wie haben sich die Marktanteile gegenüber PepsiCo entwickelt?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --competes_with--> PepsiCo",
+        "Coca-Cola --reports--> Marktanteil (condition: Markt, as_of: je Jahr)"
+      ]
+    },
+    {
+      "id": "burggraben_preissetzung",
+      "stufe": "2 Burggraben",
+      "frage": "Konnte Coca-Cola im letzten Jahr die Preise erhöhen, ohne Absatz zu verlieren?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Coca-Cola --reports--> Preis/Mix (value: plus x Prozent, as_of: Quartal)",
+        "Coca-Cola --reports--> Absatzmenge (value, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "burggraben_marge",
+      "stufe": "2 Burggraben",
+      "frage": "Wie hat sich die Bruttomarge von Coca-Cola in den letzten zehn Jahren entwickelt?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --reports--> Bruttomarge (value: Prozent, as_of: je Jahr, evidence: Geschäftsbericht)"
+      ],
+      "luecke": "10 Jahre liegen ausserhalb von max_alter_tage_thema (730), siehe luecken.zeithorizont"
+    },
+    {
+      "id": "zahlen_cashflow",
+      "stufe": "3 Echtes Geld",
+      "frage": "Wie hoch war der freie Cashflow von Coca-Cola in den letzten fünf Geschäftsjahren?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --reports--> freier Cashflow (value, currency: USD, as_of: je Geschäftsjahr, evidence: Geschäftsbericht)"
+      ],
+      "luecke": "siehe luecken.zeithorizont und luecken.kennzahl_namen"
+    },
+    {
+      "id": "zahlen_rendite",
+      "stufe": "3 Echtes Geld",
+      "frage": "Welche Eigenkapitalrendite und welche Rendite auf das eingesetzte Kapital meldet Coca-Cola?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Coca-Cola --reports--> Eigenkapitalrendite (value: Prozent, as_of)",
+        "Coca-Cola --reports--> ROIC (value: Prozent, as_of)"
+      ],
+      "luecke": "ROIC steht selten im Text, siehe luecken.berechnete_kennzahlen"
+    },
+    {
+      "id": "zahlen_capex",
+      "stufe": "3 Echtes Geld",
+      "frage": "Wie hoch sind die Investitionsausgaben von Coca-Cola im Verhältnis zum Umsatz?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --reports--> Investitionsausgaben (value, currency: USD, as_of)"
+      ]
+    },
+    {
+      "id": "zahlen_schulden_rating",
+      "stufe": "3 Echtes Geld",
+      "frage": "Wie hoch ist die Nettoverschuldung von Coca-Cola, und wie bewerten Moody's und S&P die Kreditwürdigkeit?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Coca-Cola --reports--> Nettoverschuldung (value, currency: USD, as_of)",
+        "Moody's --rates--> Coca-Cola (value: Note und Richtung)"
+      ]
+    },
+    {
+      "id": "management_personen",
+      "stufe": "4 Management",
+      "frage": "Wer führt Coca-Cola als CEO und als Finanzvorstand, und seit wann?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Person --employed_by--> Coca-Cola (value: Funktion, as_of: seit)"
+      ]
+    },
+    {
+      "id": "management_eigentuemer",
+      "stufe": "4 Management",
+      "frage": "Wie viele Coca-Cola-Aktien hält Berkshire Hathaway, und wie viele halten Vorstand und Aufsichtsrat?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Berkshire Hathaway --holds_stake_in--> Coca-Cola (value: Anteil bzw. Stückzahl, as_of)"
+      ]
+    },
+    {
+      "id": "management_dividende",
+      "stufe": "4 Management",
+      "frage": "Wie hat sich die Dividende von Coca-Cola je Aktie in den letzten Jahren entwickelt?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --pays_dividend--> Dividende (value: x je Aktie, currency: USD, as_of: je Jahr)"
+      ]
+    },
+    {
+      "id": "management_rueckkauf",
+      "stufe": "4 Management",
+      "frage": "Für wie viel Geld hat Coca-Cola in den letzten Jahren eigene Aktien zurückgekauft?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --reports--> Aktienrückkauf (value, currency: USD, as_of)"
+      ],
+      "luecke": "keine eigene Relation, nur als Kennzahl über reports, siehe luecken.relation_rueckkauf"
+    },
+    {
+      "id": "management_uebernahmen",
+      "stufe": "4 Management",
+      "frage": "Welche Übernahmen hat Coca-Cola getätigt, zu welchem Preis, und haben sie sich gelohnt?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --acquires--> Costa Coffee (value: Kaufpreis, currency: GBP, as_of: Jahr)"
+      ]
+    },
+    {
+      "id": "management_ziele",
+      "stufe": "4 Management",
+      "frage": "Welche Ziele für Umsatzwachstum und Gewinn je Aktie hat das Management von Coca-Cola angekündigt?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Coca-Cola --plans--> organisches Umsatzwachstum (value, as_of, evidence: Ankündigung)",
+        "Coca-Cola --forecasts--> Gewinn je Aktie (value, as_of, evidence: Prognose)"
+      ]
+    },
+    {
+      "id": "risiko_regulierung",
+      "stufe": "5 Munger: Was kann es zerstören?",
+      "frage": "Welche Zuckersteuern und anderen Regulierungen belasten Coca-Cola, und in welchen Ländern?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Coca-Cola --regulated_by--> Zuckersteuer (condition: Land)",
+        "Zuckersteuer --decreases--> Absatz (value, condition: Land)"
+      ]
+    },
+    {
+      "id": "risiko_waehrung",
+      "stufe": "5 Munger: Was kann es zerstören?",
+      "frage": "Wie stark belastet der starke US-Dollar Umsatz und Gewinn von Coca-Cola?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "starker US-Dollar --decreases--> Umsatz von Coca-Cola (value: minus x Prozent, as_of)"
+      ]
+    },
+    {
+      "id": "risiko_gesundheit",
+      "stufe": "5 Munger: Was kann es zerstören?",
+      "frage": "Wie wirken sich Abnehmspritzen und der Trend zu weniger Zucker auf den Absatz von Coca-Cola aus?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "GLP-1-Medikamente --increases_risk_of--> Absatzrückgang (condition: Markt)",
+        "Coca-Cola --produces--> Coca-Cola Zero"
+      ]
+    },
+    {
+      "id": "scuttlebutt_nachfrage",
+      "stufe": "6 Fisher: Scuttlebutt",
+      "frage": "Was berichten Abfüller und Händler über die Nachfrage nach Coca-Cola im letzten Quartal?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Coca-Cola Europacific Partners --reports--> Absatzmenge (value, as_of: Quartal)"
+      ]
+    }
+  ],
+  "luecken": {
+    "firma_fehlt": "Im Graphen (data/finance/graph.gml, 557 Knoten, 681 Kanten) gibt es keinen Knoten Coca-Cola und keinen Ticker KO. Berkshire Hathaway hat nur eine Kante (holds_stake_in Alphabet). Alle Fragen oben starten also bei null.",
+    "zeithorizont": "Buffett denkt in 10 Jahren, Argos sucht Nachrichten bis 90 Tage und Themen bis 730 Tage alt (sources.finance.json). Es gibt keinen Suchort für Geschäftsberichte (Investor Relations, SEC EDGAR 10-K), obwohl 'formate' schon pdf enthält. Fragen mit 'zehn Jahre' oder 'fünf Geschäftsjahre' finden höchstens Wikipedia.",
+    "relation_lieferung": "Keine Relation für Lieferant/Kunde (z.B. supplies). Das Kerngeschäft von Coca-Cola - Konzentrat an Abfüller verkaufen - lässt sich nicht abbilden. Wegen closed_relations=True verwirft die Extraktion solche Aussagen.",
+    "relation_rueckkauf": "Kein buys_back. Aktienrückkäufe nur als Kennzahl (reports Aktienrückkauf); dass das Management Kapital so verteilt, ist nicht als Handlung sichtbar.",
+    "kennzahl_namen": "Dieselbe Kennzahl steht unter mehreren Namen: 'margins', 'profit margin', 'net margin', 'operating margin'; 'free cash flow' und 'levered free cash flow (ttm)'. Eine Zeitreihe über Jahre zerfällt so in getrennte Knoten.",
+    "fehlende_qualifier": "Von 287 reports-Kanten haben 64 kein as_of und 203 keine currency. Für Buffett ist ein Wert ohne Jahr wertlos, weil er den Verlauf braucht.",
+    "berechnete_kennzahlen": "Owner Earnings, ROIC und Capex-Quote sind Rechnungen, die selten wörtlich im Text stehen. Die Extraktion nimmt nur, was dasteht - die Bausteine (operativer Cashflow, Capex, Abschreibungen) müssen einzeln in den Graphen.",
+    "relationen_kaum_genutzt": "Im ganzen Finanz-Graphen: competes_with 1-mal, regulated_by 1, pays_dividend 3, decreases 3, gegenüber reports 287. Gerade die Relationen für Burggraben, Risiken und Ausschüttung sind fast leer."
+  }
+}

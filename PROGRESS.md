@@ -2,6 +2,21 @@
 
 ## Stand
 
+**Fragen-Pakete und Antwort-Laeufe (fertig)**
+- Grund: Firu will eine Fragenliste (Warren Buffett zu Coca-Cola, 20
+  Fragen in 6 Stufen) nicht einzeln stellen, sondern als Paket aus Metis
+  starten und die Antworten spaeter als Datei in Metis lesen.
+- Neu `fragen/<domain>/<name>.json` (Titel, Firma, Ticker, Fragen mit id,
+  stufe, frage; dazu Luecken des Graphen) und `pakete.py`; Endpunkte
+  `GET /fragen`, `GET /fragen/{name}`, `GET/POST
+  /fragen/{name}/antworten/{lauf}`.
+- Antworten je Lauf in `data/<domain>/antworten/<name>/<lauf>.json`
+  (git-ignoriert mit `data/`); POST ersetzt den Eintrag mit gleicher id.
+- Das Paket selbst laeuft in Argos (`/paket`), Metis zeigt Fortschritt und
+  Dossier. Tests: `test/test_pakete.py`.
+- Offen: Medizin-Instanz (Port 8000) kennt `/fragen` erst nach Neustart;
+  das Buffett-Paket ist noch nicht gelaufen.
+
 **Medizin-Profil: Land oder Region in condition (fertig)**
 - Grund: in der Medizin-Eval (polygraph, jetzt mit den Profil-Feldern)
   fiel "Fingolimod ist in der EU zugelassen" -> condition "in der EU" in 2

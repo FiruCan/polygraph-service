@@ -24,6 +24,10 @@ laufen mehrere Instanzen parallel, ohne sich zu beruehren; eine Sperre
 verhindert zwei Instanzen auf demselben Ordner (open_instance). Ohne
 POLYGRAPH_DOMAIN startet der Service nicht.
 
+Fragen-Pakete (pakete.py): fragen/<fachgebiet>/<name>.json, von Argos
+nacheinander recherchiert; die Antworten schreibt Argos nach
+data/<fachgebiet>/antworten/<name>/<lauf>.json, Metis zeigt sie als Dossier.
+
 Start: POLYGRAPH_DOMAIN=medicine uvicorn app:app --port 8000
        POLYGRAPH_DOMAIN=finance uvicorn app:app --port 8060
 """
@@ -51,13 +55,19 @@ from graph.normalize import normalize_triple, similar_entities
 from graph.store import GraphStore, hierarchy_path
 from graph.suggest import suggest_questions
 from graph.translate import TYPE_FIELDS, translate_details, translate_names, translate_types
+import pakete
 
 DATA_ROOT = os.path.join(os.path.dirname(__file__), "data")
+FRAGEN_ROOT = os.path.join(os.path.dirname(__file__), "fragen")
 # data/<fachgebiet>/graph.gml, gesetzt von open_instance() beim Start
 DATA_PATH = None
+# fragen/<fachgebiet>/ und data/<fachgebiet>/antworten/, ebenso
+FRAGEN_DIR = None
+ANTWORTEN_DIR = None
 
 store = GraphStore()
 store_lock = threading.Lock()
+antworten_lock = threading.Lock()  # eigene Sperre: eine Antwort zu speichern soll nicht auf /ask warten
 _instance_lock = None  # offene .lock-Datei, gehalten, solange der Prozess laeuft
 
 
@@ -85,7 +95,7 @@ def open_instance(domain: str, root: str = None):
     der Zeit vor den Datenordnern (root/graph.gml) wird nicht verschoben -
     der Start bricht dann mit der Anleitung dazu ab.
     """
-    global DATA_PATH, _instance_lock
+    global DATA_PATH, FRAGEN_DIR, ANTWORTEN_DIR, _instance_lock
     root = root or DATA_ROOT
     if not domain:
         raise RuntimeError("POLYGRAPH_DOMAIN fehlt - z.B. POLYGRAPH_DOMAIN=medicine "
@@ -107,6 +117,8 @@ def open_instance(domain: str, root: str = None):
         store.save(path)
     label_cache.CACHE_DIR = os.path.join(directory, "labels")
     DATA_PATH = path
+    FRAGEN_DIR = os.path.join(FRAGEN_ROOT, domain)
+    ANTWORTEN_DIR = os.path.join(directory, "antworten")
 
 
 @asynccontextmanager
@@ -203,6 +215,11 @@ class RenameIn(BaseModel):
 
 class TypeParentsIn(BaseModel):
     parents: dict[str, Optional[str]]
+
+
+class AntwortIn(BaseModel):
+    kopf: dict = Field(default_factory=dict)  # gilt fuer den ganzen Lauf: modus, gestartet, ...
+    eintrag: dict                             # eine Frage mit Antwort, Urteil und Quellen
 
 
 @app.get("/health")
@@ -541,6 +558,50 @@ def translate(body: TranslateIn):
         return {"texts": translate_texts(body.texts, body.language)}
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Uebersetzung fehlgeschlagen: {e}")
+
+
+@app.get("/fragen")
+def fragen_list():
+    """Fragen-Pakete dieses Fachgebiets (fragen/<fachgebiet>/) mit dem letzten Antwort-Lauf."""
+    return {"pakete": pakete.list_pakete(FRAGEN_DIR, ANTWORTEN_DIR)}
+
+
+@app.get("/fragen/{name}")
+def fragen_get(name: str):
+    """Ein Paket mit allen Fragen - Argos holt es sich beim Start."""
+    try:
+        return pakete.load_paket(FRAGEN_DIR, name)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Fragen-Paket '{name}' gibt es nicht")
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=f"Fragen-Paket '{name}' ist kein gueltiges JSON: {e}")
+
+
+@app.get("/fragen/{name}/antworten")
+def antworten_list(name: str):
+    """Die Antwort-Laeufe eines Pakets, neueste zuerst, je mit Zahl der Urteile."""
+    with antworten_lock:
+        return {"laeufe": pakete.list_laeufe(ANTWORTEN_DIR, name)}
+
+
+@app.get("/fragen/{name}/antworten/{lauf}")
+def antworten_get(name: str, lauf: str):
+    """Ein Lauf: alle Antworten, wie Argos sie nach jeder Frage geschrieben hat."""
+    with antworten_lock:
+        try:
+            return pakete.load_lauf(ANTWORTEN_DIR, name, lauf)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail=f"Lauf '{lauf}' von '{name}' gibt es nicht")
+
+
+@app.post("/fragen/{name}/antworten/{lauf}")
+def antworten_save(name: str, lauf: str, body: AntwortIn):
+    """Eine Antwort speichern (Argos, nach jeder Frage) - ersetzt eine fruehere mit derselben id."""
+    with antworten_lock:
+        try:
+            return pakete.save_antwort(ANTWORTEN_DIR, name, lauf, body.kopf, body.eintrag)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/help", include_in_schema=False)
