@@ -262,6 +262,15 @@ def test_finance_closes_relations_and_pins_the_currency_code():
     assert get_profile("generic").to_json()["closed_relations"] is False
 
 
+def test_finance_closes_the_entity_types():
+    data = get_profile("finance").to_json()
+    assert data["closed_types"] is True
+    assert {"technology", "organization"} <= set(data["entity_types"])
+    assert "\"organization\"" in data["extract_notes"]
+    assert get_profile("medicine").to_json()["closed_types"] is False
+    assert get_profile("generic").to_json()["closed_types"] is False
+
+
 def finance_store():
     store = GraphStore()
     assign_profile(store.graph, "finance")

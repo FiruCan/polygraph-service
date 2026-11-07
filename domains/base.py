@@ -58,6 +58,10 @@ class DomainProfile:
     # Begriffe aus dem Graphen kommen nicht dazu. Aus: wie bisher, neue
     # Relationen moeglich (relation_is_new).
     closed_relations: bool = False
+    # Ebenso die Entitaetstypen: polygraph setzt sie als feste Liste fuer
+    # subject_type/object_type ins Schema, passt keiner genau, waehlt das
+    # Modell den naechstliegenden. Aus: neue Typen moeglich (*_type_is_new).
+    closed_types: bool = False
 
     @property
     def qualifier_fields(self) -> tuple:
@@ -93,4 +97,5 @@ class DomainProfile:
             # in prompts/extract.md), roh - polygraph setzt die Ueberschrift
             "extract_notes": self.prompt_notes.get("extract", "").strip(),
             "closed_relations": self.closed_relations,
+            "closed_types": self.closed_types,
         }

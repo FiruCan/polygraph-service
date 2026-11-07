@@ -38,9 +38,12 @@ QUALIFIERS = (
               pattern="^[A-Z]{3}$"),
 )
 
+# technology und organization: im Graphen 122 Knoten "technology" (chip
+# packaging, Hybrid Bonding) und 40 Universitaeten, Institute und Boersen
+# ohne passenden Profil-Typ (2026-11-07)
 ENTITY_TYPES = (
     "company", "sector", "person", "financial_metric", "event", "regulation", "product",
-    "central_bank", "rating_agency", "currency",
+    "central_bank", "rating_agency", "currency", "technology", "organization",
 )
 
 # produces und plans: im Finanz-Graphen 12- bzw. 16-mal ohne passende Profil-
@@ -103,7 +106,11 @@ PROMPT_NOTES = {
         "- Eine Person mit Funktion (\"Finanzvorstand Jan Weber\") ergibt Person\n"
         "  --employed_by--> Unternehmen, die Funktion in \"value\".\n"
         "- Nur Relationen aus der Liste der bekannten Relationen, keine neuen. Passt keine,\n"
-        "  lass die Aussage weg, statt eine unpassende zu waehlen."
+        "  lass die Aussage weg, statt eine unpassende zu waehlen.\n"
+        "- Typen: Universitaeten, Institute, Boersen und Gruppen wie Anleger oder Kunden sind\n"
+        "  \"organization\"; Technologien, Verfahren und Anlagen \"technology\"; Nachfrage,\n"
+        "  Bewertung, Wachstum und Kennzahlen \"financial_metric\"; Engpaesse, Abschwuenge und\n"
+        "  andere Vorgaenge \"event\"."
     ),
 }
 
@@ -133,4 +140,7 @@ PROFILE = DomainProfile("finance", QUALIFIERS, ENTITY_TYPES, RELATION_TYPES, pro
                         edge_key_fields=("as_of", "condition"),
                         # Nach dem Neu-Import 51 eigene Relationen des Modells
                         # (performance_1m, growth, supports, ...), 254 Kanten
-                        closed_relations=True)
+                        closed_relations=True,
+                        # Nach den Argos-Importen 287 von 557 Knoten mit eigenen
+                        # Typen (technology, demand, growth, Zacks Rank, ...)
+                        closed_types=True)
