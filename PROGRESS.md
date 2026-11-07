@@ -17,6 +17,24 @@
 - Offen: Medizin-Instanz (Port 8000) kennt `/fragen` erst nach Neustart;
   das Buffett-Paket ist noch nicht gelaufen.
 
+**Finanz-Graph: falsche Relationen und Rechtshinweis entfernt (fertig)**
+- Pruefung vor der Nutzung (572 Knoten, 693 Kanten, 28 Quellen): die
+  Wikipedia-Seite zum Feynman-Preis (Nanotech-Lauf in Argos) musste
+  Wissenschaftsaussagen in Finanz-Relationen pressen ("quantum computing
+  forecasts molecules"); 5 Kanten kamen aus dem Rechtshinweis eines
+  DZ-Bank-Artikels auf boersennews ("trademarks regulated_by trademark law").
+- Geloescht (offline, Backup `graph.backup-2026-11-07-114500.gml`): 7 Kanten
+  der Feynman-Seite mit falscher Relation, die 5 Rechtshinweis-Kanten und 15
+  Knoten, die dadurch ohne Kante blieben; jetzt 557 Knoten, 681 Kanten.
+- Bewusst behalten: die uebrigen 104 Kanten der Feynman-Seite (employed_by,
+  produces, plans - unscharf, aber lesbar) und fachfremde Nachrichten
+  (Trump/Murdoch, SpaceX-Klage) - Ereignisse koennen spaeter Kursbewegungen
+  begruenden.
+- Offen: 298 von 572 Knoten mit Typ ausserhalb des Profils (technology 122,
+  university 24, demand 21, ...); Typen sind anders als Relationen nicht
+  fest. Der Nanotech-Lauf (1 von 8 Quellen importiert) steht auf
+  "unterbrochen".
+
 **Medizin-Profil: Land oder Region in condition (fertig)**
 - Grund: in der Medizin-Eval (polygraph, jetzt mit den Profil-Feldern)
   fiel "Fingolimod ist in der EU zugelassen" -> condition "in der EU" in 2
@@ -24,8 +42,7 @@
   Voraussetzung beschraenkt, fuer Laender gab es kein Feld.
 - `domains/medicine.py`: condition nennt "Land oder Region (z.B. in der
   EU)"; danach 3 von 3 Laeufen mit "in der EU".
-- Offen: Neustart der Medizin-Instanz (Port 8000), damit sie die Regel
-  ausliefert.
+- Medizin-Instanz (Port 8000) am 2026-11-03 neu gestartet.
 
 **Finanz-Profil: feste Relationsliste, Waehrungscode als Muster (fertig)**
 - Grund: nach dem Neu-Import 51 eigene Relationen des Modells
@@ -50,8 +67,8 @@
   stock" in "Applied Materials"; 399 Knoten, 564 Kanten, 15 Kanten
   ausserhalb des Profils (keine Relation >= 3).
 - Tests: `test/test_domains.py`; 248 gruen ohne den Live-Test.
-- Offen: Neustart der Finanz-Instanz (Port 8060), damit sie das Profil
-  ausliefert.
+- Finanz-Instanz (Port 8060) am 2026-11-02 neu gestartet; seitdem keine neue
+  Kante mit Relation ausserhalb des Profils.
 
 **Medizin-Profil: eigene Qualifier fuer Gruppe, Modell, Dosis, Dauer (fertig; Bestand und Metis-Texte offen)**
 - Grund: Probelauf (2026-10-31, gemma4:26b, 24 Min., nur lesend) ueber die
