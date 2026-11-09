@@ -191,6 +191,35 @@
       "erwartete_tripel": [
         "Nutzfahrzeugnachfrage in Europa --influences--> Ford Otosan (value, as_of)"
       ]
+    },
+    {
+      "id": "verkauf_position",
+      "stufe": "Verkaufssignale",
+      "frage": "Hat Koç Holding die Position in Ford Otosan zuletzt verringert oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Koç Holding --sells_stake_in--> Ford Otosan (value: Höhe, condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_grund",
+      "stufe": "Verkaufssignale",
+      "frage": "Welchen Grund nannte Koç Holding für eine Verringerung der Position in Ford Otosan?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Koç Holding --sells_stake_in--> Ford Otosan (condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_regel",
+      "stufe": "Verkaufssignale",
+      "frage": "Unter welchen Bedingungen verkauft Koç Holding nach eigener Aussage eine Aktie?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Koç Holding --plans--> Verkauf von Aktien (condition: Verkaufsregel)"
+      ]
     }
   ],
   "luecken": {
@@ -198,6 +227,7 @@
     "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
     "sprache": "Argos erzeugt nur deutsche und englische Suchbegriffe, die Nachrichtensuche läuft nur in de-DE und en-US. Presse in der Landessprache wird nicht durchsucht.",
     "relation_lieferung": "Keine Relation für Kunde oder Lieferant; wegen closed_relations=True kann die Extraktion sie nicht ablegen.",
-    "inflation": "Türkische Abschlüsse sind inflationsbereinigt (TMS 29). Werte in TRY aus verschiedenen Quartalen sind darum nicht direkt vergleichbar, und Artikel mischen teils TRY und USD."
+    "inflation": "Türkische Abschlüsse sind inflationsbereinigt (TMS 29). Werte in TRY aus verschiedenen Quartalen sind darum nicht direkt vergleichbar, und Artikel mischen teils TRY und USD.",
+    "verkauf": "Verkäufe stehen oft nur in Pflichtmeldungen. Findet Argos nichts, heißt das nicht, dass nicht verkauft wurde: Die Antwort soll dann sagen, dass nichts vorliegt."
   }
 }

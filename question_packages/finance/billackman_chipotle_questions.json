@@ -1,0 +1,154 @@
+{
+  "_hinweis": "Fragen im Stil von Bill Ackman (USA, Pershing Square): wenige große Positionen, Einstieg in der Krise. Das Paket fragt, warum gekauft und warum wieder verkauft wurde an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, möglichst ein Fakt, keine Kaufempfehlung. Rechnungen und Schwellenwerte stehen nicht in der Frage, sondern unter 'pruefwerte'; gefragt wird nach den Bausteinen. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'art' ist nur Doku: Argos bestimmt die Art selbst (argos/check.py). 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Bill Ackman: Chipotle",
+  "firma": "Chipotle Mexican Grill",
+  "ticker": "CMG",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-09: 'Chipotle Mexican Grill' mit 2 Kanten",
+  "bezug_investor": {
+    "art": "beleg",
+    "text": "Pershing Square stieg nach den Lebensmittelskandalen ein, verkaufte über Jahre und meldete Anfang 2026 den vollständigen Ausstieg. Die Angaben zum Einstiegsjahr unterscheiden sich je nach Quelle (2015 oder 2016).",
+    "stand": "2026-02",
+    "quellen": [
+      "https://institutionalinvestor.com/article/facing-losses-ackman-exits-chipotle-and-nike",
+      "https://247wallst.com/investing/2026/02/13/billionaire-investor-bill-ackman-exits-chipotle-completely-buys-meta-stock-instead/",
+      "https://www.fool.com/investing/2026/03/11/billionaire-bill-ackman-dump-fund-stake-chipotle"
+    ]
+  },
+  "fragen": [
+    {
+      "id": "kauf_einstieg",
+      "stufe": "1 Warum gekauft",
+      "frage": "Wann stieg Pershing Square bei Chipotle ein?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Pershing Square --holds_stake_in--> Chipotle (value: Prozent, as_of: Einstieg)"
+      ]
+    },
+    {
+      "id": "kauf_grund",
+      "stufe": "1 Warum gekauft",
+      "frage": "Warum kaufte Pershing Square Aktien von Chipotle?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Pershing Square --holds_stake_in--> Chipotle (condition: Grund, as_of: Einstieg)"
+      ]
+    },
+    {
+      "id": "kauf_gewinn",
+      "stufe": "1 Warum gekauft",
+      "frage": "Wie viel Gewinn machte Pershing Square mit Chipotle?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Pershing Square --reports--> Gewinn (value, currency: USD, condition: Chipotle)"
+      ]
+    },
+    {
+      "id": "verkauf_zeitpunkt",
+      "stufe": "2 Warum verkauft",
+      "frage": "Wann verkaufte Pershing Square die letzten Aktien von Chipotle?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Pershing Square --sells_stake_in--> Chipotle (value: gesamte Beteiligung, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_stueck",
+      "stufe": "2 Warum verkauft",
+      "frage": "Wie viele Chipotle-Aktien hielt Pershing Square vor dem Ausstieg?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Pershing Square --holds_stake_in--> Chipotle (value: Stückzahl, as_of, evidence: 13F)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_danach",
+      "stufe": "2 Warum verkauft",
+      "frage": "In welche Aktien investierte Pershing Square nach dem Ausstieg bei Chipotle?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Pershing Square --holds_stake_in--> Meta (as_of)"
+      ]
+    },
+    {
+      "id": "zahlen_flaeche",
+      "stufe": "3 Was die Zahlen sagen",
+      "frage": "Wie stark veränderte sich der Umsatz von Chipotle auf vergleichbarer Fläche im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Umsatz auf vergleichbarer Fläche (value: Prozent, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "zahlen_transaktionen",
+      "stufe": "3 Was die Zahlen sagen",
+      "frage": "Wie stark veränderte sich die Zahl der Transaktionen bei Chipotle im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Transaktionen (value: Prozent, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "zahlen_marge",
+      "stufe": "3 Was die Zahlen sagen",
+      "frage": "Wie hoch war die operative Marge von Chipotle im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> operative Marge (value: Prozent, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "andere_dafuer",
+      "stufe": "4 Was andere sagen",
+      "frage": "Welche Gründe nennen Analysten für einen Kauf der Chipotle-Aktie?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Analyst --rates--> Chipotle (value: Kaufen, condition: Grund, as_of)"
+      ]
+    },
+    {
+      "id": "andere_dagegen",
+      "stufe": "4 Was andere sagen",
+      "frage": "Welche Gründe nennen Analysten gegen einen Kauf der Chipotle-Aktie?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Analyst --rates--> Chipotle (value: Verkaufen oder Halten, condition: Grund, as_of)"
+      ]
+    },
+    {
+      "id": "verkauf_position",
+      "stufe": "Verkaufssignale",
+      "frage": "Hat Pershing Square die Position in Chipotle zuletzt verringert oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Pershing Square --sells_stake_in--> Chipotle (value: Höhe, condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_grund",
+      "stufe": "Verkaufssignale",
+      "frage": "Welchen Grund nannte Pershing Square für eine Verringerung der Position in Chipotle?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Pershing Square --sells_stake_in--> Chipotle (condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_regel",
+      "stufe": "Verkaufssignale",
+      "frage": "Unter welchen Bedingungen verkauft Bill Ackman nach eigener Aussage eine Aktie?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Bill Ackman --plans--> Verkauf von Aktien (condition: Verkaufsregel)"
+      ]
+    }
+  ],
+  "luecken": {
+    "verkauf": "Verkäufe stehen oft nur in Pflichtmeldungen. Findet Argos nichts, heißt das nicht, dass nicht verkauft wurde: Die Antwort soll dann sagen, dass nichts vorliegt."
+  }
+}

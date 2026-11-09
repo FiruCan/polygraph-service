@@ -8,7 +8,7 @@
   "stand_graph": "2026-11-09: kein Knoten zu Marriott International",
   "bezug_investor": {
     "art": "beleg",
-    "text": "Marriott war zum 31.03.2026 die größte US-Position von Fundsmith (8,59 Prozent laut Datenanbietern, aus der 13F-Meldung). Das sind Daten von Aggregatoren. Ob die Position noch gilt, ist nicht geprüft.",
+    "text": "Marriott war zum 31.03.2026 die größte US-Position von Fundsmith (8,59 Prozent laut Datenanbietern, aus der 13F-Meldung). Im selben Quartal sank die Stückzahl um rund 15 Prozent. Das sind Daten von Aggregatoren. Ob die Position noch gilt, ist nicht geprüft.",
     "stand": "2026-03-31",
     "quellen": [
       "https://eulerpool.com/superinvestors/terry-smith-fundsmith",
@@ -172,11 +172,41 @@
       "erwartete_tripel": [
         "Marriott --competes_with--> Hilton"
       ]
+    },
+    {
+      "id": "verkauf_position",
+      "stufe": "Verkaufssignale",
+      "frage": "Hat Fundsmith die Position in Marriott zuletzt verringert oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fundsmith --sells_stake_in--> Marriott (value: Höhe, condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_grund",
+      "stufe": "Verkaufssignale",
+      "frage": "Welchen Grund nannte Fundsmith für eine Verringerung der Position in Marriott?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fundsmith --sells_stake_in--> Marriott (condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_regel",
+      "stufe": "Verkaufssignale",
+      "frage": "Unter welchen Bedingungen verkauft Terry Smith nach eigener Aussage eine Aktie?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Terry Smith --plans--> Verkauf von Aktien (condition: Verkaufsregel)"
+      ]
     }
   ],
   "luecken": {
     "bilanz": "Die SEC-Quelle liest nur die Pressemitteilung zu den Zahlen (8-K, Punkt 2.02), und core_text schneidet die Bilanz weg. Barmittel, Schulden und Vorräte kommen so nur aus Artikeln. 10-Q und 10-K fehlen als Suchort.",
     "fonds": "Kein Suchort für Insidermeldungen (SEC Form 4) und Fondsmeldungen (SEC 13F).",
-    "berechnete_kennzahlen": "ROCE und ROIC sind Rechnungen. Marriott hat zudem lange ein negatives Eigenkapital ausgewiesen, die Eigenkapitalrendite taugt hier nicht."
+    "berechnete_kennzahlen": "ROCE und ROIC sind Rechnungen. Marriott hat zudem lange ein negatives Eigenkapital ausgewiesen, die Eigenkapitalrendite taugt hier nicht.",
+    "verkauf": "Verkäufe stehen oft nur in Pflichtmeldungen. Findet Argos nichts, heißt das nicht, dass nicht verkauft wurde: Die Antwort soll dann sagen, dass nichts vorliegt."
   }
 }

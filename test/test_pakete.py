@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import sys
 
 import pytest
@@ -11,6 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import app as app_module
 import pakete
+from domains import get_profile
 
 PAKET = {"firma": "Coca-Cola", "ticker": "KO",
          "fragen": [{"id": "a", "stufe": "1", "frage": "Was stellt Coca-Cola her?"},
@@ -109,3 +111,31 @@ def test_metis_may_delete_across_ports(client):
     r = client.options("/fragen/meine", headers={"Origin": "http://localhost:8001",
                                                  "Access-Control-Request-Method": "DELETE"})
     assert r.status_code == 200 and "DELETE" in r.headers["access-control-allow-methods"]
+
+
+def _shipped():
+    root = os.path.join(os.path.dirname(__file__), "..", "question_packages", "finance")
+    return [json.load(open(os.path.join(root, f), encoding="utf-8")) for f in sorted(os.listdir(root))
+            if f.endswith(".json")]
+
+
+def test_shipped_packages_are_valid_and_expect_only_known_relations():
+    relations = get_profile("finance").relation_types
+    for paket in _shipped():
+        pakete.normalize(paket)
+        for frage in paket["fragen"]:
+            for tripel in frage.get("erwartete_tripel", []):
+                assert re.search(r"--(\w+)-->", tripel).group(1) in relations, tripel
+            if frage.get("luecke"):
+                assert frage["luecke"].split("luecken.")[1].split()[0] in paket["luecken"], frage["id"]
+
+
+def test_shipped_investor_packages_ask_about_selling():
+    verlinkt = [p for p in _shipped() if p.get("bezug_investor", {}).get("art") == "beleg"]
+    assert len(verlinkt) == 7
+    for paket in verlinkt:
+        ids = {q["id"] for q in paket["fragen"]}
+        assert {"verkauf_position", "verkauf_grund", "verkauf_regel"} <= ids, paket["titel"]
+    stil = [p for p in _shipped() if p.get("bezug_investor", {}).get("art") == "stil"]
+    assert len(stil) == 2 and all("verkauf_regel" in {q["id"] for q in p["fragen"]} for p in stil)
+

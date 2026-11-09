@@ -36,6 +36,12 @@ QUALIFIERS = (
         "Waehrung eines Betrags in \"value\" als ISO-Code (z.B. \"EUR\" fuer Euro,\n"
         "  \"USD\" fuer US-Dollar), nur wenn der Text sie nennt. Sonst: null."),
               pattern="^[A-Z]{3}$"),
+    # Ein Tripel kann nur etwas behaupten: "hob die Prognose nicht an" blieb sonst dem Zufall ueberlassen
+    # (2026-11-09: 4 von 2320 Kanten mit Verneinung, und nur als Wort im value)
+    Qualifier("negated", "negated", "verneint", translate=False, description=(
+        "Nur \"ja\", wenn der Text die Aussage des Tripels verneint oder dementiert\n"
+        "  (\"hob die Prognose nicht an\", \"dementierte die Uebernahme\"). Sonst: null."),
+              pattern="^ja$"),
 )
 
 # technology und organization: im Graphen 122 Knoten "technology" (chip
@@ -47,13 +53,15 @@ ENTITY_TYPES = (
     "central_bank", "rating_agency", "currency", "technology", "organization", "index",
 )
 
+# sells_stake_in: Verkaeufe fielen weg, weil keine Relation passte; eine alte Beteiligung
+# blieb dann der letzte Stand (0 von 73 holds_stake_in-Kanten nannten einen Verkauf).
 # produces und plans: im Finanz-Graphen 12- bzw. 16-mal ohne passende Profil-
 # Relation (Hersteller -> Produkt, Ziele und Vorhaben eines Unternehmens)
 RELATION_TYPES = (
     "influences", "competes_with", "reports", "acquires", "affects_metric", "employed_by",
     "increases_risk_of", "triggers_decline_of", "correlates_with", "belongs_to_class",
-    "regulated_by", "increases", "decreases", "sets", "holds_stake_in", "pays_dividend", "rates",
-    "forecasts", "produces", "plans",
+    "regulated_by", "increases", "decreases", "sets", "holds_stake_in", "sells_stake_in", "pays_dividend",
+    "rates", "forecasts", "produces", "plans",
 )
 
 PROMPT_NOTES = {
@@ -66,13 +74,20 @@ PROMPT_NOTES = {
         "  Quelle: Ein \"seit Jahresbeginn\" aus einem alten Artikel ist nicht der heutige Stand.\n"
         "- Trenne berichtete Zahlen von Prognosen und Analystenschaetzungen (evidence).\n"
         "- Keine Anlageempfehlung und keine Kursprognose ueber die Tripel hinaus - auch\n"
-        "  nicht im Abschnitt mit der Vermutung."
+        "  nicht im Abschnitt mit der Vermutung.\n"
+        "- Fragt jemand nach Gruenden fuer Kauf oder Verkauf: nenne beide Seiten, jede mit Namen\n"
+        "  und Beleg, und lass die Entscheidung offen.\n"
+        "- Ein Tripel mit \"negated: ja\" ist eine Verneinung: Gib es als Verneinung wieder.\n"
+        "- Fehlt etwas in den Tripeln, schreib, dass dazu nichts vorliegt - nicht, dass es nicht so ist."
     ),
     "check": (
         "- Stichtag (as of) und Waehrung (currency): nennt ein Satz einen Wert mit einem\n"
         "  anderen Zeitpunkt oder einer anderen Waehrung als das Tripel, oder macht er einen\n"
         "  Wert ohne Stichtag zum heutigen Stand, ist er hoechstens \"teilweise\".\n"
-        "- Eine Anlageempfehlung oder Kursprognose ist nie \"gedeckt\"."
+        "- Eine Anlageempfehlung oder Kursprognose ist nie \"gedeckt\". Eine belegte Einschaetzung\n"
+        "  mit Namen (\"Needham stuft auf Kaufen\") ist keine Anlageempfehlung.\n"
+        "- Ein Tripel mit \"negated: ja\" ist eine Verneinung: Behauptet der Satz das Gegenteil,\n"
+        "  ist er \"nicht_gedeckt\"."
     ),
     "suggest": (
         "- Hat ein Fakt einen Stichtag, greife ihn in der Frage auf (z.B. \"im Juli 2023\").\n"
@@ -123,6 +138,13 @@ PROMPT_NOTES = {
         "  nicht \"reports\", mit \"evidence_level\" Prognose oder Analystenschaetzung.\n"
         "- \"acquires\" nur fuer eine vollstaendige Uebernahme. Der Kauf von Anteilen ist\n"
         "  \"holds_stake_in\" mit der Hoehe in \"value\"; ist er nur geplant, \"plans\".\n"
+        "- Verkauft oder reduziert jemand Anteile: Verkaeufer --sells_stake_in--> Firma, die Hoehe\n"
+        "  in \"value\" (\"gesamte Beteiligung\", \"von 5 auf 3 Prozent\"), den genannten Grund in\n"
+        "  \"condition\". Ein Verkauf ist nie \"holds_stake_in\".\n"
+        "- Verneinte oder dementierte Aussagen: \"hob die Prognose nicht an\" ergibt Firma\n"
+        "  --forecasts--> Prognose mit \"negated\": \"ja\". Nie als positive Aussage ablegen.\n"
+        "- Nennt jemand eine eigene Verkaufsregel: Investor --plans--> Verkauf von Aktien, die\n"
+        "  Bedingung in \"condition\".\n"
         "- Zentralbanken sind \"central_bank\", Ratingagenturen \"rating_agency\", nicht\n"
         "  \"company\". Setzt eine Zentralbank einen Zins fest oder laesst ihn unveraendert:\n"
         "  Zentralbank --sets--> Leitzins mit dem Stand in \"value\". Ein Rating: Agentur\n"
@@ -285,7 +307,7 @@ SCIENCE = Variant(
 
 PROFILE = DomainProfile("finance", QUALIFIERS, ENTITY_TYPES, RELATION_TYPES, prompt_notes=PROMPT_NOTES,
                         example_text=EXAMPLE_TEXT, example_output=EXAMPLE_OUTPUT,
-                        edge_key_fields=("as_of", "condition"),
+                        edge_key_fields=("as_of", "condition", "negated"),
                         # Nach dem Neu-Import 51 eigene Relationen des Modells
                         # (performance_1m, growth, supports, ...), 254 Kanten
                         closed_relations=True,

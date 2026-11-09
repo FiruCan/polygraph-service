@@ -174,11 +174,41 @@
       "erwartete_tripel": [
         "Münchener Rück --competes_with--> Swiss Re"
       ]
+    },
+    {
+      "id": "verkauf_position",
+      "stufe": "Verkaufssignale",
+      "frage": "Hat ACATIS die Position in Münchener Rück zuletzt verringert oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "ACATIS --sells_stake_in--> Münchener Rück (value: Höhe, condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_grund",
+      "stufe": "Verkaufssignale",
+      "frage": "Welchen Grund nannte ACATIS für eine Verringerung der Position in Münchener Rück?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "ACATIS --sells_stake_in--> Münchener Rück (condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_regel",
+      "stufe": "Verkaufssignale",
+      "frage": "Unter welchen Bedingungen verkauft Hendrik Leber nach eigener Aussage eine Aktie?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Hendrik Leber --plans--> Verkauf von Aktien (condition: Verkaufsregel)"
+      ]
     }
   ],
   "luecken": {
     "keine_sec": "Die SEC-Quelle greift hier nicht: die Münchener Rück meldet nicht bei der SEC. Quartalszahlen kommen nur aus Nachrichten; ein Suchort für die Pflichtmeldungen (EQS-Meldungen, Quartalsmitteilungen der Firma) fehlt.",
     "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
-    "fondsberichte": "Monatsberichte von Fonds sind kein Suchort; der ACATIS-Bericht ist ein PDF außerhalb der Suchseiten."
+    "fondsberichte": "Monatsberichte von Fonds sind kein Suchort; der ACATIS-Bericht ist ein PDF außerhalb der Suchseiten.",
+    "verkauf": "Verkäufe stehen oft nur in Pflichtmeldungen. Findet Argos nichts, heißt das nicht, dass nicht verkauft wurde: Die Antwort soll dann sagen, dass nichts vorliegt."
   }
 }

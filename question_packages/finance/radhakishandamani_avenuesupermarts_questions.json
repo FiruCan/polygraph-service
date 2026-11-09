@@ -179,11 +179,41 @@
         "Avenue Supermarts --reports--> Umsatz (value, currency: INR, condition: DMart Ready, as_of)"
       ],
       "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "verkauf_position",
+      "stufe": "Verkaufssignale",
+      "frage": "Hat Radhakishan Damani die Position in Avenue Supermarts zuletzt verringert oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Radhakishan Damani --sells_stake_in--> Avenue Supermarts (value: Höhe, condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_grund",
+      "stufe": "Verkaufssignale",
+      "frage": "Welchen Grund nannte Radhakishan Damani für eine Verringerung der Position in Avenue Supermarts?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Radhakishan Damani --sells_stake_in--> Avenue Supermarts (condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_regel",
+      "stufe": "Verkaufssignale",
+      "frage": "Unter welchen Bedingungen verkauft Radhakishan Damani nach eigener Aussage eine Aktie?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Radhakishan Damani --plans--> Verkauf von Aktien (condition: Verkaufsregel)"
+      ]
     }
   ],
   "luecken": {
     "keine_sec": "Die SEC-Quelle greift hier nicht: Avenue Supermarts meldet nicht bei der SEC. Quartalszahlen kommen nur aus Nachrichten; ein Suchort für die Pflichtmeldungen (NSE und BSE) fehlt.",
     "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
-    "nachrichten_indien": "Indische Zahlen kommen aus Economic Times, Mint, Business Standard und Businessline. Moneycontrol lieferte polygraph nur Teaser (getestet 2026-11-09)."
+    "nachrichten_indien": "Indische Zahlen kommen aus Economic Times, Mint, Business Standard und Businessline. Moneycontrol lieferte polygraph nur Teaser (getestet 2026-11-09).",
+    "verkauf": "Verkäufe stehen oft nur in Pflichtmeldungen. Findet Argos nichts, heißt das nicht, dass nicht verkauft wurde: Die Antwort soll dann sagen, dass nichts vorliegt."
   }
 }

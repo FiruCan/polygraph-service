@@ -170,11 +170,41 @@
         "Fuji Media --reports--> Kursentwicklung (value: Prozent, as_of)"
       ],
       "luecke": "siehe luecken.ticker"
+    },
+    {
+      "id": "verkauf_position",
+      "stufe": "Verkaufssignale",
+      "frage": "Hat Yoshiaki Murakami die Position in Fuji Media zuletzt verringert oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Yoshiaki Murakami --sells_stake_in--> Fuji Media (value: Höhe, condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_grund",
+      "stufe": "Verkaufssignale",
+      "frage": "Welchen Grund nannte Yoshiaki Murakami für eine Verringerung der Position in Fuji Media?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Yoshiaki Murakami --sells_stake_in--> Fuji Media (condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_regel",
+      "stufe": "Verkaufssignale",
+      "frage": "Unter welchen Bedingungen verkauft Yoshiaki Murakami nach eigener Aussage eine Aktie?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Yoshiaki Murakami --plans--> Verkauf von Aktien (condition: Verkaufsregel)"
+      ]
     }
   ],
   "luecken": {
     "keine_sec": "Die SEC-Quelle greift hier nicht: Fuji Media meldet keine 8-K. Quartalszahlen kommen nur aus Nachrichten; ein Suchort für die Pflichtmeldungen (TDnet, kostenpflichtige API der JPX) fehlt.",
     "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
-    "sprache": "Argos erzeugt nur deutsche und englische Suchbegriffe, die Nachrichtensuche läuft nur in de-DE und en-US. Presse in der Landessprache wird nicht durchsucht."
+    "sprache": "Argos erzeugt nur deutsche und englische Suchbegriffe, die Nachrichtensuche läuft nur in de-DE und en-US. Presse in der Landessprache wird nicht durchsucht.",
+    "verkauf": "Verkäufe stehen oft nur in Pflichtmeldungen. Findet Argos nichts, heißt das nicht, dass nicht verkauft wurde: Die Antwort soll dann sagen, dass nichts vorliegt."
   }
 }

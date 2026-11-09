@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import app as app_module
 import domains
 from domains import DomainProfile, Qualifier, assign_profile, get_profile, profile_of
-from graph.ask import build_subgraph, format_triple, triple_dict
+from graph.ask import _distinct_statements, build_subgraph, format_triple, triple_dict
 from graph.store import GraphStore
 from graph.suggest import _node_facts
 
@@ -200,7 +200,7 @@ def test_edges_rewrite_only_profile_fields(client):
 
 def test_finance_profile_has_date_and_currency():
     finance = get_profile("finance")
-    assert finance.qualifier_fields == ("value", "condition", "evidence_level", "as_of", "currency")
+    assert finance.qualifier_fields == ("value", "condition", "evidence_level", "as_of", "currency", "negated")
     assert "currency" not in finance.detail_fields  # Waehrungscode wird nicht uebersetzt
     assert "as_of" in finance.detail_fields
     assert "company" in finance.entity_types and "acquires" in finance.relation_types
@@ -327,3 +327,57 @@ def test_finance_merge_keeps_edges_with_other_date():
     store.add_triple({"subject": "Volkswagen", "relation": "reports", "object": "revenue", "source": "a", "as_of": "2024"})
     stats = store.merge_nodes("Volkswagen", "VW")
     assert stats["moved"] == 1 and len(store.graph.get_edge_data("Volkswagen", "revenue")) == 2
+
+
+def _finance_store():
+    store = GraphStore()
+    store.graph.graph["profile"] = "finance"
+    return store
+
+
+def test_finance_sale_is_stored_with_its_reason_and_survives_saving(tmp_path):
+    store = _finance_store()
+    store.add_triple({"subject": "Pershing Square", "relation": "sells_stake_in", "object": "Chipotle",
+                      "value": "gesamte Beteiligung", "condition": "schwache Zahlen", "as_of": "2025"})
+    path = str(tmp_path / "graph.gml")
+    store.save(path)
+    loaded = GraphStore()
+    loaded.load(path)
+    assert "sells_stake_in" in get_profile("finance").relation_types
+    edge = next(iter(loaded.graph["Pershing Square"]["Chipotle"].values()))
+    assert (edge["relation"], edge["value"], edge["condition"]) == ("sells_stake_in", "gesamte Beteiligung", "schwache Zahlen")
+
+
+def test_finance_negation_reaches_the_prompt_and_survives_saving(tmp_path):
+    store = _finance_store()
+    store.add_triple({"subject": "Kaffeehaus AG", "relation": "forecasts", "object": "Prognose", "negated": "ja"})
+    path = str(tmp_path / "graph.gml")
+    store.save(path)
+    loaded = GraphStore()
+    loaded.load(path)
+    edge = next(iter(loaded.graph.edges(keys=True)))
+    assert "negated: ja" in format_triple(1, loaded.graph, edge)
+    assert triple_dict(loaded.graph, edge)["negated"] == "ja"
+
+
+def test_finance_negation_does_not_replace_the_positive_statement():
+    store = _finance_store()
+    for negated in (None, "ja"):
+        store.add_triple({"subject": "Kaffeehaus AG", "relation": "forecasts", "object": "Prognose",
+                          "source": "https://example.org/a", "negated": negated})
+    assert len(store.graph["Kaffeehaus AG"]["Prognose"]) == 2
+    assert len(_distinct_statements(store.graph, list(store.graph.edges(keys=True)))) == 2
+
+
+def test_finance_negated_is_only_yes_and_is_not_translated():
+    negated = next(q for q in get_profile("finance").qualifiers if q.name == "negated")
+    assert negated.pattern == "^ja$" and not negated.translate and negated.description
+
+
+def test_finance_prompts_cover_sales_negation_and_named_opinions():
+    notes = get_profile("finance").prompt_notes
+    assert "sells_stake_in" in notes["extract"] and "negated" in notes["extract"] and "Verkaufsregel" in notes["extract"]
+    assert "beide Seiten" in notes["answer"] and "nichts vorliegt" in notes["answer"] and "negated" in notes["answer"]
+    assert "Keine Anlageempfehlung" in notes["answer"]  # eine eigene Empfehlung bleibt verboten
+    assert "keine Anlageempfehlung" in notes["check"] and "negated" in notes["check"]
+

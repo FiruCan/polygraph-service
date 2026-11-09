@@ -2,6 +2,13 @@
 
 ## Stand
 
+**Verkauf und Verneinung im Finanz-Graphen (gebaut, nur Unit-Tests, kein echter Lauf)**
+- Grund: Firu will wissen, warum gekauft und warum verkauft wird. Verkaeufe fielen weg, weil keine Relation passte, und fuer Verneinungen gab es keine Regel.
+- `domains/finance.py`: Relation `sells_stake_in`, Angabe `negated` ("ja" oder null, auch im Kantenschluessel, damit eine Verneinung die positive Aussage nicht ersetzt), Regeln fuer Extraktion, Antwort und Pruefung. Eine eigene Empfehlung bleibt verboten, eine belegte Einschaetzung mit Namen gilt nicht als Empfehlung.
+- polygraph: `VERIFY_DETAILS` und `prompts/verify.md` kennen `negated`, sonst verwirft der Pruef-Agent verneinte Tripel.
+- Pakete: Verkaufsfragen in allen Paketen mit Investor-Bezug, neu Ackman zu Chipotle.
+- Gilt nur fuer neue Importe. Ob gemma4 die Regeln befolgt, zeigt erst ein echter Lauf.
+
 **Antworten: Auswahl der Tripel nach der Frage, feste Namen, Datum (gebaut, Abschlusstest offen)**
 - Grund: Argos beantwortete das O'Neil-Paket kaum, obwohl Fakten im Graphen standen (Eigenkapitalrendite 38,02 %, Rang 138 von 716 Kanten, 100 passen ins Prompt, sortiert nur nach Konfidenz). Das Modell kennt nur das Prompt.
 - `graph/ask.py`: bei mehr als `MAX_TRIPLES` Kanten Suchbegriffe (`prompts/ask_terms.md`), seltene Begriffe zaehlen mehr, weiter entfernte Kanten weniger, 25 Plaetze fuer die sichersten. Jede Aussage nur einmal, Neueres zuerst (`graph/dates.py`). `kanten_von` filtert nach Begriff. Leere Antwort: zweiter Versuch ohne Denkschritt. Satzpruefung: Datum bleibt ein Satz, genau ein Urteil pro Satz. `triple_dict` liefert `stand` fuer Argos.

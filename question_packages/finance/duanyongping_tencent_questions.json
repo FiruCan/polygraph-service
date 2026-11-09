@@ -8,7 +8,7 @@
   "stand_graph": "2026-11-09: kein Knoten zu Tencent",
   "bezug_investor": {
     "art": "beleg",
-    "text": "Duan sagt seit Jahren, er verkaufe Puts auf Tencent, um die Aktie günstiger zu bekommen. Die Zahlen dazu stammen aus Berichten, nicht aus Pflichtmeldungen: Hongkonger Positionen stehen nicht in seiner 13F-Meldung.",
+    "text": "Duan beschreibt seit Jahren den Verkauf von Puts auf Tencent als Weg, die Aktie günstiger zu bekommen. Eine Reduzierung bestritt Duan im April 2026. Die Zahlen dazu stammen aus Berichten, nicht aus Pflichtmeldungen: Hongkonger Positionen stehen nicht in seiner 13F-Meldung.",
     "stand": "2025 bis 2026",
     "quellen": [
       "https://global.hk01.com/财经快讯/60397757/中国巴菲特-腾讯又跌了-段永平-先卖点put吧-收208万期权金",
@@ -104,7 +104,7 @@
     {
       "id": "menschen_duan",
       "stufe": "3 Menschen und Kultur",
-      "frage": "Wie begründet Duan Yongping seine Beteiligung an Tencent?",
+      "frage": "Wie begründet Duan Yongping die Beteiligung an Tencent?",
       "art": "thema",
       "erwartete_tripel": [
         "Duan Yongping --holds_stake_in--> Tencent (condition: Begründung, as_of)"
@@ -114,7 +114,7 @@
     {
       "id": "menschen_puts",
       "stufe": "3 Menschen und Kultur",
-      "frage": "Wie baut Duan Yongping seine Position in Tencent mit verkauften Put-Optionen auf?",
+      "frage": "Wie baut Duan Yongping die Position in Tencent mit verkauften Put-Optionen auf?",
       "art": "aktuell",
       "erwartete_tripel": [
         "Duan Yongping --holds_stake_in--> Tencent (condition: verkaufte Puts, as_of)"
@@ -177,12 +177,42 @@
         "Tencent --competes_with--> ByteDance (condition: Kurzvideos)"
       ],
       "luecke": "siehe luecken.sprache"
+    },
+    {
+      "id": "verkauf_position",
+      "stufe": "Verkaufssignale",
+      "frage": "Hat Duan Yongping die Position in Tencent zuletzt verringert oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Duan Yongping --sells_stake_in--> Tencent (value: Höhe, condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_grund",
+      "stufe": "Verkaufssignale",
+      "frage": "Welchen Grund nannte Duan Yongping für eine Verringerung der Position in Tencent?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Duan Yongping --sells_stake_in--> Tencent (condition: Grund, as_of)"
+      ],
+      "luecke": "siehe luecken.verkauf"
+    },
+    {
+      "id": "verkauf_regel",
+      "stufe": "Verkaufssignale",
+      "frage": "Unter welchen Bedingungen verkauft Duan Yongping nach eigener Aussage eine Aktie?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Duan Yongping --plans--> Verkauf von Aktien (condition: Verkaufsregel)"
+      ]
     }
   ],
   "luecken": {
     "keine_sec": "Die SEC-Quelle greift hier nicht: Tencent meldet keine 8-K. Quartalszahlen kommen nur aus Nachrichten; ein Suchort für die Pflichtmeldungen (HKEX News) fehlt.",
     "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
     "sprache": "Argos erzeugt nur deutsche und englische Suchbegriffe, die Nachrichtensuche läuft nur in de-DE und en-US. Presse in der Landessprache wird nicht durchsucht.",
-    "quellen_investor": "Duan schreibt meist auf Chinesisch in sozialen Netzen. Das sucht Argos nicht ab; englische Zusammenfassungen sind oft dünn belegt."
+    "quellen_investor": "Duan schreibt meist auf Chinesisch in sozialen Netzen. Das sucht Argos nicht ab; englische Zusammenfassungen sind oft dünn belegt.",
+    "verkauf": "Verkäufe stehen oft nur in Pflichtmeldungen. Findet Argos nichts, heißt das nicht, dass nicht verkauft wurde: Die Antwort soll dann sagen, dass nichts vorliegt."
   }
 }

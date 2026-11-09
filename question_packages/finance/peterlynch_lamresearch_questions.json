@@ -5,7 +5,7 @@
   "ticker": "LRCX",
   "service": "finanzen",
   "language": "de",
-  "stand_graph": "2026-11-09: 'Lam Research' mit 54 Kanten, 'Lam Research stock' mit 2 Kanten",
+  "stand_graph": "2026-11-09: 'Lam Research' mit 56 Kanten, 'Lam Research stock' mit 2 Kanten",
   "bezug_investor": {
     "art": "stil",
     "text": "Reines Stilpaket: Lam Research ist ein Testfall für Lynchs Prüfung eines Zyklikers, keine Empfehlung von Lynch."
@@ -203,6 +203,15 @@
         "Lam Research --reports--> 52-Wochen-Hoch (value, currency: USD, as_of)"
       ],
       "luecke": "siehe luecken.berechnete_kennzahlen"
+    },
+    {
+      "id": "verkauf_regel",
+      "stufe": "Verkaufssignale",
+      "frage": "Unter welchen Bedingungen verkauft Peter Lynch nach eigener Aussage eine Aktie?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Peter Lynch --plans--> Verkauf von Aktien (condition: Verkaufsregel)"
+      ]
     }
   ],
   "luecken": {
@@ -210,6 +219,7 @@
     "insider": "Kein Suchort für Insidermeldungen (SEC Form 4) und Fondsmeldungen (SEC 13F).",
     "berechnete_kennzahlen": "PEG und Abstand zum Hoch sind Rechnungen. Die Extraktion nimmt nur, was im Text steht, darum die Bausteine.",
     "relation_lieferung": "Keine Relation für Kunde oder Lieferant; wegen closed_relations=True kann die Extraktion sie nicht ablegen.",
-    "aktiensplit": "Aktiensplit 10 zu 1 im Oktober 2024: Gewinne je Aktie aus alten Berichten sind nicht direkt mit neuen vergleichbar."
+    "aktiensplit": "Aktiensplit 10 zu 1 im Oktober 2024: Gewinne je Aktie aus alten Berichten sind nicht direkt mit neuen vergleichbar.",
+    "verkauf": "Verkäufe stehen oft nur in Pflichtmeldungen. Findet Argos nichts, heißt das nicht, dass nicht verkauft wurde: Die Antwort soll dann sagen, dass nichts vorliegt."
   }
 }
