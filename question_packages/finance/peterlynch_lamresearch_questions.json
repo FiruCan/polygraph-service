@@ -1,0 +1,215 @@
+{
+  "_hinweis": "Fragen im Stil von Peter Lynch (One Up on Wall Street): erst den Firmentyp bestimmen, dann die Geschichte in zwei Minuten erzählen können, dann prüfen, ob der Preis zum Wachstum passt an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, möglichst ein Fakt, keine Kaufempfehlung. Rechnungen und Schwellenwerte stehen nicht in der Frage, sondern unter 'pruefwerte'; gefragt wird nach den Bausteinen. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'art' ist nur Doku: Argos bestimmt die Art selbst (argos/check.py). 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Peter Lynch: Lam Research",
+  "firma": "Lam Research",
+  "ticker": "LRCX",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-09: 'Lam Research' mit 54 Kanten, 'Lam Research stock' mit 2 Kanten",
+  "bezug_investor": {
+    "art": "stil",
+    "text": "Reines Stilpaket: Lam Research ist ein Testfall für Lynchs Prüfung eines Zyklikers, keine Empfehlung von Lynch."
+  },
+  "pruefwerte": {
+    "peg": "KGV geteilt durch das erwartete jährliche Gewinnwachstum; Lynch mag Werte um 1 oder darunter",
+    "vorraete": "Vorräte, die schneller wachsen als der Umsatz, sind bei Lynch ein Warnzeichen"
+  },
+  "fragen": [
+    {
+      "id": "typ_umsatz",
+      "stufe": "1 Firmentyp",
+      "frage": "Wie hoch war der Umsatz von Lam Research im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Umsatz (value, currency: USD, as_of: Geschäftsjahr)"
+      ]
+    },
+    {
+      "id": "typ_verlauf",
+      "stufe": "1 Firmentyp",
+      "frage": "Wie hoch war der Gewinn je Aktie von Lam Research in jedem der letzten drei Geschäftsjahre?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Gewinn je Aktie (value, currency: USD, as_of: je Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.aktiensplit"
+    },
+    {
+      "id": "typ_zyklus",
+      "stufe": "1 Firmentyp",
+      "frage": "In welchem Jahr sank der Umsatz von Lam Research zuletzt gegenüber dem Vorjahr, und um wie viel?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Umsatzveränderung (value: Prozent, as_of: Geschäftsjahr)"
+      ]
+    },
+    {
+      "id": "geschichte_produkte",
+      "stufe": "2 Die Geschichte",
+      "frage": "Welche Anlagen für die Chipfertigung stellt Lam Research her?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Lam Research --produces--> Ätzanlagen"
+      ]
+    },
+    {
+      "id": "geschichte_segmente",
+      "stufe": "2 Die Geschichte",
+      "frage": "Welchen Anteil am Umsatz von Lam Research hatte das Kundenservice-Geschäft im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Umsatz (value: Prozent, condition: Customer Support Business Group, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "geschichte_speicher",
+      "stufe": "2 Die Geschichte",
+      "frage": "Welchen Anteil am Systemumsatz von Lam Research hatten Foundry, DRAM und NAND im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Systemumsatz (value: Prozent, condition: Foundry, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "geschichte_kunden",
+      "stufe": "2 Die Geschichte",
+      "frage": "Welche Chiphersteller gehören zu den größten Kunden von Lam Research?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Chiphersteller --influences--> Lam Research (condition: Kunde)"
+      ],
+      "luecke": "siehe luecken.relation_lieferung"
+    },
+    {
+      "id": "preis_prognose",
+      "stufe": "3 Wachstum und Preis",
+      "frage": "Welchen Umsatz und welchen Gewinn je Aktie erwartet Lam Research für das laufende Quartal?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Lam Research --forecasts--> Umsatz (value: Spanne, currency: USD, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "preis_kgv",
+      "stufe": "3 Wachstum und Preis",
+      "frage": "Wie hoch ist das aktuelle Kurs-Gewinn-Verhältnis der Aktie von Lam Research?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Kurs-Gewinn-Verhältnis (value, as_of)"
+      ],
+      "luecke": "siehe luecken.berechnete_kennzahlen"
+    },
+    {
+      "id": "preis_erwartung",
+      "stufe": "3 Wachstum und Preis",
+      "frage": "Welches jährliche Gewinnwachstum erwarten Analysten für Lam Research in den nächsten Jahren?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Analysten --forecasts--> Gewinnwachstum von Lam Research (value: Prozent, as_of)"
+      ],
+      "luecke": "siehe luecken.berechnete_kennzahlen"
+    },
+    {
+      "id": "preis_marge",
+      "stufe": "3 Wachstum und Preis",
+      "frage": "Wie hoch war die Bruttomarge von Lam Research im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Bruttomarge (value: Prozent, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "bilanz_barmittel",
+      "stufe": "4 Bilanz",
+      "frage": "Wie viel Barmittel hielt Lam Research zum letzten Quartalsende?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Barmittel (value, currency: USD, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.bilanz"
+    },
+    {
+      "id": "bilanz_schulden",
+      "stufe": "4 Bilanz",
+      "frage": "Wie hoch sind die langfristigen Schulden von Lam Research?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> langfristige Schulden (value, currency: USD, as_of)"
+      ],
+      "luecke": "siehe luecken.bilanz"
+    },
+    {
+      "id": "bilanz_vorraete",
+      "stufe": "4 Bilanz",
+      "frage": "Wie hoch waren die Vorräte von Lam Research zum letzten Quartalsende?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Vorräte (value, currency: USD, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.bilanz"
+    },
+    {
+      "id": "insider_rueckkauf",
+      "stufe": "5 Insider und Rückkäufe",
+      "frage": "Für wie viel Geld kaufte Lam Research im letzten Quartal eigene Aktien zurück?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Aktienrückkauf (value, currency: USD, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "insider_kaeufe",
+      "stufe": "5 Insider und Rückkäufe",
+      "frage": "Haben Vorstände von Lam Research in den letzten zwölf Monaten eigene Aktien gekauft oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Person --holds_stake_in--> Lam Research (value: Stückzahl und Veränderung, as_of, evidence: Form 4)"
+      ],
+      "luecke": "siehe luecken.insider"
+    },
+    {
+      "id": "risiko_china",
+      "stufe": "6 Was die Geschichte beenden könnte",
+      "frage": "Welchen Anteil am Umsatz von Lam Research hatte China im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Lam Research --reports--> Umsatz (value: Prozent, condition: China, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "risiko_export",
+      "stufe": "6 Was die Geschichte beenden könnte",
+      "frage": "Welche US-Exportbeschränkungen betreffen Lam Research derzeit?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Lam Research --regulated_by--> US-Exportkontrollen (condition: China)"
+      ]
+    },
+    {
+      "id": "risiko_konkurrenz",
+      "stufe": "6 Was die Geschichte beenden könnte",
+      "frage": "Mit welchen Firmen konkurriert Lam Research bei Ätz- und Abscheideanlagen?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Lam Research --competes_with--> Applied Materials (condition: Ätzanlagen)"
+      ]
+    },
+    {
+      "id": "risiko_hoch",
+      "stufe": "6 Was die Geschichte beenden könnte",
+      "frage": "Wie hoch ist das 52-Wochen-Hoch der Aktie von Lam Research (LRCX), und wie hoch ist der aktuelle Kurs?",
+      "art": "kurs",
+      "erwartete_tripel": [
+        "Lam Research --reports--> 52-Wochen-Hoch (value, currency: USD, as_of)"
+      ],
+      "luecke": "siehe luecken.berechnete_kennzahlen"
+    }
+  ],
+  "luecken": {
+    "bilanz": "Die SEC-Quelle liest nur die Pressemitteilung zu den Zahlen (8-K, Punkt 2.02), und core_text schneidet die Bilanz weg. Barmittel, Schulden und Vorräte kommen so nur aus Artikeln. 10-Q und 10-K fehlen als Suchort.",
+    "insider": "Kein Suchort für Insidermeldungen (SEC Form 4) und Fondsmeldungen (SEC 13F).",
+    "berechnete_kennzahlen": "PEG und Abstand zum Hoch sind Rechnungen. Die Extraktion nimmt nur, was im Text steht, darum die Bausteine.",
+    "relation_lieferung": "Keine Relation für Kunde oder Lieferant; wegen closed_relations=True kann die Extraktion sie nicht ablegen.",
+    "aktiensplit": "Aktiensplit 10 zu 1 im Oktober 2024: Gewinne je Aktie aus alten Berichten sind nicht direkt mit neuen vergleichbar."
+  }
+}

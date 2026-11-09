@@ -1,0 +1,188 @@
+{
+  "_hinweis": "Fragen im Stil von Duan Yongping (China, H&H International): nur kaufen, was man versteht, langfristig denken, auf den Preis erst danach achten an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, möglichst ein Fakt, keine Kaufempfehlung. Rechnungen und Schwellenwerte stehen nicht in der Frage, sondern unter 'pruefwerte'; gefragt wird nach den Bausteinen. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'art' ist nur Doku: Argos bestimmt die Art selbst (argos/check.py). 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Duan Yongping: Tencent",
+  "firma": "Tencent",
+  "ticker": "0700.HK",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-09: kein Knoten zu Tencent",
+  "bezug_investor": {
+    "art": "beleg",
+    "text": "Duan sagt seit Jahren, er verkaufe Puts auf Tencent, um die Aktie günstiger zu bekommen. Die Zahlen dazu stammen aus Berichten, nicht aus Pflichtmeldungen: Hongkonger Positionen stehen nicht in seiner 13F-Meldung.",
+    "stand": "2025 bis 2026",
+    "quellen": [
+      "https://global.hk01.com/财经快讯/60397757/中国巴菲特-腾讯又跌了-段永平-先卖点put吧-收208万期权金",
+      "https://moomoo.com/community/feed/china-s-buffett-buys-more-tencent-112999671201798",
+      "https://dataroma.com/m/holdings.php?m=HH"
+    ]
+  },
+  "fragen": [
+    {
+      "id": "geschaeft_segmente",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "In welche Geschäftsbereiche teilt Tencent seinen Umsatz auf?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Tencent --reports--> Umsatz (value, condition: Segment, as_of)"
+      ]
+    },
+    {
+      "id": "geschaeft_nutzer",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Wie viele monatlich aktive Nutzer hatte Weixin und WeChat zuletzt?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Tencent --reports--> monatlich aktive Nutzer (value, condition: Weixin und WeChat, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "geschaeft_spiele",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Wie stark wuchs der Umsatz von Tencent mit Spielen im letzten Quartal?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Tencent --reports--> Umsatz mit Spielen (value: Prozent, condition: gegenüber Vorjahresquartal, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "geschaeft_werbung",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Wie stark wuchs der Werbeumsatz von Tencent im letzten Quartal?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Tencent --reports--> Werbeumsatz (value: Prozent, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "zahlen_umsatz",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch war der Umsatz von Tencent im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Tencent --reports--> Umsatz (value, currency: CNY, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_gewinn",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch war der um Sondereffekte bereinigte Gewinn (Non-IFRS) von Tencent im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Tencent --reports--> Non-IFRS-Gewinn (value, currency: CNY, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_cashflow",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch war der freie Cashflow von Tencent im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Tencent --reports--> freier Cashflow (value, currency: CNY, as_of: Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_investitionen",
+      "stufe": "2 Zahlen",
+      "frage": "Wie viel investierte Tencent zuletzt in KI und Rechenzentren?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Tencent --reports--> Investitionsausgaben (value, currency: CNY, condition: KI, as_of)"
+      ]
+    },
+    {
+      "id": "menschen_fuehrung",
+      "stufe": "3 Menschen und Kultur",
+      "frage": "Wer führt Tencent als Vorstandschef?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Person --employed_by--> Tencent (condition: Vorstandschef)"
+      ]
+    },
+    {
+      "id": "menschen_duan",
+      "stufe": "3 Menschen und Kultur",
+      "frage": "Wie begründet Duan Yongping seine Beteiligung an Tencent?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Duan Yongping --holds_stake_in--> Tencent (condition: Begründung, as_of)"
+      ],
+      "luecke": "siehe luecken.quellen_investor"
+    },
+    {
+      "id": "menschen_puts",
+      "stufe": "3 Menschen und Kultur",
+      "frage": "Wie baut Duan Yongping seine Position in Tencent mit verkauften Put-Optionen auf?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Duan Yongping --holds_stake_in--> Tencent (condition: verkaufte Puts, as_of)"
+      ],
+      "luecke": "siehe luecken.quellen_investor"
+    },
+    {
+      "id": "preis_kgv",
+      "stufe": "4 Preis",
+      "frage": "Wie hoch ist das aktuelle Kurs-Gewinn-Verhältnis der Tencent-Aktie?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Tencent --reports--> Kurs-Gewinn-Verhältnis (value, as_of)"
+      ]
+    },
+    {
+      "id": "preis_rueckkauf",
+      "stufe": "4 Preis",
+      "frage": "Für wie viel Geld kauft Tencent in diesem Jahr eigene Aktien zurück?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Tencent --reports--> Aktienrückkauf (value, currency: HKD, as_of: Jahr)"
+      ]
+    },
+    {
+      "id": "preis_kurs",
+      "stufe": "4 Preis",
+      "frage": "Wie hat sich die Tencent-Aktie (0700.HK) seit Jahresbeginn entwickelt?",
+      "art": "kurs",
+      "erwartete_tripel": [
+        "Tencent --reports--> Kursentwicklung (value: Prozent, condition: seit Jahresbeginn, as_of)"
+      ],
+      "luecke": "siehe luecken.ticker"
+    },
+    {
+      "id": "risiko_regulierung",
+      "stufe": "5 Risiken",
+      "frage": "Welche chinesischen Vorschriften zu Spielen betreffen Tencent derzeit?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Tencent --regulated_by--> chinesische Spielevorschriften (as_of)"
+      ],
+      "luecke": "siehe luecken.sprache"
+    },
+    {
+      "id": "risiko_usa",
+      "stufe": "5 Risiken",
+      "frage": "Welche Folgen hat die US-Liste chinesischer Militärunternehmen für Tencent?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "US-Liste chinesischer Militärunternehmen --increases_risk_of--> Tencent (as_of)"
+      ]
+    },
+    {
+      "id": "risiko_konkurrenz",
+      "stufe": "5 Risiken",
+      "frage": "Mit welchen Firmen konkurriert Tencent bei Kurzvideos und KI-Modellen?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Tencent --competes_with--> ByteDance (condition: Kurzvideos)"
+      ],
+      "luecke": "siehe luecken.sprache"
+    }
+  ],
+  "luecken": {
+    "keine_sec": "Die SEC-Quelle greift hier nicht: Tencent meldet keine 8-K. Quartalszahlen kommen nur aus Nachrichten; ein Suchort für die Pflichtmeldungen (HKEX News) fehlt.",
+    "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
+    "sprache": "Argos erzeugt nur deutsche und englische Suchbegriffe, die Nachrichtensuche läuft nur in de-DE und en-US. Presse in der Landessprache wird nicht durchsucht.",
+    "quellen_investor": "Duan schreibt meist auf Chinesisch in sozialen Netzen. Das sucht Argos nicht ab; englische Zusammenfassungen sind oft dünn belegt."
+  }
+}

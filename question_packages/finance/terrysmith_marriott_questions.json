@@ -1,0 +1,182 @@
+{
+  "_hinweis": "Fragen im Stil von Terry Smith (Großbritannien, Fundsmith): gute Firmen kaufen, nicht zu viel zahlen, wenig tun; seit 2026 auch stärker auf die Gewinndynamik achten an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, möglichst ein Fakt, keine Kaufempfehlung. Rechnungen und Schwellenwerte stehen nicht in der Frage, sondern unter 'pruefwerte'; gefragt wird nach den Bausteinen. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'art' ist nur Doku: Argos bestimmt die Art selbst (argos/check.py). 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Terry Smith: Marriott",
+  "firma": "Marriott International",
+  "ticker": "MAR",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-09: kein Knoten zu Marriott International",
+  "bezug_investor": {
+    "art": "beleg",
+    "text": "Marriott war zum 31.03.2026 die größte US-Position von Fundsmith (8,59 Prozent laut Datenanbietern, aus der 13F-Meldung). Das sind Daten von Aggregatoren. Ob die Position noch gilt, ist nicht geprüft.",
+    "stand": "2026-03-31",
+    "quellen": [
+      "https://eulerpool.com/superinvestors/terry-smith-fundsmith",
+      "https://global.morningstar.com/en-gb/funds/what-terry-smiths-latest-fundsmith-letter-means-investors"
+    ]
+  },
+  "fragen": [
+    {
+      "id": "gut_modell",
+      "stufe": "1 Gute Firma",
+      "frage": "Wie viel seiner Hotels besitzt Marriott selbst, und wie viele laufen über Management- und Franchiseverträge?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Marriott --reports--> Zimmer (value: Anteil, condition: Franchise und Management, as_of)"
+      ]
+    },
+    {
+      "id": "gut_gebuehren",
+      "stufe": "1 Gute Firma",
+      "frage": "Wie hoch waren die Gebühreneinnahmen von Marriott im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Marriott --reports--> Gebühreneinnahmen (value, currency: USD, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "gut_marge",
+      "stufe": "1 Gute Firma",
+      "frage": "Wie hoch war das bereinigte EBITDA von Marriott im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Marriott --reports--> bereinigtes EBITDA (value, currency: USD, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "gut_rendite",
+      "stufe": "1 Gute Firma",
+      "frage": "Wie hoch ist die Kapitalrendite (ROCE oder ROIC) von Marriott?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Marriott --reports--> Kapitalrendite (value: Prozent, as_of)"
+      ],
+      "luecke": "siehe luecken.berechnete_kennzahlen"
+    },
+    {
+      "id": "gut_cashflow",
+      "stufe": "1 Gute Firma",
+      "frage": "Wie hoch war der freie Cashflow von Marriott im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Marriott --reports--> freier Cashflow (value, currency: USD, as_of: Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.bilanz"
+    },
+    {
+      "id": "wachstum_revpar",
+      "stufe": "2 Wachstum und Dynamik",
+      "frage": "Wie stark veränderte sich der weltweite Umsatz je verfügbarem Zimmer (RevPAR) von Marriott im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Marriott --reports--> RevPAR (value: Prozent, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "wachstum_zimmer",
+      "stufe": "2 Wachstum und Dynamik",
+      "frage": "Um wie viel Prozent wuchs die Zimmerzahl von Marriott netto im letzten Jahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Marriott --reports--> Nettozimmerwachstum (value: Prozent, as_of)"
+      ]
+    },
+    {
+      "id": "wachstum_pipeline",
+      "stufe": "2 Wachstum und Dynamik",
+      "frage": "Wie viele Zimmer hat Marriott in der Entwicklungspipeline?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Marriott --reports--> Entwicklungspipeline (value, as_of)"
+      ]
+    },
+    {
+      "id": "wachstum_prognose",
+      "stufe": "2 Wachstum und Dynamik",
+      "frage": "Welches Gewinn je Aktie erwartet Marriott für das laufende Jahr?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Marriott --forecasts--> Gewinn je Aktie (value: Spanne, currency: USD, as_of)"
+      ]
+    },
+    {
+      "id": "preis_kgv",
+      "stufe": "3 Nicht zu viel zahlen",
+      "frage": "Wie hoch ist das aktuelle Kurs-Gewinn-Verhältnis der Marriott-Aktie?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Marriott --reports--> Kurs-Gewinn-Verhältnis (value, as_of)"
+      ]
+    },
+    {
+      "id": "preis_ziele",
+      "stufe": "3 Nicht zu viel zahlen",
+      "frage": "Welche Kursziele nannten Analysten zuletzt für Marriott?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Analyst --forecasts--> Kursziel von Marriott (value, currency: USD, as_of)"
+      ]
+    },
+    {
+      "id": "preis_kurs",
+      "stufe": "3 Nicht zu viel zahlen",
+      "frage": "Wie hat sich die Marriott-Aktie (MAR) seit Jahresbeginn entwickelt?",
+      "art": "kurs",
+      "erwartete_tripel": [
+        "Marriott --reports--> Kursentwicklung (value: Prozent, condition: seit Jahresbeginn, as_of)"
+      ]
+    },
+    {
+      "id": "kapital_rueckkauf",
+      "stufe": "4 Kapital",
+      "frage": "Wie viel Kapital will Marriott in diesem Jahr an die Aktionäre zurückgeben?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Marriott --plans--> Kapitalrückgabe (value, currency: USD, as_of: Jahr)"
+      ]
+    },
+    {
+      "id": "kapital_schulden",
+      "stufe": "4 Kapital",
+      "frage": "Wie hoch ist die Nettoverschuldung von Marriott?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Marriott --reports--> Nettoverschuldung (value, currency: USD, as_of)"
+      ],
+      "luecke": "siehe luecken.bilanz"
+    },
+    {
+      "id": "kapital_fundsmith",
+      "stufe": "4 Kapital",
+      "frage": "Wie viel Prozent seines Portfolios hält Fundsmith in Marriott?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fundsmith --holds_stake_in--> Marriott (value: Prozent, as_of, evidence: 13F)"
+      ],
+      "luecke": "siehe luecken.fonds"
+    },
+    {
+      "id": "risiko_nachfrage",
+      "stufe": "5 Risiken",
+      "frage": "In welchen Regionen sank die Nachfrage nach Marriott-Hotels im letzten Quartal?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Nachfrage --decreases--> RevPAR von Marriott (condition: Region, as_of)"
+      ]
+    },
+    {
+      "id": "risiko_konkurrenz",
+      "stufe": "5 Risiken",
+      "frage": "Mit welchen Hotelgruppen konkurriert Marriott?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Marriott --competes_with--> Hilton"
+      ]
+    }
+  ],
+  "luecken": {
+    "bilanz": "Die SEC-Quelle liest nur die Pressemitteilung zu den Zahlen (8-K, Punkt 2.02), und core_text schneidet die Bilanz weg. Barmittel, Schulden und Vorräte kommen so nur aus Artikeln. 10-Q und 10-K fehlen als Suchort.",
+    "fonds": "Kein Suchort für Insidermeldungen (SEC Form 4) und Fondsmeldungen (SEC 13F).",
+    "berechnete_kennzahlen": "ROCE und ROIC sind Rechnungen. Marriott hat zudem lange ein negatives Eigenkapital ausgewiesen, die Eigenkapitalrendite taugt hier nicht."
+  }
+}

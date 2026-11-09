@@ -1,0 +1,189 @@
+{
+  "_hinweis": "Fragen im Stil von Radhakishan Damani (Indien): lange halten und wie ein Eigentümer denken, im Handel mit eigenen Läden und niedrigen Preisen an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, möglichst ein Fakt, keine Kaufempfehlung. Rechnungen und Schwellenwerte stehen nicht in der Frage, sondern unter 'pruefwerte'; gefragt wird nach den Bausteinen. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'art' ist nur Doku: Argos bestimmt die Art selbst (argos/check.py). 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Radhakishan Damani: Avenue Supermarts",
+  "firma": "Avenue Supermarts",
+  "ticker": "DMART.NS",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-09: kein Knoten zu Avenue Supermarts",
+  "bezug_investor": {
+    "art": "beleg",
+    "text": "Damani gründete Avenue Supermarts (DMart). Die Familie und ihre Gesellschaften sind größter Eigentümer; ein Anlage-Tracker nennt rund 67 Prozent im März 2026. Die Zahl ist nicht gegen die Pflichtmeldung geprüft.",
+    "stand": "2026-03",
+    "quellen": [
+      "https://kuvera.in/blog/radhakishan-damani-portfolio-net-worth-holdings-investment-strategy-latest-updates-2026/",
+      "https://www.5paisa.com/blog/radhakishan-damani-portfolio-2025"
+    ]
+  },
+  "fragen": [
+    {
+      "id": "geschaeft_modell",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Mietet oder besitzt Avenue Supermarts seine DMart-Läden überwiegend?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> eigene Läden (value: Anteil, as_of)"
+      ]
+    },
+    {
+      "id": "geschaeft_laeden",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Wie viele DMart-Läden betrieb Avenue Supermarts zum letzten Quartalsende?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> Zahl der Läden (value, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "geschaeft_neu",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Wie viele neue Läden eröffnete Avenue Supermarts im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> Neueröffnungen (value, as_of: Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "geschaeft_flaeche",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Wie hoch war der Umsatz je Quadratfuß von DMart im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> Umsatz je Quadratfuß (value, currency: INR, as_of: Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_umsatz",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch war der Umsatz von Avenue Supermarts im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> Umsatz (value, currency: INR, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_gewinn",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch war der Nettogewinn von Avenue Supermarts im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> Nettogewinn (value, currency: INR, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_marge",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch war die EBITDA-Marge von Avenue Supermarts im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> EBITDA-Marge (value: Prozent, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_schulden",
+      "stufe": "2 Zahlen",
+      "frage": "Hat Avenue Supermarts nennenswerte Schulden?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> Schulden (value, currency: INR, as_of)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "eigner_anteil",
+      "stufe": "3 Eigentümer und Führung",
+      "frage": "Wie viel Prozent an Avenue Supermarts hält die Gründerseite um Radhakishan Damani?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Radhakishan Damani --holds_stake_in--> Avenue Supermarts (value: Prozent, as_of)"
+      ]
+    },
+    {
+      "id": "eigner_fuehrung",
+      "stufe": "3 Eigentümer und Führung",
+      "frage": "Wer führt Avenue Supermarts als Vorstandschef?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Person --employed_by--> Avenue Supermarts (condition: Vorstandschef, as_of)"
+      ]
+    },
+    {
+      "id": "eigner_portfolio",
+      "stufe": "3 Eigentümer und Führung",
+      "frage": "An welchen anderen börsennotierten Firmen ist Radhakishan Damani beteiligt?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Radhakishan Damani --holds_stake_in--> Firma (value: Prozent, as_of)"
+      ]
+    },
+    {
+      "id": "preis_kgv",
+      "stufe": "4 Preis",
+      "frage": "Wie hoch ist das aktuelle Kurs-Gewinn-Verhältnis der Aktie von Avenue Supermarts?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> Kurs-Gewinn-Verhältnis (value, as_of)"
+      ]
+    },
+    {
+      "id": "preis_analysten",
+      "stufe": "4 Preis",
+      "frage": "Welche Kursziele nennen Analysten zuletzt für Avenue Supermarts?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Analyst --forecasts--> Kursziel von Avenue Supermarts (value, currency: INR, as_of)"
+      ]
+    },
+    {
+      "id": "preis_kurs",
+      "stufe": "4 Preis",
+      "frage": "Wie hat sich die Aktie von Avenue Supermarts (DMART.NS) seit Jahresbeginn entwickelt?",
+      "art": "kurs",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> Kursentwicklung (value: Prozent, condition: seit Jahresbeginn, as_of)"
+      ],
+      "luecke": "siehe luecken.ticker"
+    },
+    {
+      "id": "risiko_schnell",
+      "stufe": "5 Risiken",
+      "frage": "Wie wirken sich Schnelllieferdienste wie Blinkit und Zepto auf das Wachstum von DMart aus?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Schnelllieferdienste --decreases--> Umsatzwachstum von DMart (value, as_of)"
+      ],
+      "luecke": "siehe luecken.nachrichten_indien"
+    },
+    {
+      "id": "risiko_konkurrenz",
+      "stufe": "5 Risiken",
+      "frage": "Mit welchen Handelsketten konkurriert DMart in Indien?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Avenue Supermarts --competes_with--> Reliance Retail"
+      ],
+      "luecke": "siehe luecken.nachrichten_indien"
+    },
+    {
+      "id": "risiko_online",
+      "stufe": "5 Risiken",
+      "frage": "Wie viel Umsatz macht Avenue Supermarts mit DMart Ready?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Avenue Supermarts --reports--> Umsatz (value, currency: INR, condition: DMart Ready, as_of)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    }
+  ],
+  "luecken": {
+    "keine_sec": "Die SEC-Quelle greift hier nicht: Avenue Supermarts meldet nicht bei der SEC. Quartalszahlen kommen nur aus Nachrichten; ein Suchort für die Pflichtmeldungen (NSE und BSE) fehlt.",
+    "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
+    "nachrichten_indien": "Indische Zahlen kommen aus Economic Times, Mint, Business Standard und Businessline. Moneycontrol lieferte polygraph nur Teaser (getestet 2026-11-09)."
+  }
+}

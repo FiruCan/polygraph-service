@@ -1,0 +1,184 @@
+{
+  "_hinweis": "Fragen im Stil von Hendrik Leber (Deutschland, ACATIS): Value-Investor, wählt Qualität zum vernünftigen Preis und achtet auf die Bewertung an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, möglichst ein Fakt, keine Kaufempfehlung. Rechnungen und Schwellenwerte stehen nicht in der Frage, sondern unter 'pruefwerte'; gefragt wird nach den Bausteinen. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'art' ist nur Doku: Argos bestimmt die Art selbst (argos/check.py). 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Hendrik Leber: Münchener Rück",
+  "firma": "Münchener Rück",
+  "ticker": "MUV2.DE",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-09: kein Knoten zu Münchener Rück",
+  "bezug_investor": {
+    "art": "beleg",
+    "text": "Die Münchener Rück war zum 30.04.2026 mit 3,5 Prozent unter den größten Positionen des ACATIS Value und Dividende, mit 2,6 Prozent auch in einem weiteren ACATIS-Fonds. Das ist ein Bezug zum Haus ACATIS, das Leber gegründet hat, keine persönliche Empfehlung von Leber.",
+    "stand": "2026-04-30",
+    "quellen": [
+      "https://www.acatis.de/fileadmin/user_upload/ACATIS_Investmentbericht_Mai_2026.pdf"
+    ]
+  },
+  "fragen": [
+    {
+      "id": "geschaeft_segmente",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Wie viel steuerten Rückversicherung und ERGO zuletzt zum Gewinn der Münchener Rück bei?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Münchener Rück --reports--> Gewinn (value, currency: EUR, condition: Segment, as_of)"
+      ]
+    },
+    {
+      "id": "geschaeft_rueck",
+      "stufe": "1 Geschäft verstehen",
+      "frage": "Welche Risiken versichert die Münchener Rück als Rückversicherer?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Münchener Rück --produces--> Rückversicherung (condition: Sparte)"
+      ]
+    },
+    {
+      "id": "zahlen_quartal",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch war der Gewinn der Münchener Rück im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Münchener Rück --reports--> Gewinn (value, currency: EUR, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_ziel",
+      "stufe": "2 Zahlen",
+      "frage": "Welches Gewinnziel nennt die Münchener Rück für das laufende Jahr?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Münchener Rück --forecasts--> Gewinn (value, currency: EUR, as_of: Jahr)"
+      ]
+    },
+    {
+      "id": "zahlen_quote",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch war die Schaden-Kosten-Quote in der Schaden- und Unfall-Rückversicherung im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Münchener Rück --reports--> Schaden-Kosten-Quote (value: Prozent, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_grossschaeden",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch waren die Großschäden der Münchener Rück im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Münchener Rück --reports--> Großschäden (value, currency: EUR, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_ek",
+      "stufe": "2 Zahlen",
+      "frage": "Wie hoch ist die Eigenkapitalrendite der Münchener Rück?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Münchener Rück --reports--> Eigenkapitalrendite (value: Prozent, as_of)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "kapital_solvenz",
+      "stufe": "3 Kapital und Ausschüttung",
+      "frage": "Wie hoch ist die Solvenzquote der Münchener Rück?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Münchener Rück --reports--> Solvenzquote (value: Prozent, as_of)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "kapital_dividende",
+      "stufe": "3 Kapital und Ausschüttung",
+      "frage": "Wie hoch war die letzte Dividende der Münchener Rück je Aktie?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Münchener Rück --pays_dividend--> Dividende (value, currency: EUR, as_of)"
+      ]
+    },
+    {
+      "id": "kapital_rueckkauf",
+      "stufe": "3 Kapital und Ausschüttung",
+      "frage": "Wie groß ist das aktuelle Aktienrückkaufprogramm der Münchener Rück?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Münchener Rück --plans--> Aktienrückkauf (value, currency: EUR, as_of)"
+      ]
+    },
+    {
+      "id": "preis_kgv",
+      "stufe": "4 Preis",
+      "frage": "Wie hoch ist das aktuelle Kurs-Gewinn-Verhältnis der Aktie der Münchener Rück?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Münchener Rück --reports--> Kurs-Gewinn-Verhältnis (value, as_of)"
+      ]
+    },
+    {
+      "id": "preis_analysten",
+      "stufe": "4 Preis",
+      "frage": "Welche Kursziele nannten Analysten zuletzt für die Münchener Rück?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Analyst --forecasts--> Kursziel von Münchener Rück (value, currency: EUR, as_of)"
+      ]
+    },
+    {
+      "id": "preis_kurs",
+      "stufe": "4 Preis",
+      "frage": "Wie hat sich die Aktie der Münchener Rück (MUV2.DE) seit Jahresbeginn entwickelt?",
+      "art": "kurs",
+      "erwartete_tripel": [
+        "Münchener Rück --reports--> Kursentwicklung (value: Prozent, condition: seit Jahresbeginn, as_of)"
+      ],
+      "luecke": "siehe luecken.ticker"
+    },
+    {
+      "id": "risiko_acatis",
+      "stufe": "5 Eigentümer und Risiken",
+      "frage": "Wie hoch ist der Anteil der Münchener Rück in den Fonds von ACATIS?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "ACATIS --holds_stake_in--> Münchener Rück (value: Prozent des Fonds, as_of)"
+      ],
+      "luecke": "siehe luecken.fondsberichte"
+    },
+    {
+      "id": "risiko_preise",
+      "stufe": "5 Eigentümer und Risiken",
+      "frage": "Wie entwickelten sich die Preise bei den letzten Vertragserneuerungen der Münchener Rück?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Münchener Rück --reports--> Preisänderung bei Vertragserneuerung (value: Prozent, as_of)"
+      ]
+    },
+    {
+      "id": "risiko_klima",
+      "stufe": "5 Eigentümer und Risiken",
+      "frage": "Wie stark belasten Naturkatastrophen das Ergebnis der Münchener Rück?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Naturkatastrophen --decreases--> Gewinn von Münchener Rück (value, currency: EUR, as_of)"
+      ]
+    },
+    {
+      "id": "risiko_konkurrenz",
+      "stufe": "5 Eigentümer und Risiken",
+      "frage": "Mit welchen Rückversicherern konkurriert die Münchener Rück?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Münchener Rück --competes_with--> Swiss Re"
+      ]
+    }
+  ],
+  "luecken": {
+    "keine_sec": "Die SEC-Quelle greift hier nicht: die Münchener Rück meldet nicht bei der SEC. Quartalszahlen kommen nur aus Nachrichten; ein Suchort für die Pflichtmeldungen (EQS-Meldungen, Quartalsmitteilungen der Firma) fehlt.",
+    "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
+    "fondsberichte": "Monatsberichte von Fonds sind kein Suchort; der ACATIS-Bericht ist ein PDF außerhalb der Suchseiten."
+  }
+}

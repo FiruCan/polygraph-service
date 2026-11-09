@@ -1,0 +1,180 @@
+{
+  "_hinweis": "Fragen im Stil von Yoshiaki Murakami (Japan, aktivistischer Investor): Firmen mit brachliegendem Kapital zu besserer Nutzung, Rückkäufen und Verkäufen drängen an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, möglichst ein Fakt, keine Kaufempfehlung. Rechnungen und Schwellenwerte stehen nicht in der Frage, sondern unter 'pruefwerte'; gefragt wird nach den Bausteinen. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'art' ist nur Doku: Argos bestimmt die Art selbst (argos/check.py). 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Yoshiaki Murakami: Fuji Media",
+  "firma": "Fuji Media Holdings",
+  "ticker": "4676.T",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-09: kein Knoten zu Fuji Media Holdings",
+  "bezug_investor": {
+    "art": "beleg",
+    "text": "Fuji Media kaufte im Februar 2026 Aktien für rund 235 Mrd. Yen von Aya Nomura und Murakami-nahen Fonds zurück. Im März 2026 meldete die Murakami-nahe Atra wieder 1,29 Prozent und bot mit Partnern 350 Mrd. Yen für das Immobiliengeschäft. Spätere Entwicklungen sind nicht geprüft.",
+    "stand": "2026-03",
+    "quellen": [
+      "https://www.bloomberg.com/news/articles/2026-02-04/fuji-media-shares-plunge-as-buyback-plan-may-see-activist-exit",
+      "https://english.adnkronos.com/2026/02/05/fuji-media-buys-back-shares-worth-235-b-yen/",
+      "https://www.nippon.com/en/news/yjj2026032700584"
+    ]
+  },
+  "fragen": [
+    {
+      "id": "anteil_aktuell",
+      "stufe": "1 Beteiligung",
+      "frage": "Wie viel Prozent an Fuji Media halten Murakami-nahe Investoren aktuell?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Atra --holds_stake_in--> Fuji Media (value: Prozent, as_of)"
+      ],
+      "luecke": "siehe luecken.sprache"
+    },
+    {
+      "id": "anteil_rueckkauf",
+      "stufe": "1 Beteiligung",
+      "frage": "Zu welchem Preis kaufte Fuji Media im Februar 2026 Aktien von Murakami-nahen Investoren zurück?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fuji Media --reports--> Aktienrückkauf (value, currency: JPY, condition: Preis je Aktie, as_of: Februar 2026)"
+      ]
+    },
+    {
+      "id": "anteil_toho",
+      "stufe": "1 Beteiligung",
+      "frage": "Wie viel Prozent an Fuji Media hält Toho?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Toho --holds_stake_in--> Fuji Media (value: Prozent, as_of)"
+      ]
+    },
+    {
+      "id": "kapital_barmittel",
+      "stufe": "2 Brachliegendes Kapital",
+      "frage": "Wie viel Barmittel hielt Fuji Media zum letzten Berichtstermin?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Fuji Media --reports--> Barmittel (value, currency: JPY, as_of)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "kapital_kbv",
+      "stufe": "2 Brachliegendes Kapital",
+      "frage": "Wie hoch ist das Kurs-Buchwert-Verhältnis von Fuji Media?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fuji Media --reports--> Kurs-Buchwert-Verhältnis (value, as_of)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "kapital_immobilien",
+      "stufe": "2 Brachliegendes Kapital",
+      "frage": "Wie viel Gewinn trug das Immobiliengeschäft zuletzt zum Betriebsergebnis von Fuji Media bei?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Fuji Media --reports--> Betriebsergebnis (value, currency: JPY, condition: Immobilien, as_of)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "forderung_immobilien",
+      "stufe": "3 Forderungen und Antworten",
+      "frage": "Was plant Fuji Media mit seinem Immobiliengeschäft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fuji Media --plans--> Verkauf des Immobiliengeschäfts (as_of)"
+      ]
+    },
+    {
+      "id": "forderung_angebot",
+      "stufe": "3 Forderungen und Antworten",
+      "frage": "Wer hat für das Immobiliengeschäft von Fuji Media geboten, und wie hoch war das Angebot?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Atra --plans--> Kauf des Immobiliengeschäfts von Fuji Media (value, currency: JPY, as_of)"
+      ]
+    },
+    {
+      "id": "forderung_abwehr",
+      "stufe": "3 Forderungen und Antworten",
+      "frage": "Welche Abwehrmaßnahmen hat Fuji Media gegen Murakami-nahe Investoren erwogen oder beschlossen?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fuji Media --plans--> Abwehrmaßnahme (condition: Giftpille, as_of)"
+      ]
+    },
+    {
+      "id": "forderung_ende",
+      "stufe": "3 Forderungen und Antworten",
+      "frage": "Wie ist der aktuelle Stand im Streit zwischen Fuji Media und Murakami-nahen Investoren?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fuji Media --influences--> Atra (condition: Stand des Streits, as_of)"
+      ],
+      "luecke": "siehe luecken.sprache"
+    },
+    {
+      "id": "zahlen_umsatz",
+      "stufe": "4 Zahlen",
+      "frage": "Wie hoch war der Umsatz von Fuji Media im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Fuji Media --reports--> Umsatz (value, currency: JPY, as_of: Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_ergebnis",
+      "stufe": "4 Zahlen",
+      "frage": "Wie hoch war das Nettoergebnis von Fuji Media im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Fuji Media --reports--> Nettoergebnis (value, currency: JPY, as_of: Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "zahlen_prognose",
+      "stufe": "4 Zahlen",
+      "frage": "Welches Ergebnis erwartet Fuji Media für das laufende Geschäftsjahr?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fuji Media --forecasts--> Nettoergebnis (value, currency: JPY, as_of: Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "risiko_werbung",
+      "stufe": "5 Geschäft und Risiken",
+      "frage": "Wie entwickelten sich die Werbeeinnahmen von Fuji TV zuletzt?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Fuji TV --reports--> Werbeeinnahmen (value, as_of)"
+      ],
+      "luecke": "siehe luecken.sprache"
+    },
+    {
+      "id": "risiko_regeln",
+      "stufe": "5 Geschäft und Risiken",
+      "frage": "Welche japanischen Börsenregeln drängen Firmen wie Fuji Media zu besserer Kapitalnutzung?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Fuji Media --regulated_by--> Vorgaben der Tokioter Börse (condition: Kapitaleffizienz)"
+      ]
+    },
+    {
+      "id": "risiko_kurs",
+      "stufe": "5 Geschäft und Risiken",
+      "frage": "Wie hat sich die Aktie von Fuji Media (4676.T) in den letzten zwölf Monaten entwickelt?",
+      "art": "kurs",
+      "erwartete_tripel": [
+        "Fuji Media --reports--> Kursentwicklung (value: Prozent, as_of)"
+      ],
+      "luecke": "siehe luecken.ticker"
+    }
+  ],
+  "luecken": {
+    "keine_sec": "Die SEC-Quelle greift hier nicht: Fuji Media meldet keine 8-K. Quartalszahlen kommen nur aus Nachrichten; ein Suchort für die Pflichtmeldungen (TDnet, kostenpflichtige API der JPX) fehlt.",
+    "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
+    "sprache": "Argos erzeugt nur deutsche und englische Suchbegriffe, die Nachrichtensuche läuft nur in de-DE und en-US. Presse in der Landessprache wird nicht durchsucht."
+  }
+}

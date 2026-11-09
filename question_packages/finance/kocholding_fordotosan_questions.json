@@ -1,0 +1,203 @@
+{
+  "_hinweis": "Fragen im Stil von Koç Holding (Türkei): Familienholding, die Beteiligungen langfristig hält und Kapital zwischen ihren Firmen verteilt an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, möglichst ein Fakt, keine Kaufempfehlung. Rechnungen und Schwellenwerte stehen nicht in der Frage, sondern unter 'pruefwerte'; gefragt wird nach den Bausteinen. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'art' ist nur Doku: Argos bestimmt die Art selbst (argos/check.py). 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Koç Holding: Ford Otosan",
+  "firma": "Ford Otosan",
+  "ticker": "FROTO.IS",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-09: kein Knoten zu Ford Otosan",
+  "bezug_investor": {
+    "art": "beleg",
+    "text": "Koç Holding hält nach dem Kauf von rund 0,67 Prozent von Temel Ticaret seit dem 07.08.2026 39,32 Prozent an Ford Otosan. Das ist eine Eigentümerstellung, keine Empfehlung. Einen bekannten türkischen Einzelinvestor mit belegter Position habe ich nicht gefunden.",
+    "stand": "2026-08-07",
+    "quellen": [
+      "https://www.uscmarkets.com/haberler/kchol-ford-otosan-pay-alimi-agustos-2026",
+      "https://www.cnbce.com/borsa/koc-holding-temel-ticaretin-ford-otosan-paylarini-satin-aldi-h34595",
+      "https://fordotosan.com.tr/en/corporate/about-ford-otosan/shareholder-structure"
+    ]
+  },
+  "fragen": [
+    {
+      "id": "eigner_koc",
+      "stufe": "1 Eigentümer",
+      "frage": "Wie viel Prozent an Ford Otosan hält Koç Holding?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Koç Holding --holds_stake_in--> Ford Otosan (value: Prozent, as_of)"
+      ]
+    },
+    {
+      "id": "eigner_ford",
+      "stufe": "1 Eigentümer",
+      "frage": "Wie viel Prozent an Ford Otosan hält Ford?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Ford --holds_stake_in--> Ford Otosan (value: Prozent, as_of)"
+      ]
+    },
+    {
+      "id": "eigner_grund",
+      "stufe": "1 Eigentümer",
+      "frage": "Warum kaufte Koç Holding im August 2026 Aktien von Ford Otosan von Temel Ticaret?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Koç Holding --acquires--> Anteile an Ford Otosan (value, currency: TRY, condition: Grund, as_of: August 2026)"
+      ],
+      "luecke": "siehe luecken.sprache"
+    },
+    {
+      "id": "geschaeft_produkte",
+      "stufe": "2 Geschäft verstehen",
+      "frage": "Welche Fahrzeuge stellt Ford Otosan her?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Ford Otosan --produces--> Ford Transit"
+      ]
+    },
+    {
+      "id": "geschaeft_werke",
+      "stufe": "2 Geschäft verstehen",
+      "frage": "An welchen Standorten betreibt Ford Otosan seine Werke?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Ford Otosan --plans--> Werk (condition: Standort)"
+      ]
+    },
+    {
+      "id": "geschaeft_export",
+      "stufe": "2 Geschäft verstehen",
+      "frage": "Welchen Anteil am Umsatz von Ford Otosan hatte der Export im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Ford Otosan --reports--> Umsatz (value: Prozent, condition: Export, as_of: Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "geschaeft_ford",
+      "stufe": "2 Geschäft verstehen",
+      "frage": "Wie stark hängt Ford Otosan von Verkäufen an Ford ab?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Ford --influences--> Ford Otosan (condition: Kunde)"
+      ],
+      "luecke": "siehe luecken.relation_lieferung"
+    },
+    {
+      "id": "zahlen_umsatz",
+      "stufe": "3 Zahlen",
+      "frage": "Wie hoch war der Umsatz von Ford Otosan im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Ford Otosan --reports--> Umsatz (value, currency: TRY, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.inflation"
+    },
+    {
+      "id": "zahlen_gewinn",
+      "stufe": "3 Zahlen",
+      "frage": "Wie hoch war der Nettogewinn von Ford Otosan im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Ford Otosan --reports--> Nettogewinn (value, currency: TRY, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.inflation"
+    },
+    {
+      "id": "zahlen_marge",
+      "stufe": "3 Zahlen",
+      "frage": "Wie hoch war die EBITDA-Marge von Ford Otosan im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Ford Otosan --reports--> EBITDA-Marge (value: Prozent, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.inflation"
+    },
+    {
+      "id": "zahlen_absatz",
+      "stufe": "3 Zahlen",
+      "frage": "Wie viele Fahrzeuge verkaufte Ford Otosan im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Ford Otosan --reports--> Fahrzeugabsatz (value, as_of: Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "kapital_dividende",
+      "stufe": "4 Kapital",
+      "frage": "Wie hoch war die letzte Dividende von Ford Otosan je Aktie?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Ford Otosan --pays_dividend--> Dividende (value, currency: TRY, as_of)"
+      ],
+      "luecke": "siehe luecken.sprache"
+    },
+    {
+      "id": "kapital_schulden",
+      "stufe": "4 Kapital",
+      "frage": "Wie hoch ist die Nettoverschuldung von Ford Otosan?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Ford Otosan --reports--> Nettoverschuldung (value, currency: TRY, as_of)"
+      ],
+      "luecke": "siehe luecken.keine_sec"
+    },
+    {
+      "id": "kapital_kocfinans",
+      "stufe": "4 Kapital",
+      "frage": "Warum übernahm Ford Otosan 2026 Koç Finansman?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Ford Otosan --acquires--> Koç Finansman (value, currency: USD, as_of: 2026)"
+      ],
+      "luecke": "siehe luecken.sprache"
+    },
+    {
+      "id": "preis_kgv",
+      "stufe": "5 Preis und Risiken",
+      "frage": "Wie hoch ist das aktuelle Kurs-Gewinn-Verhältnis der Aktie von Ford Otosan?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Ford Otosan --reports--> Kurs-Gewinn-Verhältnis (value, as_of)"
+      ],
+      "luecke": "siehe luecken.sprache"
+    },
+    {
+      "id": "preis_kurs",
+      "stufe": "5 Preis und Risiken",
+      "frage": "Wie hat sich die Aktie von Ford Otosan (FROTO.IS) seit Jahresbeginn entwickelt?",
+      "art": "kurs",
+      "erwartete_tripel": [
+        "Ford Otosan --reports--> Kursentwicklung (value: Prozent, condition: seit Jahresbeginn, as_of)"
+      ],
+      "luecke": "siehe luecken.ticker"
+    },
+    {
+      "id": "risiko_lira",
+      "stufe": "5 Preis und Risiken",
+      "frage": "Wie wirkt sich die Abwertung der türkischen Lira auf das Ergebnis von Ford Otosan aus?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Lira-Abwertung --influences--> Ergebnis von Ford Otosan (value, as_of)"
+      ],
+      "luecke": "siehe luecken.inflation"
+    },
+    {
+      "id": "risiko_europa",
+      "stufe": "5 Preis und Risiken",
+      "frage": "Wie stark hängt die Nachfrage nach Ford Otosan von der Nutzfahrzeugnachfrage in Europa ab?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Nutzfahrzeugnachfrage in Europa --influences--> Ford Otosan (value, as_of)"
+      ]
+    }
+  ],
+  "luecken": {
+    "keine_sec": "Die SEC-Quelle greift hier nicht: Ford Otosan meldet nicht bei der SEC. Quartalszahlen kommen nur aus Nachrichten; ein Suchort für die Pflichtmeldungen (KAP, Kamuyu Aydınlatma Platformu) fehlt.",
+    "ticker": "Kursdaten und Ticker-News brauchen das Kürzel mit Börsenendung. Darum steht es auch in der Kursfrage.",
+    "sprache": "Argos erzeugt nur deutsche und englische Suchbegriffe, die Nachrichtensuche läuft nur in de-DE und en-US. Presse in der Landessprache wird nicht durchsucht.",
+    "relation_lieferung": "Keine Relation für Kunde oder Lieferant; wegen closed_relations=True kann die Extraktion sie nicht ablegen.",
+    "inflation": "Türkische Abschlüsse sind inflationsbereinigt (TMS 29). Werte in TRY aus verschiedenen Quartalen sind darum nicht direkt vergleichbar, und Artikel mischen teils TRY und USD."
+  }
+}

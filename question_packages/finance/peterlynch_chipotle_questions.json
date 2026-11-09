@@ -1,0 +1,222 @@
+{
+  "_hinweis": "Fragen im Stil von Peter Lynch (One Up on Wall Street): erst den Firmentyp bestimmen, dann die Geschichte in zwei Minuten erzählen können, dann prüfen, ob der Preis zum Wachstum passt an den Finanz-Graphen (Service 'finanzen', :8060). Jede Frage: eine Firma, möglichst ein Fakt, keine Kaufempfehlung. Rechnungen und Schwellenwerte stehen nicht in der Frage, sondern unter 'pruefwerte'; gefragt wird nach den Bausteinen. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'art' ist nur Doku: Argos bestimmt die Art selbst (argos/check.py). 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "Peter Lynch: Chipotle",
+  "firma": "Chipotle Mexican Grill",
+  "ticker": "CMG",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-09: 'Chipotle Mexican Grill' mit 2 Kanten",
+  "bezug_investor": {
+    "art": "stil",
+    "text": "Reines Stilpaket: Chipotle ist ein Testfall für Lynchs Prüfung, keine Empfehlung von Lynch."
+  },
+  "pruefwerte": {
+    "peg": "KGV geteilt durch das erwartete jährliche Gewinnwachstum; Lynch mag Werte um 1 oder darunter",
+    "vorraete": "Vorräte, die schneller wachsen als der Umsatz, sind bei Lynch ein Warnzeichen"
+  },
+  "fragen": [
+    {
+      "id": "typ_umsatz",
+      "stufe": "1 Firmentyp",
+      "frage": "Wie hoch war der Umsatz von Chipotle im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Umsatz (value, currency: USD, as_of: Geschäftsjahr)"
+      ]
+    },
+    {
+      "id": "typ_gewinn",
+      "stufe": "1 Firmentyp",
+      "frage": "Wie hoch war der verwässerte Gewinn je Aktie von Chipotle im letzten Geschäftsjahr?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Gewinn je Aktie (value, currency: USD, as_of: Geschäftsjahr)"
+      ]
+    },
+    {
+      "id": "typ_verlauf",
+      "stufe": "1 Firmentyp",
+      "frage": "Wie hoch war der Gewinn je Aktie von Chipotle in jedem der letzten drei Geschäftsjahre?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Gewinn je Aktie (value, currency: USD, as_of: je Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.aktiensplit"
+    },
+    {
+      "id": "geschichte_betrieb",
+      "stufe": "2 Die Geschichte",
+      "frage": "Betreibt Chipotle seine Restaurants selbst oder über Franchisenehmer?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Chipotle --produces--> Restaurantbetrieb (condition: eigene Restaurants)"
+      ]
+    },
+    {
+      "id": "geschichte_filialen",
+      "stufe": "2 Die Geschichte",
+      "frage": "Wie viele Restaurants betrieb Chipotle am Ende des letzten Quartals?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Zahl der Restaurants (value, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "geschichte_neu",
+      "stufe": "2 Die Geschichte",
+      "frage": "Wie viele neue Restaurants will Chipotle im laufenden Geschäftsjahr eröffnen?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Chipotle --plans--> Neueröffnungen (value, as_of: Geschäftsjahr)"
+      ]
+    },
+    {
+      "id": "geschichte_ziel",
+      "stufe": "2 Die Geschichte",
+      "frage": "Wie viele Restaurants will Chipotle langfristig in Nordamerika betreiben?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Chipotle --plans--> Zahl der Restaurants (value, condition: Nordamerika, langfristig)"
+      ]
+    },
+    {
+      "id": "geschichte_flaeche",
+      "stufe": "2 Die Geschichte",
+      "frage": "Wie stark veränderte sich der Umsatz von Chipotle auf vergleichbarer Fläche im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Umsatz auf vergleichbarer Fläche (value: Prozent, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "geschichte_transaktionen",
+      "stufe": "2 Die Geschichte",
+      "frage": "Wie stark veränderte sich die Zahl der Transaktionen in den bestehenden Chipotle-Restaurants im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Transaktionen (value: Prozent, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "preis_kgv",
+      "stufe": "3 Wachstum und Preis",
+      "frage": "Wie hoch ist das aktuelle Kurs-Gewinn-Verhältnis der Chipotle-Aktie?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Kurs-Gewinn-Verhältnis (value, as_of)"
+      ],
+      "luecke": "siehe luecken.berechnete_kennzahlen"
+    },
+    {
+      "id": "preis_erwartung",
+      "stufe": "3 Wachstum und Preis",
+      "frage": "Welches jährliche Gewinnwachstum erwarten Analysten für Chipotle in den nächsten Jahren?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Analysten --forecasts--> Gewinnwachstum von Chipotle (value: Prozent, as_of)"
+      ],
+      "luecke": "siehe luecken.berechnete_kennzahlen"
+    },
+    {
+      "id": "preis_marge",
+      "stufe": "3 Wachstum und Preis",
+      "frage": "Wie hoch war die Restaurant-Marge von Chipotle im letzten Quartal?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Restaurant-Marge (value: Prozent, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "bilanz_barmittel",
+      "stufe": "4 Bilanz",
+      "frage": "Wie viel Barmittel und Anlagen hielt Chipotle zum letzten Quartalsende?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Barmittel (value, currency: USD, as_of: Quartal)"
+      ],
+      "luecke": "siehe luecken.bilanz"
+    },
+    {
+      "id": "bilanz_schulden",
+      "stufe": "4 Bilanz",
+      "frage": "Hat Chipotle Finanzschulden aufgenommen, und in welcher Höhe?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Finanzschulden (value, currency: USD, as_of)"
+      ],
+      "luecke": "siehe luecken.bilanz"
+    },
+    {
+      "id": "insider_rueckkauf",
+      "stufe": "5 Insider und Rückkäufe",
+      "frage": "Für wie viel Geld kaufte Chipotle im letzten Quartal eigene Aktien zurück?",
+      "art": "zahlen",
+      "erwartete_tripel": [
+        "Chipotle --reports--> Aktienrückkauf (value, currency: USD, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "insider_kaeufe",
+      "stufe": "5 Insider und Rückkäufe",
+      "frage": "Haben Vorstände von Chipotle in den letzten zwölf Monaten eigene Aktien gekauft oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Person --holds_stake_in--> Chipotle (value: Stückzahl und Veränderung, as_of, evidence: Form 4)"
+      ],
+      "luecke": "siehe luecken.insider"
+    },
+    {
+      "id": "insider_fonds",
+      "stufe": "5 Insider und Rückkäufe",
+      "frage": "Wie hoch ist der Anteil institutioneller Anleger an den Chipotle-Aktien?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Institutionen --holds_stake_in--> Chipotle (value: Prozent, as_of)"
+      ],
+      "luecke": "siehe luecken.insider"
+    },
+    {
+      "id": "risiko_grund",
+      "stufe": "6 Was die Geschichte beenden könnte",
+      "frage": "Welche Gründe nennt Chipotle für die Entwicklung der Transaktionen im letzten Quartal?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Grund --influences--> Transaktionen von Chipotle (condition: Quartal, as_of)"
+      ]
+    },
+    {
+      "id": "risiko_kosten",
+      "stufe": "6 Was die Geschichte beenden könnte",
+      "frage": "Welche Kosten belasten die Restaurant-Marge von Chipotle derzeit am stärksten?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Lebensmittelkosten --decreases--> Restaurant-Marge von Chipotle (value, as_of)"
+      ]
+    },
+    {
+      "id": "risiko_konkurrenz",
+      "stufe": "6 Was die Geschichte beenden könnte",
+      "frage": "Welche Restaurantketten gelten als die wichtigsten Konkurrenten von Chipotle?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Chipotle --competes_with--> Restaurantkette"
+      ]
+    },
+    {
+      "id": "risiko_hoch",
+      "stufe": "6 Was die Geschichte beenden könnte",
+      "frage": "Wie hoch ist das 52-Wochen-Hoch der Chipotle-Aktie (CMG), und wie hoch ist der aktuelle Kurs?",
+      "art": "kurs",
+      "erwartete_tripel": [
+        "Chipotle --reports--> 52-Wochen-Hoch (value, currency: USD, as_of)"
+      ],
+      "luecke": "siehe luecken.berechnete_kennzahlen"
+    }
+  ],
+  "luecken": {
+    "bilanz": "Die SEC-Quelle liest nur die Pressemitteilung zu den Zahlen (8-K, Punkt 2.02), und core_text schneidet die Bilanz weg. Barmittel, Schulden und Vorräte kommen so nur aus Artikeln. 10-Q und 10-K fehlen als Suchort.",
+    "insider": "Kein Suchort für Insidermeldungen (SEC Form 4) und Fondsmeldungen (SEC 13F).",
+    "berechnete_kennzahlen": "PEG und Abstand zum Hoch sind Rechnungen. Die Extraktion nimmt nur, was im Text steht, darum die Bausteine.",
+    "aktiensplit": "Aktiensplit 50 zu 1 im Juni 2024: Gewinne je Aktie aus alten Berichten sind nicht direkt mit neuen vergleichbar."
+  }
+}
