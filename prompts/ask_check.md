@@ -22,7 +22,7 @@ Fuer jeden Satz:
     bzw. dasselbe in der Sprache der Antwort) - auch diese Ueberschrift
     selbst und alle Saetze danach.
   - "keine_aussage": der Satz behauptet nichts Inhaltliches (z.B. "Das
-    steht nicht im Graphen." oder eine reine Ueberleitung).
+    steht nicht in den Tripeln, die mir vorliegen." oder eine reine Ueberleitung).
 
 Achte besonders auf:
 - Zahlen und Werte (stimmen sie mit value ueberein?)

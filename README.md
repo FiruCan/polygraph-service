@@ -172,6 +172,8 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   Langformen). Dauert lange (~1 Std. bei ~3.000 Knoten); `limit` begrenzt
   die Richter-Aufrufe fuer Probelaeufe. Aufruf ueber polygraph `dedupe.py`
   (`--auto`: vollautomatisch).
+- `POST /graph/aliases` -> `{"renamed": {alt: neu}}` - vorhandene Knoten unter den festen Namen des Profils
+  zusammenfuehren (vorher `POST /graph/backup`).
 - `POST /nodes/merge` Body `{"keep": str, "remove": str}` ->
   `{"moved": n, "collapsed": n, "dropped_self_loops": n, "nodes": N, "edges": M}`
   - Kanten von `remove` an `keep` umhaengen, `remove` loeschen (nach

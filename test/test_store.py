@@ -302,3 +302,35 @@ def test_rewrite_edge_field():
     store.add_triple(triple(obj="Diabetes", evidence_level="RCT"))
     assert store.rewrite_edge_field("evidence_level", "Metaanalyse", "meta-analysis") == 1
     assert store.graph.get_edge_data("Krafttraining", "Krebs")[0]["evidence_level"] == "meta-analysis"
+
+
+def _finance_store():
+    store = GraphStore()
+    store.graph.graph["profile"] = "finance"
+    return store
+
+
+def test_profile_aliases_keep_one_node_per_thing():
+    store = _finance_store()
+    for name, value in (("AMAT", "1"), ("Applied Materials, Inc.", "2")):
+        store.add_triple({"subject": name, "subject_type": "company", "relation": "reports", "object": "non-GAAP EPS",
+                          "object_type": "financial_metric", "value": value, "as_of": value})
+    assert set(store.graph.nodes) == {"Applied Materials", "adjusted earnings per share"}
+    assert store.graph.number_of_edges() == 2
+
+
+def test_apply_aliases_merges_existing_nodes():
+    store = _finance_store()
+    store.graph.add_node("Besi", type="company")
+    store.graph.add_node("BE Semiconductor Industries N.V.", type="company")
+    store.graph.add_node("EPS", type="financial_metric")
+    store.graph.add_edge("Besi", "EPS", relation="reports", value="1")
+    assert store.apply_aliases() == {"Besi": "BE Semiconductor Industries N.V.", "EPS": "earnings per share"}
+    assert store.graph.has_edge("BE Semiconductor Industries N.V.", "earnings per share")
+    assert not store.graph.has_node("Besi") and store.apply_aliases() == {}
+
+
+def test_without_aliases_names_stay():
+    store = GraphStore()
+    store.add_triple({"subject": "EPS", "subject_type": "x", "relation": "r", "object": "AMAT", "object_type": "y"})
+    assert set(store.graph.nodes) == {"EPS", "AMAT"}

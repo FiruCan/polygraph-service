@@ -89,9 +89,15 @@ class DomainProfile:
     # Die Art des Profils selbst heisst wie das Profil (name); Kanten ohne
     # "kind" stammen aus der Zeit vor den Vorgaben und gehoeren zu ihr.
     variants: dict = field(default_factory=dict)
+    # Schreibweise (klein) -> fester Knotenname: dieselbe Sache unter einem Knoten,
+    # auch wenn das Aehnlichkeits-Matching beim Import sie nicht zusammenfuehrt
+    aliases: dict = field(default_factory=dict)
     # Was zum Fachgebiet selbst gehoert - nur mit variants noetig: polygraph
     # stuft damit einen Artikel als diese Art oder eine der Vorgaben ein
     description: str = ""
+
+    def canonical_name(self, name):
+        return self.aliases.get(name.casefold(), name) if isinstance(name, str) else name
 
     @property
     def qualifier_fields(self) -> tuple:

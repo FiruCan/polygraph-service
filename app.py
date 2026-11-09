@@ -390,6 +390,15 @@ def duplicates_find(body: DuplicatesIn):
     return find_duplicates(graph, threshold=body.threshold, limit=body.limit)
 
 
+@app.post("/graph/aliases")
+def graph_aliases():
+    """Vorhandene Knoten unter den festen Namen des Profils zusammenfuehren - vorher POST /graph/backup."""
+    with store_lock:
+        renamed = store.apply_aliases()
+        store.save(DATA_PATH)
+    return {"renamed": renamed}
+
+
 @app.post("/nodes/merge")
 def nodes_merge(body: MergeIn):
     """Knoten 'remove' in 'keep' zusammenfuehren (nach Freigabe - durch den Duplikat-Agenten oder einen Menschen)."""

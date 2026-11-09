@@ -35,6 +35,7 @@ import networkx as nx
 import ollama
 
 from domains import profile_of
+from graph.dates import parse_as_of
 
 MODEL = "gemma4:26b"
 # Sprache von Antworten und Erklaerungen, wenn der Aufrufer keine waehlt
@@ -116,6 +117,18 @@ def relevance(graph, edges: list, terms: list) -> dict:
     return scores
 
 
+def _edge_date(graph, edge):
+    """Wann die Aussage galt: Stichtag, sonst Erscheinungsdatum der Quelle, sonst None."""
+    data = graph.edges[edge]
+    return parse_as_of(data.get("as_of")) or parse_as_of(data.get("published"))
+
+
+def _freshness(graph, edge) -> int:
+    """Je groesser, desto neuer, unbekannt ganz hinten."""
+    date = _edge_date(graph, edge)
+    return date.toordinal() if date else 0
+
+
 def _distinct_statements(graph, edges: list) -> list:
     """Jede Aussage einmal, die erste (sicherste) gewinnt: "Gary Dickerson ist CEO" aus zehn Quellen belegte zehn Plaetze."""
     seen, distinct = set(), []
@@ -134,7 +147,8 @@ def collect_edges(graph, selected: list, question: str = None) -> list:
     bekannt, kommen die zur Frage passenden zuerst (Suchbegriffe nur dann, das
     spart bei kleinen Graphen den LLM-Aufruf). Weiter entfernte Kanten zaehlen
     weniger, sonst verdraengt eine andere Firma mit der gesuchten Kennzahl die
-    gefragte.
+    gefragte. Bei gleichem Rang kommt die neuere Aussage zuerst (Stichtag, sonst
+    Erscheinungsdatum der Quelle).
     """
     distance = {}  # Kante -> Abstand zum naechsten gewaehlten Knoten (0 = am naechsten)
     frontier = set(selected)
@@ -162,7 +176,8 @@ def collect_edges(graph, selected: list, question: str = None) -> list:
                     for k in graph[u][v]:
                         distance[(u, v, k)] = 0
 
-    ranked = sorted(distance, key=lambda e: (distance[e], -float(graph.edges[e].get("confidence", 0))))
+    ranked = sorted(distance, key=lambda e: (distance[e], -float(graph.edges[e].get("confidence", 0)),
+                                             -_freshness(graph, e)))
     ranked = _distinct_statements(graph, ranked) if len(ranked) > MAX_TRIPLES else ranked
     if len(ranked) <= MAX_TRIPLES or not question:
         return ranked[:MAX_TRIPLES]
@@ -177,7 +192,8 @@ def format_triple(number: int, graph, edge) -> str:
     u, v, k = edge
     data = graph.edges[edge]
     parts = [f"[{number}] {u} --{data.get('relation')}--> {v}"]
-    labels = [(q.name, q.label) for q in profile_of(graph).qualifiers] + [("confidence", "confidence")]
+    labels = [(q.name, q.label) for q in profile_of(graph).qualifiers] + [("published", "published"),
+                                                                          ("confidence", "confidence")]
     for key, label in labels:
         if data.get(key) is not None:
             parts.append(f"{label}: {data[key]}")
@@ -246,10 +262,12 @@ def triple_dict(graph, edge) -> dict:
     """Kante (u, v, key) als API-Tripel - gleiches Format fuer /ask und /nodes/neighbors."""
     u, v, _ = edge
     data = graph.edges[edge]
+    date = _edge_date(graph, edge)
     return {
         "subject": u, "relation": data.get("relation"), "object": v,
+        "stand": date.isoformat() if date else None,  # Argos: ist die Antwort noch aktuell genug?
         **{q: data.get(q) for q in profile_of(graph).qualifier_fields},
-        "confidence": data.get("confidence"), "origin": data.get("origin"),
+        "confidence": data.get("confidence"), "origin": data.get("origin"), "published": data.get("published"),
     }
 
 
@@ -328,7 +346,7 @@ def _agent_answer(graph, question: str, evidence: _Evidence, language: str = DEF
     select_nodes): das Modell muss abwaegen, ob die Tripel reichen, ob es
     nachladen soll und ob sich eine gekennzeichnete Ableitung ziehen laesst
     (siehe ask_answer.md) - ohne Denkschritt fiel es sonst reflexhaft auf
-    "Das steht nicht im Graphen" zurueck. Gibt (Antwort, Schritte, Fokus-Knoten) zurueck.
+    "Das steht nicht in den Tripeln" zurueck. Gibt (Antwort, Schritte, Fokus-Knoten) zurueck.
     """
     start = "\n".join(format_triple(i, graph, e) for i, e in enumerate(evidence.edges, 1))
     messages = [{"role": "user", "content": _load_prompt("ask_answer.md").format(

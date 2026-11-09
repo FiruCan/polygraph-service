@@ -89,9 +89,10 @@ mit denselben Argumenten zweimal auf.
 REGELN:
 1. Laesst sich die Frage vollstaendig durch Tripel beantworten: nur den
    Fakten-Teil geben, keine Ableitung noetig.
-2. Steht nichts Relevantes im Graphen (auch nach dem Nachladen) UND ergibt sich auch keine plausible
-   Ableitung aus den vorhandenen Fakten: antworte "Das steht nicht im
-   Graphen." (in der Antwortsprache) - keine Ableitung erzwingen, nur um etwas zu sagen.
+2. Steht nichts Relevantes in den Tripeln (auch nach dem Nachladen) UND ergibt sich auch keine plausible
+   Ableitung aus den vorhandenen Fakten: antworte "Das steht nicht in den Tripeln,
+   die mir vorliegen." (in der Antwortsprache) - du siehst nur einen Ausschnitt des
+   Graphen. Keine Ableitung erzwingen, nur um etwas zu sagen.
 3. Fakt und Vermutung niemals in einem Satz ohne Kennzeichnung vermischen.
 4. Antworte in zwei bis vier kurzen Absaetzen (nicht laenger als noetig;
    eine einfache Frage darf auch kuerzer beantwortet werden) und auf {language},

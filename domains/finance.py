@@ -61,6 +61,10 @@ PROMPT_NOTES = {
         "- Kurse, Zinsen und Kennzahlen gelten nur zu einem Zeitpunkt: nenne den Stichtag\n"
         "  (as of) und die Waehrung (currency), wenn das Tripel sie hat. Fehlt der Stichtag,\n"
         "  sag, dass offen ist, wann der Wert galt.\n"
+        "- Gibt es fuer dieselbe Kennzahl mehrere Staende, nimm den neuesten und nenne sein\n"
+        "  Datum; aeltere Werte nur als Vergleich. \"published\" ist das Erscheinungsdatum der\n"
+        "  Quelle: Ein \"seit Jahresbeginn\" aus einem alten Artikel ist nicht der heutige Stand.\n"
+        "- Trenne berichtete Zahlen von Prognosen und Analystenschaetzungen (evidence).\n"
         "- Keine Anlageempfehlung und keine Kursprognose ueber die Tripel hinaus - auch\n"
         "  nicht im Abschnitt mit der Vermutung."
     ),
@@ -104,6 +108,20 @@ PROMPT_NOTES = {
         "  Unternehmen --reports--> die Kennzahl, der Wert steht in \"value\".\n"
         "- Angaben je Aktie oder je Einheit bleiben im \"value\" (\"2,10 je Aktie\"), auch wenn\n"
         "  die Waehrung in \"currency\" steht.\n"
+        "- Tabellen: Die Zeilen stehen als \"Name | Wert | Wert\". Einheit und Zeitraum stehen im\n"
+        "  Tabellenkopf (\"In millions\", \"Three Months Ended July 26, 2026\") und gehoeren in jedes\n"
+        "  Tripel: \"value\" mit Einheit (\"9.115 Millionen\", nie nur \"9.115\"), \"as_of\" mit dem\n"
+        "  Zeitraum der Spalte. Jede Spalte ist ein eigenes Tripel. Prozentzeilen und Angaben je\n"
+        "  Aktie haben keine Millionen-Einheit. Ist die Spalte nicht eindeutig: Zeile weglassen.\n"
+        "- Feste Namen fuer Kennzahlen: Gewinn je Aktie heisst \"Gewinn je Aktie\", die bereinigte\n"
+        "  Zahl (non-GAAP, adjusted, normalized) \"bereinigter Gewinn je Aktie\" - nie nur \"Gewinn\",\n"
+        "  auch wenn der Text das kurz so sagt. Umsatz heisst \"Umsatz\".\n"
+        "- \"as_of\" nennt immer das Jahr, Quartale mit Geschaeftsjahr (\"Q3 Geschaeftsjahr 2026\").\n"
+        "- Prognosen und Schaetzungen sind kein Bericht: Zahlen fuer die Zukunft oder von Analysten\n"
+        "  ergeben \"forecasts\" (Wer schaetzt --forecasts--> Kennzahl, die Firma in \"condition\"),\n"
+        "  nicht \"reports\", mit \"evidence_level\" Prognose oder Analystenschaetzung.\n"
+        "- \"acquires\" nur fuer eine vollstaendige Uebernahme. Der Kauf von Anteilen ist\n"
+        "  \"holds_stake_in\" mit der Hoehe in \"value\"; ist er nur geplant, \"plans\".\n"
         "- Zentralbanken sind \"central_bank\", Ratingagenturen \"rating_agency\", nicht\n"
         "  \"company\". Setzt eine Zentralbank einen Zins fest oder laesst ihn unveraendert:\n"
         "  Zentralbank --sets--> Leitzins mit dem Stand in \"value\". Ein Rating: Agentur\n"
@@ -139,6 +157,23 @@ EXAMPLE_OUTPUT = (
      "value": "durchschnittlich 8 Prozent", "condition": "Tech-Sektor", "evidence_level": "Analystenschaetzung",
      "as_of": "Maerz 2022", "currency": None, "confidence": 0.8},
 )
+
+
+# Feste Knotennamen (Schreibweise klein -> Knoten). Im Graphen lag dieselbe Kennzahl unter
+# 12 Namen, Besi unter zwei Knoten mit je 37 Kanten (2026-11-09). Bereinigte Zahlen bleiben
+# getrennt: GAAP 8,66 und non-GAAP 9,42 sind zwei Kennzahlen desselben Jahres.
+ALIASES = {
+    **dict.fromkeys(("eps", "gaap eps", "diluted eps", "diluted earnings per share", "earnings per share: diluted",
+                     "gewinn je aktie", "gewinn pro aktie"), "earnings per share"),
+    **dict.fromkeys(("non-gaap eps", "adjusted eps", "normalized eps", "non-gaap earnings per share",
+                     "non-gaap earnings per diluted share", "bereinigter gewinn je aktie"),
+                    "adjusted earnings per share"),
+    **dict.fromkeys(("net revenue", "net sales", "revenues", "total revenue", "umsatz"), "revenue"),
+    **dict.fromkeys(("amat", "applied materials, inc.", "applied materials inc", "applied materials inc."),
+                    "Applied Materials"),
+    **dict.fromkeys(("besi", "be semiconductor", "be semiconductor industries", "be semiconductor industries nv"),
+                    "BE Semiconductor Industries N.V."),
+}
 
 
 def _triple(subject, subject_type, relation, obj, object_type, confidence=0.9, **qualifiers):
@@ -257,6 +292,7 @@ PROFILE = DomainProfile("finance", QUALIFIERS, ENTITY_TYPES, RELATION_TYPES, pro
                         # Typen (technology, demand, growth, Zacks Rank, ...)
                         closed_types=True,
                         variants={"news": NEWS, "science": SCIENCE},
+                        aliases=ALIASES,
                         description=(
                             "Hauptthema Wirtschaft und Finanzen: Unternehmen und ihre Zahlen, Maerkte,\n"
                             "Kurse, Indizes, Zinsen, Notenbanken, Konjunktur, Rohstoff- und Energiepreise,\n"

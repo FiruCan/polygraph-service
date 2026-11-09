@@ -2,6 +2,13 @@
 
 ## Stand
 
+**Antworten: Auswahl der Tripel nach der Frage, feste Namen, Datum (gebaut, Abschlusstest offen)**
+- Grund: Argos beantwortete das O'Neil-Paket kaum, obwohl Fakten im Graphen standen (Eigenkapitalrendite 38,02 %, Rang 138 von 716 Kanten, 100 passen ins Prompt, sortiert nur nach Konfidenz). Das Modell kennt nur das Prompt.
+- `graph/ask.py`: bei mehr als `MAX_TRIPLES` Kanten Suchbegriffe (`prompts/ask_terms.md`), seltene Begriffe zaehlen mehr, weiter entfernte Kanten weniger, 25 Plaetze fuer die sichersten. Jede Aussage nur einmal, Neueres zuerst (`graph/dates.py`). `kanten_von` filtert nach Begriff. Leere Antwort: zweiter Versuch ohne Denkschritt. Satzpruefung: Datum bleibt ein Satz, genau ein Urteil pro Satz. `triple_dict` liefert `stand` fuer Argos.
+- `domains/finance.py`: feste Namen (`ALIASES`, neue Kanten in `add_triple`, Bestand ueber `POST /graph/aliases`), Regeln zu Tabellen, Einheiten, Prognosen und `acquires`.
+- Gelten nur fuer neue Importe; Bestand: Backup, `POST /graph/aliases`, SEC-Berichte neu importieren.
+- Gemessen vor den neuen Regeln: abgebrochener Lauf 16 von 20 Fragen ohne Import, 4 beantwortet, 7 teilweise, 5 nein. Alle Regeln zusammen sind noch nicht live getestet.
+
 **Fragen-Pakete und Antwort-Laeufe (fertig)**
 - Grund: Firu will eine Fragenliste (Warren Buffett zu Coca-Cola, 20
   Fragen in 6 Stufen) nicht einzeln stellen, sondern als Paket aus Metis

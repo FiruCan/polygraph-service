@@ -395,3 +395,25 @@ def test_big_node_shows_each_statement_once():
                           "object_type": "y", "confidence": 0.9})
     edges = ask_mod.collect_edges(store.graph, ["Firma"])
     assert sum(u == "Chef" for u, _, _ in edges) == 1 and len(edges) == ask_mod.MAX_TRIPLES
+
+
+def test_equal_edges_show_the_newest_first():
+    store = GraphStore()
+    for i in range(101):
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": f"alt {i}",
+                          "object_type": "y", "as_of": "2024", "confidence": 1.0})
+    store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": "neu",
+                      "object_type": "y", "as_of": "July 26, 2026", "confidence": 1.0})
+    store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": "aus neuer Quelle",
+                      "object_type": "y", "published": "2026-08-13", "confidence": 1.0})
+    assert objects(ask_mod.collect_edges(store.graph, ["Firma"]))[:2] == ["aus neuer Quelle", "neu"]
+
+
+def test_triple_shows_when_the_source_was_published():
+    store = GraphStore()
+    store.add_triple({"subject": "A", "subject_type": "x", "relation": "r", "object": "B", "object_type": "y",
+                      "published": "2026-08-13", "confidence": 0.9})
+    edge = next(iter(store.graph.edges(keys=True)))
+    assert "published: 2026-08-13" in ask_mod.format_triple(1, store.graph, edge)
+    assert ask_mod.triple_dict(store.graph, edge)["published"] == "2026-08-13"
+    assert ask_mod.triple_dict(store.graph, edge)["stand"] == "2026-08-13"

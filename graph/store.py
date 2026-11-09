@@ -79,6 +79,8 @@ class GraphStore:
         eine eigene Kante - das ist keine Duplizierung, sondern zwei
         Belegstellen fuer dieselbe Aussage.
         """
+        aliases = profile_of(self.graph).canonical_name
+        triple = {**triple, "subject": aliases(triple["subject"]), "object": aliases(triple["object"])}
         self._add_or_update_node(triple["subject"], triple.get("subject_type"))
         self._add_or_update_node(triple["object"], triple.get("object_type"))
 
@@ -346,6 +348,14 @@ class GraphStore:
         nx.relabel_nodes(self.graph, {old: new}, copy=False)
         return {"merged": False}
 
+    def apply_aliases(self) -> dict:
+        """Fuehrt vorhandene Knoten unter den festen Namen des Profils zusammen -> {alt: neu}. Neue Tripel laufen schon in add_triple darueber."""
+        canonical = profile_of(self.graph).canonical_name
+        renamed = {str(n): canonical(n) for n in self.graph.nodes if canonical(n) != n}
+        for old, new in renamed.items():
+            self.rename_node(old, new)
+        return renamed
+
     def edges_by_relation(self, node: str, relation: str, direction: str = "out"):
         """Alle Kanten eines bestimmten Relationstyps an einem Knoten."""
         edge_view = self.graph.out_edges if direction == "out" else self.graph.in_edges
@@ -415,6 +425,7 @@ class GraphStore:
                     # Vorgabe der Extraktion (DomainProfile.variants); fehlt
                     # bei Kanten von vor den Vorgaben
                     "kind": data.get("kind"),
+                    "published": data.get("published"),
                 }
                 for u, v, data in self.graph.edges(data=True)
             ],
