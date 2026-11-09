@@ -9,7 +9,7 @@ wie in der Medizin, damit Oberflaechen sie ohne Anpassung zeigen.
 Startvokabular aus polygraph (evals/configs/finance.json).
 """
 
-from domains.base import DomainProfile, Qualifier
+from domains.base import DomainProfile, Qualifier, Variant
 
 QUALIFIERS = (
     Qualifier("value", "value", "Wert", description=(
@@ -40,10 +40,11 @@ QUALIFIERS = (
 
 # technology und organization: im Graphen 122 Knoten "technology" (chip
 # packaging, Hybrid Bonding) und 40 Universitaeten, Institute und Boersen
-# ohne passenden Profil-Typ (2026-11-07)
+# ohne passenden Profil-Typ (2026-11-07). index: ohne ihn fehlte mit festen
+# Typen der Dax-Schlusskurs (Eval holdout_marktbericht)
 ENTITY_TYPES = (
     "company", "sector", "person", "financial_metric", "event", "regulation", "product",
-    "central_bank", "rating_agency", "currency", "technology", "organization",
+    "central_bank", "rating_agency", "currency", "technology", "organization", "index",
 )
 
 # produces und plans: im Finanz-Graphen 12- bzw. 16-mal ohne passende Profil-
@@ -95,6 +96,10 @@ PROMPT_NOTES = {
         "  die Richtung in die Relation: \"increases\" bzw. \"decreases\" statt \"affects_metric\"\n"
         "  oder \"influences\". Veraendert sich eine eigene Kennzahl des Subjekts (\"Henkel verlor\n"
         "  8 Prozent Umsatz\"), ist das \"reports\" mit der Richtung im \"value\" (\"minus 8 Prozent\").\n"
+        "- Ein Vergleich mit einem frueheren Wert derselben Kennzahl (\"6 Prozent mehr als im\n"
+        "  Vorjahr\", \"stieg auf 610 von 540 Millionen\") ist kein \"increases\"/\"decreases\"\n"
+        "  zwischen zwei Kennzahlen oder zu einem Zeitpunkt: Unternehmen --reports--> Kennzahl\n"
+        "  je Zeitpunkt (siehe oben), die Veraenderung steht im \"value\".\n"
         "- Kennzahlen sind keine Relationen (nicht \"growth\", \"valuation\", \"P/E\"): das\n"
         "  Unternehmen --reports--> die Kennzahl, der Wert steht in \"value\".\n"
         "- Angaben je Aktie oder je Einheit bleiben im \"value\" (\"2,10 je Aktie\"), auch wenn\n"
@@ -107,10 +112,10 @@ PROMPT_NOTES = {
         "  --employed_by--> Unternehmen, die Funktion in \"value\".\n"
         "- Nur Relationen aus der Liste der bekannten Relationen, keine neuen. Passt keine,\n"
         "  lass die Aussage weg, statt eine unpassende zu waehlen.\n"
-        "- Typen: Universitaeten, Institute, Boersen und Gruppen wie Anleger oder Kunden sind\n"
-        "  \"organization\"; Technologien, Verfahren und Anlagen \"technology\"; Nachfrage,\n"
-        "  Bewertung, Wachstum und Kennzahlen \"financial_metric\"; Engpaesse, Abschwuenge und\n"
-        "  andere Vorgaenge \"event\"."
+        "- Typen: Aktienindizes (Dax, S&P 500, Nasdaq) sind \"index\"; Universitaeten,\n"
+        "  Institute, Boersen und Gruppen wie Anleger oder Kunden \"organization\"; Technologien,\n"
+        "  Verfahren und Anlagen \"technology\"; Nachfrage, Bewertung, Wachstum und Kennzahlen\n"
+        "  \"financial_metric\"; Engpaesse, Abschwuenge und andere Vorgaenge \"event\"."
     ),
 }
 
@@ -135,6 +140,113 @@ EXAMPLE_OUTPUT = (
      "as_of": "Maerz 2022", "currency": None, "confidence": 0.8},
 )
 
+
+def _triple(subject, subject_type, relation, obj, object_type, confidence=0.9, **qualifiers):
+    """Beispiel-Tripel mit allen Qualifiern des Profils (fehlende als None)."""
+    return {"subject": subject, "subject_type": subject_type, "subject_type_is_new": False,
+            "relation": relation, "relation_is_new": False,
+            "object": obj, "object_type": object_type, "object_type_is_new": False,
+            **{q.name: qualifiers.get(q.name) for q in QUALIFIERS}, "confidence": confidence}
+
+
+# Nachrichten aller Art im Finanz-Graphen (2026-11-07): Erdbeben, Kriege, Wahlen
+# oder Urteile sollen spaeter mit Kursbewegungen verknuepft werden. Allgemein
+# gehalten statt je Nachrichtenart eigene Typen - alles, was passiert, ist ein
+# "event", die Art steckt im Namen, die Rolle der Beteiligten in "condition".
+# Die letzten sechs Typen sind die Bruecke zu den Finanzartikeln.
+NEWS = Variant(
+    description=(
+        "Meldung, deren Hauptthema ein Geschehen ausserhalb der Wirtschaft im engeren Sinn ist:\n"
+        "Katastrophe, Krieg, Anschlag, Wahl, Regierung, Gesetz, Urteil, Streik, Protest, Pandemie,\n"
+        "Unfall, Gipfel, Sport, Preisverleihung (auch Nobelpreise), Personalie aus Politik oder\n"
+        "Gesellschaft. Auch wenn am Rande ein Unternehmen, eine Strafe oder eine Reaktion der\n"
+        "Maerkte vorkommt."),
+    entity_types=(
+        "event", "person", "organization", "country", "region", "position", "regulation", "award",
+        "research_field", "company", "sector", "financial_metric", "index", "currency", "product",
+    ),
+    relation_types=(
+        "occurred_in", "located_in", "part_of", "involved_in", "caused", "affected", "responded_to",
+        "enacted", "applies_to", "won", "lost", "holds_position", "member_of", "employed_by",
+        "awarded_to", "awarded_for", "increases", "decreases", "influences",
+    ),
+    extract_notes=(
+        "- Ein Ereignis heisst nach Art, Ort und Jahr (\"Erdbeben in Taiwan 2026\",\n"
+        "  \"Bundestagswahl 2025\"), das genaue Datum steht in \"as_of\". So trifft ein spaeterer\n"
+        "  Artikel ueber dasselbe Ereignis denselben Namen.\n"
+        "- Wer beteiligt ist: X --involved_in--> Ereignis, die Rolle in \"condition\"\n"
+        "  (\"Angreifer\", \"Kandidat\", \"Klaeger\", \"Gastgeber\").\n"
+        "- Folgen mit Zahl in \"value\": Ereignis --affected--> Betroffene, value \"14 Tote\".\n"
+        "  Ursachen: \"caused\"; Reaktionen: X --responded_to--> Ereignis, value = die Massnahme.\n"
+        "- Beschluesse: Regierung, Parlament oder Gericht --enacted--> Gesetz, Sanktion oder\n"
+        "  Urteil (Typ \"regulation\"); Gesetz --applies_to--> wen es betrifft.\n"
+        "- Ausgang: X --won/lost--> Wahl, Prozess oder Wettbewerb, Ergebnis in \"value\".\n"
+        "- Aemter: Person --holds_position--> Amt (Typ \"position\"), Land oder Organisation in\n"
+        "  \"condition\", seit wann in \"as_of\".\n"
+        "- Preise: Preis --awarded_to--> Person, Preis --awarded_for--> Forschungsgebiet.\n"
+        "- Wirkt das Ereignis auf Unternehmen, Branchen, Preise oder Kurse, gehoert die Richtung\n"
+        "  in die Relation (\"increases\", \"decreases\"), der Betrag in \"value\".\n"
+        "- Laender sind \"country\", Bundeslaender, Provinzen und Staedte \"region\"; Parteien,\n"
+        "  Regierungen, Gerichte, Armeen, Gewerkschaften und Vereine \"organization\"."),
+    example_text=(
+        "Ein Erdbeben der Staerke 6,8 erschuetterte am 3. Maerz 2025 den Norden Chiles. Die "
+        "Regierung rief den Notstand aus; mehrere Kupferminen stellten den Betrieb vorerst ein."),
+    example_output=(
+        _triple("Erdbeben in Chile 2025", "event", "occurred_in", "Chile", "country", 0.95,
+                value="Staerke 6,8", condition="Norden", as_of="3. Maerz 2025"),
+        _triple("Regierung von Chile", "organization", "responded_to", "Erdbeben in Chile 2025", "event",
+                value="Notstand ausgerufen", as_of="Maerz 2025"),
+        _triple("Erdbeben in Chile 2025", "event", "affected", "Kupferminen in Chile", "sector", 0.85,
+                value="Betrieb vorerst eingestellt", as_of="Maerz 2025"),
+    ),
+)
+
+# Reine Wissenschaft im Finanz-Graphen (2026-11-07): wie Nanotechnik,
+# Halbleiter oder Batterien funktionieren, ohne Firmen und Kurse - damit
+# spaetere Finanzartikel ueber dieselbe Technik daran anknuepfen.
+SCIENCE = Variant(
+    description=(
+        "Erklaerender Text: wie eine Technik, ein Material oder ein physikalischer, chemischer\n"
+        "oder biologischer Vorgang funktioniert und warum - ohne Unternehmenszahlen, Kurse oder\n"
+        "Marktbewegungen. Eine Meldung darueber, wer etwas entdeckt oder einen Preis bekommen hat,\n"
+        "ist \"news\"."),
+    entity_types=(
+        "technology", "material", "phenomenon", "process", "instrument", "research_field",
+        "application", "person", "organization",
+    ),
+    relation_types=(
+        "enables", "based_on", "consists_of", "part_of", "used_for", "produces", "causes",
+        "increases", "decreases", "measured_with", "developed_by", "employed_by", "belongs_to_class",
+    ),
+    extract_notes=(
+        "- Erklaerungen sind Tripel: \"A, weil B\" ergibt B --causes/enables--> A. Nur was der\n"
+        "  Text als Zusammenhang sagt, nicht jedes Fachwort einzeln.\n"
+        "- Wovon etwas abhaengt: X --increases/decreases--> Groesse, die Zahl in \"value\"\n"
+        "  (\"um das Zehnfache\"), die Bedingung in \"condition\" (\"bei Raumtemperatur\").\n"
+        "- Aufbau: X --consists_of--> Bestandteil; Teil --part_of--> Ganzes.\n"
+        "- Wer etwas entwickelt oder entdeckt hat: X --developed_by--> Person oder Organisation,\n"
+        "  das Jahr in \"as_of\"; Person --employed_by--> Institut.\n"
+        "- Anwendung: Technik --used_for--> Anwendung (Typ \"application\").\n"
+        "- \"evidence_level\": Experiment, Simulation, Theorie, Uebersichtsartikel - nur wenn\n"
+        "  der Text es sagt.\n"
+        "- Techniken und Verfahren sind \"technology\" oder \"process\", Stoffe \"material\",\n"
+        "  beobachtbare Effekte und Eigenschaften \"phenomenon\", Geraete \"instrument\"."),
+    example_text=(
+        "Graphen besteht aus einer einzigen Lage Kohlenstoffatome. Weil sich Elektronen darin fast "
+        "ohne Widerstand bewegen, eignet es sich fuer sehr schnelle Transistoren. Andre Geim und "
+        "Konstantin Novoselov isolierten es 2004 an der Universitaet Manchester."),
+    example_output=(
+        _triple("Graphen", "material", "consists_of", "Kohlenstoffatome", "material", 0.95,
+                condition="eine einzige Lage"),
+        _triple("Graphen", "material", "enables", "schnelle Transistoren", "application", 0.85,
+                condition="Elektronen bewegen sich fast ohne Widerstand"),
+        _triple("Graphen", "material", "developed_by", "Andre Geim", "person", 0.9, as_of="2004",
+                value="isoliert"),
+        _triple("Andre Geim", "person", "employed_by", "Universitaet Manchester", "organization", 0.85,
+                as_of="2004"),
+    ),
+)
+
 PROFILE = DomainProfile("finance", QUALIFIERS, ENTITY_TYPES, RELATION_TYPES, prompt_notes=PROMPT_NOTES,
                         example_text=EXAMPLE_TEXT, example_output=EXAMPLE_OUTPUT,
                         edge_key_fields=("as_of", "condition"),
@@ -143,4 +255,10 @@ PROFILE = DomainProfile("finance", QUALIFIERS, ENTITY_TYPES, RELATION_TYPES, pro
                         closed_relations=True,
                         # Nach den Argos-Importen 287 von 557 Knoten mit eigenen
                         # Typen (technology, demand, growth, Zacks Rank, ...)
-                        closed_types=True)
+                        closed_types=True,
+                        variants={"news": NEWS, "science": SCIENCE},
+                        description=(
+                            "Hauptthema Wirtschaft und Finanzen: Unternehmen und ihre Zahlen, Maerkte,\n"
+                            "Kurse, Indizes, Zinsen, Notenbanken, Konjunktur, Rohstoff- und Energiepreise,\n"
+                            "Beteiligungen, Analysten - auch wenn der Text ein Ereignis, Politik oder\n"
+                            "Technik als Grund nennt."))

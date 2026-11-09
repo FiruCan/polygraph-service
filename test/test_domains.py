@@ -265,11 +265,28 @@ def test_finance_closes_relations_and_pins_the_currency_code():
 def test_finance_closes_the_entity_types():
     data = get_profile("finance").to_json()
     assert data["closed_types"] is True
-    assert {"technology", "organization"} <= set(data["entity_types"])
+    assert {"technology", "organization", "index"} <= set(data["entity_types"])
     assert "\"organization\"" in data["extract_notes"]
     assert get_profile("medicine").to_json()["closed_types"] is False
     assert get_profile("generic").to_json()["closed_types"] is False
 
+
+
+def test_finance_offers_news_and_science_variants():
+    data = get_profile("finance").to_json()
+    assert set(data["variants"]) == {"news", "science"} and data["description"]
+    qualifiers = {q["name"] for q in data["qualifiers"]}
+    for name, variant in data["variants"].items():
+        assert variant["description"] and variant["extract_notes"]
+        # das Beispiel haelt sich an die eigene feste Liste und hat alle Qualifier
+        for t in variant["example_output"]:
+            assert t["subject_type"] in variant["entity_types"], (name, t)
+            assert t["object_type"] in variant["entity_types"], (name, t)
+            assert t["relation"] in variant["relation_types"], (name, t)
+            assert qualifiers <= set(t)
+    # Bruecke zu den Finanzartikeln: Nachrichten koennen auf Kurse und Branchen wirken
+    assert {"company", "index", "sector"} <= set(data["variants"]["news"]["entity_types"])
+    assert get_profile("medicine").to_json()["variants"] == {}
 
 def finance_store():
     store = GraphStore()

@@ -412,6 +412,9 @@ class GraphStore:
                     **{q: data.get(q) for q in qualifiers},
                     "confidence": data.get("confidence"),
                     "origin": data.get("origin"),
+                    # Vorgabe der Extraktion (DomainProfile.variants); fehlt
+                    # bei Kanten von vor den Vorgaben
+                    "kind": data.get("kind"),
                 }
                 for u, v, data in self.graph.edges(data=True)
             ],

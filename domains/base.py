@@ -34,6 +34,29 @@ class Qualifier:
 
 
 @dataclass(frozen=True)
+class Variant:
+    """
+    Eine andere Extraktions-Vorgabe fuer Artikel, die nicht zum Fachgebiet
+    des Graphen gehoeren, aber in ihn sollen (im Finanz-Graphen Nachrichten
+    und Wissenschaft): eigene Typen, Relationen, Fachhinweise und Beispiel,
+    dieselben Qualifier und Regeln. polygraph stuft jeden Artikel vor der
+    Extraktion ein (description sagt dem Modell, was dazugehoert) und
+    schreibt die Art als "kind" an jede Kante.
+    """
+    description: str
+    entity_types: tuple
+    relation_types: tuple
+    extract_notes: str = ""
+    example_text: str = ""
+    example_output: tuple = ()
+
+    def to_json(self) -> dict:
+        return {"description": self.description, "entity_types": list(self.entity_types),
+                "relation_types": list(self.relation_types), "extract_notes": self.extract_notes.strip(),
+                "example_text": self.example_text, "example_output": list(self.example_output)}
+
+
+@dataclass(frozen=True)
 class DomainProfile:
     name: str
     qualifiers: tuple
@@ -62,6 +85,13 @@ class DomainProfile:
     # subject_type/object_type ins Schema, passt keiner genau, waehlt das
     # Modell den naechstliegenden. Aus: neue Typen moeglich (*_type_is_new).
     closed_types: bool = False
+    # Art -> Variant: andere Vorgaben fuer fachfremde Artikel im selben Graphen.
+    # Die Art des Profils selbst heisst wie das Profil (name); Kanten ohne
+    # "kind" stammen aus der Zeit vor den Vorgaben und gehoeren zu ihr.
+    variants: dict = field(default_factory=dict)
+    # Was zum Fachgebiet selbst gehoert - nur mit variants noetig: polygraph
+    # stuft damit einen Artikel als diese Art oder eine der Vorgaben ein
+    description: str = ""
 
     @property
     def qualifier_fields(self) -> tuple:
@@ -98,4 +128,6 @@ class DomainProfile:
             "extract_notes": self.prompt_notes.get("extract", "").strip(),
             "closed_relations": self.closed_relations,
             "closed_types": self.closed_types,
+            "variants": {name: v.to_json() for name, v in self.variants.items()},
+            "description": self.description,
         }

@@ -37,6 +37,15 @@ def test_source_is_stored_as_origin():
     assert "source" not in data
 
 
+
+def test_kind_of_the_extraction_is_in_the_json():
+    # Vorgabe der Extraktion (news, science); Kanten von vorher haben keine
+    store = GraphStore()
+    store.add_triple(triple(source="A", kind="news"))
+    store.add_triple(triple(subject="Laufen", source="B"))
+    kinds = {e["source"]: e["kind"] for e in store.to_json()["edges"]}
+    assert kinds == {"Krafttraining": "news", "Laufen": None}
+
 def test_same_relation_same_source_updates_instead_of_duplicating():
     store = GraphStore()
     store.add_triple(triple(source="A", confidence=0.5))
