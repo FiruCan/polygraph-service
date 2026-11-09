@@ -1,0 +1,233 @@
+{
+  "_hinweis": "Fragen im Stil von William O'Neil (CAN SLIM) an den Finanz-Graphen (Service 'finanzen', :8060), dazu eine Trader-Stufe für den kurzen Horizont. O'Neil kauft Wachstumsaktien mit starken Gewinnen nahe ihrem Hoch und hält sie Wochen bis Monate, nicht Jahre wie Buffett; mit 7 bis 8 Prozent Verlust verkauft er. Die Stufen folgen den Buchstaben C-A-N-S-L-I-M. Jede Frage: eine Firma, eine Lücke, keine Kaufempfehlung. 'frage' geht unverändert an Metis bzw. POST /research {question, language, service}. 'erwartete_tripel' ist die Form, die die Extraktion nach domains/finance.py liefern sollte - Werte darin sind Platzhalter, keine Fakten.",
+  "titel": "William O'Neil: Applied Materials",
+  "firma": "Applied Materials",
+  "ticker": "AMAT",
+  "service": "finanzen",
+  "language": "de",
+  "stand_graph": "2026-11-07: Applied Materials mit 225 Kanten aus 19 Quellen, fast alle aus den letzten 3 Monaten - Kurse, Quartalszahlen, Analysten, Besi-Beteiligung. Quartalszahlen am 12.11.2026 (in 5 Tagen).",
+  "fragen": [
+    {
+      "id": "c_quartal",
+      "stufe": "C Aktuelle Gewinne",
+      "frage": "Um wie viel Prozent sind Gewinn je Aktie und Umsatz von Applied Materials im letzten Quartal gegenüber dem Vorjahresquartal gestiegen?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --reports--> Gewinn je Aktie (value: plus x Prozent, condition: gegenüber Vorjahresquartal, as_of: Quartal)",
+        "Applied Materials --reports--> Umsatz (value, currency: USD, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "c_erwartung",
+      "stufe": "C Aktuelle Gewinne",
+      "frage": "Was erwarten Analysten für Gewinn je Aktie und Umsatz von Applied Materials bei den Quartalszahlen am 12. November 2026, und welche Prognose hat das Unternehmen selbst gegeben?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Analysten --forecasts--> Gewinn je Aktie von Applied Materials (value, currency: USD, as_of: Quartal, evidence: Konsens)",
+        "Applied Materials --forecasts--> Umsatz (value: Spanne, currency: USD, as_of: Quartal, evidence: Prognose)"
+      ]
+    },
+    {
+      "id": "c_ueberraschung",
+      "stufe": "C Aktuelle Gewinne",
+      "frage": "Hat Applied Materials in den letzten vier Quartalen die Gewinnerwartungen der Analysten übertroffen oder verfehlt, und um wie viel?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --reports--> Gewinnüberraschung (value: plus x Prozent, condition: gegenüber Konsens, as_of: je Quartal)"
+      ],
+      "luecke": "Überraschung = Ist minus Erwartung; steht selten als Zahl im Text, siehe luecken.berechnete_kennzahlen"
+    },
+    {
+      "id": "a_wachstum",
+      "stufe": "A Jährliche Gewinne",
+      "frage": "Wie stark ist der Gewinn je Aktie von Applied Materials in den letzten drei Geschäftsjahren jeweils gewachsen?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Applied Materials --reports--> Gewinn je Aktie (value, currency: USD, as_of: je Geschäftsjahr)"
+      ],
+      "luecke": "siehe luecken.kennzahl_namen (earnings, EPS, earnings per share, adjusted earnings per share)"
+    },
+    {
+      "id": "a_eigenkapitalrendite",
+      "stufe": "A Jährliche Gewinne",
+      "frage": "Wie hoch ist die Eigenkapitalrendite von Applied Materials, und liegt sie über 17 Prozent?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --reports--> Eigenkapitalrendite (value: Prozent, as_of)"
+      ]
+    },
+    {
+      "id": "n_produkte",
+      "stufe": "N Neues: Produkte und Hochs",
+      "frage": "Welche neuen Anlagen für Gate-All-Around-Transistoren, Hybrid Bonding und Advanced Packaging hat Applied Materials vorgestellt, und welcher Umsatz wird damit erwartet?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --produces--> Anlage für Hybrid Bonding (condition: Produktname)",
+        "Applied Materials --forecasts--> Umsatz mit Advanced Packaging (value, currency: USD, as_of)",
+        "Gate-All-Around-Transistor --belongs_to_class--> Nanotechnologie"
+      ],
+      "luecke": "siehe luecken.nanotech_getrennt"
+    },
+    {
+      "id": "n_besi",
+      "stufe": "N Neues: Produkte und Hochs",
+      "frage": "Warum stockt Applied Materials seine Beteiligung an BE Semiconductor (Besi) auf 20 Prozent auf, und wie hat die Aktie darauf reagiert?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --holds_stake_in--> BE Semiconductor Industries N.V. (value: 20 Prozent, as_of)",
+        "Applied Materials --reports--> Aktienkurs (value: plus x Prozent, as_of: Tag der Ankündigung)"
+      ]
+    },
+    {
+      "id": "n_hoch",
+      "stufe": "N Neues: Produkte und Hochs",
+      "frage": "Wie weit ist die Aktie von Applied Materials von ihrem 52-Wochen-Hoch entfernt, und wann wurde das Hoch erreicht?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --reports--> 52-Wochen-Hoch (value, currency: USD, as_of: Datum des Hochs)",
+        "Applied Materials --reports--> Abstand zum Hoch (value: minus x Prozent, as_of)"
+      ],
+      "luecke": "siehe luecken.kursreihe_zersplittert"
+    },
+    {
+      "id": "s_volumen",
+      "stufe": "S Angebot und Nachfrage",
+      "frage": "Mit welchem Handelsvolumen ist die Aktie von Applied Materials an den starken Verlusttagen im Oktober 2026 gefallen, verglichen mit dem Durchschnitt?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --reports--> Handelsvolumen (value: Stück bzw. x Prozent über Durchschnitt, as_of: Tag)"
+      ],
+      "luecke": "siehe luecken.handelsdaten"
+    },
+    {
+      "id": "s_rueckkauf",
+      "stufe": "S Angebot und Nachfrage",
+      "frage": "Wie viele eigene Aktien kauft Applied Materials zurück, und wie hat sich die Zahl der ausstehenden Aktien verändert?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --reports--> Aktienrückkauf (value, currency: USD, as_of)",
+        "Applied Materials --reports--> ausstehende Aktien (value, as_of)"
+      ]
+    },
+    {
+      "id": "l_vergleich",
+      "stufe": "L Marktführer oder Nachzügler",
+      "frage": "Wie hat sich die Aktie von Applied Materials im letzten Monat und seit Jahresbeginn im Vergleich zu Lam Research, KLA und ASML entwickelt?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --reports--> Kursentwicklung (value: Prozent, condition: seit Jahresbeginn, as_of)",
+        "Lam Research --reports--> Kursentwicklung (value: Prozent, condition: seit Jahresbeginn, as_of)"
+      ],
+      "luecke": "siehe luecken.kursreihe_zersplittert und luecken.handelsdaten (relative Stärke)"
+    },
+    {
+      "id": "l_marktanteil",
+      "stufe": "L Marktführer oder Nachzügler",
+      "frage": "Gewinnt Applied Materials bei Abscheide- und Ätzanlagen Marktanteile gegenüber Lam Research und Tokyo Electron?",
+      "art": "thema",
+      "erwartete_tripel": [
+        "Applied Materials --competes_with--> Lam Research (condition: Ätzanlagen)",
+        "Applied Materials --reports--> Marktanteil (value: Prozent, condition: Abscheidung, as_of)"
+      ]
+    },
+    {
+      "id": "i_fonds",
+      "stufe": "I Institutionelle Käufer",
+      "frage": "Welche großen Fonds haben im letzten Quartal Aktien von Applied Materials gekauft oder verkauft?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Vanguard --holds_stake_in--> Applied Materials (value: Stückzahl und Veränderung, as_of: Quartalsende, evidence: Meldung 13F)"
+      ],
+      "luecke": "siehe luecken.institutionen_vage"
+    },
+    {
+      "id": "i_analysten",
+      "stufe": "I Institutionelle Käufer",
+      "frage": "Welche Analysten haben im Oktober und November 2026 ihr Kursziel oder ihre Einstufung für Applied Materials geändert, und in welche Richtung?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Needham --rates--> Applied Materials (value: Kaufen, as_of)",
+        "Needham --forecasts--> Kursziel von Applied Materials (value: 580, currency: USD, condition: vorher x, as_of)"
+      ],
+      "luecke": "siehe luecken.analysten_vermischt"
+    },
+    {
+      "id": "m_sektor",
+      "stufe": "M Marktrichtung",
+      "frage": "Wie haben sich der Halbleiterindex SOX und die Aktien der Chipausrüster seit Mitte Oktober 2026 entwickelt, und was war der Grund?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Intel-Warnung --triggers_decline_of--> Chipausrüster (value: minus x Prozent, as_of)",
+        "Philadelphia Semiconductor Index --reports--> Kursentwicklung (value, as_of)"
+      ],
+      "luecke": "siehe luecken.ursache_kurssturz"
+    },
+    {
+      "id": "m_ki",
+      "stufe": "M Marktrichtung",
+      "frage": "Wie stark hängt die Nachfrage nach Anlagen von Applied Materials an den Investitionen in KI-Rechenzentren und Speicherchips (HBM)?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "KI-Investitionen --increases--> Nachfrage nach Anlagen von Applied Materials (value, as_of)",
+        "Applied Materials --reports--> Umsatz mit DRAM (value, condition: HBM, as_of: Quartal)"
+      ]
+    },
+    {
+      "id": "k_kurssturz",
+      "stufe": "Trader: Katalysator und Risiko",
+      "frage": "Warum ist die Aktie von Applied Materials seit dem 12. Oktober 2026 um rund ein Viertel gefallen?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Ereignis --triggers_decline_of--> Applied Materials (value: minus x Prozent, as_of: Datum)"
+      ],
+      "luecke": "siehe luecken.ursache_kurssturz"
+    },
+    {
+      "id": "k_china",
+      "stufe": "Trader: Katalysator und Risiko",
+      "frage": "Wie viel Umsatz macht Applied Materials in China, und welche US-Exportbeschränkungen betreffen das Unternehmen gerade?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --reports--> Umsatz (value: Anteil in Prozent, condition: China, as_of: Quartal)",
+        "Applied Materials --regulated_by--> US-Exportkontrollen (condition: China)",
+        "US-Exportkontrollen --decreases--> Umsatz von Applied Materials (value, as_of)"
+      ],
+      "luecke": "siehe luecken.china_export"
+    },
+    {
+      "id": "k_kunden",
+      "stufe": "Trader: Katalysator und Risiko",
+      "frage": "Was haben TSMC, Samsung, Intel und SK hynix zuletzt zu ihren Investitionsplänen gesagt, und was bedeutet das für Applied Materials?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "TSMC --plans--> Investitionsausgaben (value, currency: USD, as_of: Jahr)",
+        "Investitionsausgaben von TSMC --influences--> Applied Materials"
+      ],
+      "luecke": "siehe luecken.relation_lieferung"
+    },
+    {
+      "id": "k_termine",
+      "stufe": "Trader: Katalysator und Risiko",
+      "frage": "Welche Termine stehen bei Applied Materials in den nächsten Wochen an, etwa Quartalszahlen, Ex-Dividende oder ein Investorentag?",
+      "art": "aktuell",
+      "erwartete_tripel": [
+        "Applied Materials --plans--> Quartalszahlen (as_of: 12.11.2026)",
+        "Applied Materials --pays_dividend--> Dividende (value: 0,53 USD, condition: Ex-Tag, as_of: 19.11.2026)"
+      ],
+      "luecke": "siehe luecken.termin_fehlt"
+    }
+  ],
+  "luecken": {
+    "kursreihe_zersplittert": "Rund 40 Kurs-Kanten auf drei Knoten ('stock price', 'price', 'stock'), dazu eigene Knoten '52-week range', 'daily change', '1-Month Return', 'year-to-date performance', 'trading range', 'intrayear price point'. as_of in vielen Formen ('28.10.2026', 'October 13 2026', 'Friday 2026-10-24', 'last month'), 24 ohne Währung, USD und EUR (deutscher Handel) gemischt. Einen Kursverlauf oder den Abstand zum Hoch kann der Graph so nicht liefern - das Datum des 52-Wochen-Hochs (739,67 USD) fehlt ganz.",
+    "handelsdaten": "Kein Handelsvolumen, keine relative Stärke (RS-Rating), keine 50- oder 200-Tage-Linie, kein Short Interest, keine Optionsdaten (erwartete Bewegung zu den Zahlen). Für O'Neil sind Volumen und relative Stärke Kern der Prüfung. Argos sucht nur Nachrichten, keine Kursdaten - ein Suchort für Kursdaten fehlt in sources.finance.json.",
+    "ursache_kurssturz": "Der Graph kennt die Zahlen des Absturzes (minus 24 Prozent seit dem 12.10., minus 43 Prozent vom Hoch), aber triggers_decline_of zeigt bei Applied Materials nur alte Schocks (2022, 2024, 2025). Die Intel-Warnung zielt auf den Knoten 'semiconductor equipment maker', nicht auf Applied Materials - die Ursache hängt nicht an der Firma.",
+    "termin_fehlt": "Kein Typ und keine Relation für Termine. Die Quartalszahlen am 12.11. stehen nur als 'reports earnings (as_of: November 12, 2026)', der Ex-Dividenden-Tag 19.11. als condition an pays_dividend. Für einen Trader ist der nächste Katalysator die wichtigste Angabe.",
+    "relation_lieferung": "Wie bei Coca-Cola: keine Relation für Kunde oder Lieferant. TSMC und SK hynix sind Knoten, Samsung und Micron fehlen, Intel gibt es nur als 'Intel warning' und 'Intel outlook'. Dass Applied Materials an diese Kunden liefert, kann die Extraktion wegen closed_relations=True nicht ablegen.",
+    "china_export": "Kein Knoten China (nur 'Made in China 2025'), keine Exportkontrollen; regulated_by kommt im ganzen Graphen 1-mal vor. China ist für Chipausrüster einer der größten Märkte.",
+    "nanotech_getrennt": "Der Knoten 'nanotechnology' hängt nur an Wikipedia-Inhalten (Feynman-Preis, Nanoroboter). Die Nanotechnik von Applied Materials (Abscheidung im Atommaßstab, Gate-All-Around, Hybrid Bonding) ist nicht mit ihm verbunden. 'Hybrid Bonding' ist ein eigener Knoten ohne Kante zu Applied Materials - die Verbindung läuft nur über Besi.",
+    "institutionen_vage": "Nur 'asset managers' und 'prominent funds' halten Anteile, ohne Namen. Kein Suchort für Pflichtmeldungen (SEC 13F).",
+    "analysten_vermischt": "Kursziel und Einstufung stehen oft in einem value ('lowers price target from $700 to $590, Outperform rating'), mal als rates, mal als forecasts 'price target'. Ein Verlauf je Analyst lässt sich so schlecht ablesen.",
+    "kennzahl_namen": "Gewinn je Aktie unter 'earnings', 'EPS', 'earnings per share', 'adjusted earnings per share', 'Diluted EPS (ttm)'; Umsatz unter 'revenue', 'sales', 'quarterly revenue', 'revenue growth', 'growth'.",
+    "berechnete_kennzahlen": "Gewinnüberraschung, relative Stärke und Abstand zum Hoch sind Rechnungen. Die Extraktion nimmt nur, was im Text steht."
+  }
+}

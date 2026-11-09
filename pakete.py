@@ -2,15 +2,17 @@
 pakete.py
 ---------
 Fragen-Pakete und ihre Antworten. Ein Paket ist eine JSON-Datei mit Fragen
-zu einem Thema (fragen/<fachgebiet>/<name>.json, z.B. die Buffett-Fragen zu
-Coca-Cola), die Argos nacheinander recherchiert. Nach jeder Frage schickt
+zu einem Thema (question_packages/<fachgebiet>/<name>.json, z.B. die
+Buffett-Fragen zu Coca-Cola), die Argos nacheinander recherchiert. Nach jeder Frage schickt
 Argos die Antwort hierher; sie landet im Datenordner der Instanz
 (data/<fachgebiet>/antworten/<name>/<lauf>.json), ein Lauf pro Paket-Start.
 So bleibt ein frueherer Lauf erhalten und laesst sich mit einem spaeteren
 vergleichen.
 
-Die Pakete liegen im Repo (von Hand geschrieben), die Antworten nicht (sie
-entstehen aus dem Graphen und gehoeren zu ihm).
+Vorgegebene Pakete liegen im Repo (question_packages/<fachgebiet>/), eigene,
+in Metis hochgeladene im Datenordner (data/<fachgebiet>/question_packages/),
+die Antworten auch dort (sie entstehen aus dem Graphen und gehoeren zu
+ihm). Ein eigenes Paket darf kein vorgegebenes verdecken.
 """
 
 import json
@@ -45,11 +47,72 @@ def _write(path: str, data) -> None:
     os.replace(tmp, path)
 
 
-def load_paket(fragen_dir: str, name: str) -> dict:
-    """-> Inhalt von <name>.json; FileNotFoundError, wenn es das Paket nicht gibt."""
+def _dirs(fragen_dir: str, eigene_dir: str = None) -> list:
+    return [(d, d == eigene_dir) for d in (fragen_dir, eigene_dir) if d]
+
+
+def load_paket(fragen_dir: str, name: str, eigene_dir: str = None) -> dict:
+    """-> Inhalt von <name>.json (vorgegeben vor eigen); FileNotFoundError, wenn es das Paket nicht gibt."""
     if not valid_name(name):
         raise FileNotFoundError(name)
-    return _read(os.path.join(fragen_dir, name + ".json"))
+    for directory, _ in _dirs(fragen_dir, eigene_dir):
+        path = os.path.join(directory, name + ".json")
+        if os.path.exists(path):
+            return _read(path)
+    raise FileNotFoundError(name)
+
+
+def normalize(data) -> dict:
+    """
+    Ein hochgeladenes Paket pruefen und vereinheitlichen. Fragen duerfen
+    blosse Texte sein ({"fragen": ["Was ...?", ...]}) oder Objekte mit
+    frage, stufe und id; fehlt die id, wird sie durchgezaehlt (frage_1, ...).
+    Weitere Felder (titel, firma, ticker, luecken, ...) bleiben, wie sie sind.
+    -> das Paket; ValueError mit dem Grund, wenn es nicht taugt
+    """
+    if not isinstance(data, dict) or not isinstance(data.get("fragen"), list):
+        raise ValueError('Das Paket braucht eine Liste "fragen"')
+    fragen, ids = [], set()
+    for i, q in enumerate(data["fragen"]):
+        if isinstance(q, str):
+            q = {"frage": q}
+        if not isinstance(q, dict) or not isinstance(q.get("frage"), str):
+            raise ValueError(f'Frage {i + 1}: braucht einen Text in "frage"')
+        if not q["frage"].strip():
+            continue
+        q = {**q, "frage": q["frage"].strip(), "id": str(q.get("id") or f"frage_{i + 1}")}
+        if not valid_name(q["id"]) or q["id"] in ids:
+            raise ValueError(f"Frage {i + 1}: id '{q['id']}' ist doppelt oder enthaelt andere Zeichen "
+                             "als Buchstaben, Ziffern, _ und -")
+        ids.add(q["id"])
+        fragen.append(q)
+    if not fragen:
+        raise ValueError("Das Paket hat keine Fragen")
+    return {**data, "fragen": fragen}
+
+
+def save_paket(fragen_dir: str, eigene_dir: str, name: str, data) -> dict:
+    """
+    Ein eigenes Paket speichern; ein gleichnamiges eigenes wird ersetzt
+    (seine Antwort-Laeufe bleiben). -> Kurzfassung wie in list_pakete
+    ValueError bei falschem Namen oder Inhalt, FileExistsError, wenn es ein
+    vorgegebenes Paket dieses Namens gibt.
+    """
+    if not valid_name(name):
+        raise ValueError("Paketname: nur Buchstaben, Ziffern, _ und -")
+    if os.path.exists(os.path.join(fragen_dir, name + ".json")):
+        raise FileExistsError(name)
+    data = normalize(data)
+    data["hochgeladen"] = _now()
+    _write(os.path.join(eigene_dir, name + ".json"), data)
+    return _paket_summary(name, data, True, [])
+
+
+def delete_paket(eigene_dir: str, name: str) -> None:
+    """Ein eigenes Paket loeschen; seine Antwort-Laeufe bleiben. FileNotFoundError, wenn es keins ist."""
+    if not valid_name(name):
+        raise FileNotFoundError(name)
+    os.remove(os.path.join(eigene_dir, name + ".json"))
 
 
 def _summary(lauf: dict) -> dict:
@@ -75,24 +138,30 @@ def list_laeufe(antworten_dir: str, name: str) -> list:
     return laeufe
 
 
-def list_pakete(fragen_dir: str, antworten_dir: str) -> list:
-    """Alle Pakete des Fachgebiets mit Zahl der Fragen und dem letzten Antwort-Lauf."""
-    if not os.path.isdir(fragen_dir):
-        return []
-    pakete = []
-    for file in sorted(os.listdir(fragen_dir)):
-        name, ext = os.path.splitext(file)
-        if ext != ".json" or not valid_name(name):
+def _paket_summary(name: str, data: dict, eigen: bool, laeufe: list) -> dict:
+    return {"name": name, "titel": data.get("titel") or data.get("firma") or name,
+            "firma": data.get("firma"), "ticker": data.get("ticker"),
+            "anzahl": len(data.get("fragen") or []), "eigen": eigen,
+            "letzter_lauf": laeufe[0] if laeufe else None}
+
+
+def list_pakete(fragen_dir: str, antworten_dir: str, eigene_dir: str = None) -> list:
+    """Alle Pakete des Fachgebiets - erst die vorgegebenen, dann die eigenen -
+    mit Zahl der Fragen und dem letzten Antwort-Lauf."""
+    pakete, seen = [], set()
+    for directory, eigen in _dirs(fragen_dir, eigene_dir):
+        if not os.path.isdir(directory):
             continue
-        try:
-            data = _read(os.path.join(fragen_dir, file))
-        except (OSError, ValueError):
-            continue
-        laeufe = list_laeufe(antworten_dir, name)
-        pakete.append({"name": name, "titel": data.get("titel") or data.get("firma") or name,
-                       "firma": data.get("firma"), "ticker": data.get("ticker"),
-                       "anzahl": len(data.get("fragen") or []),
-                       "letzter_lauf": laeufe[0] if laeufe else None})
+        for file in sorted(os.listdir(directory)):
+            name, ext = os.path.splitext(file)
+            if ext != ".json" or not valid_name(name) or name in seen:
+                continue
+            try:
+                data = _read(os.path.join(directory, file))
+            except (OSError, ValueError):
+                continue
+            seen.add(name)
+            pakete.append(_paket_summary(name, data, eigen, list_laeufe(antworten_dir, name)))
     return pakete
 
 

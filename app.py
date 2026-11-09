@@ -24,8 +24,9 @@ laufen mehrere Instanzen parallel, ohne sich zu beruehren; eine Sperre
 verhindert zwei Instanzen auf demselben Ordner (open_instance). Ohne
 POLYGRAPH_DOMAIN startet der Service nicht.
 
-Fragen-Pakete (pakete.py): fragen/<fachgebiet>/<name>.json, von Argos
-nacheinander recherchiert; die Antworten schreibt Argos nach
+Fragen-Pakete (pakete.py): question_packages/<fachgebiet>/<name>.json (vorgegeben) oder
+in Metis hochgeladen (data/<fachgebiet>/question_packages/), von Argos nacheinander
+recherchiert; die Antworten schreibt Argos nach
 data/<fachgebiet>/antworten/<name>/<lauf>.json, Metis zeigt sie als Dossier.
 
 Start: POLYGRAPH_DOMAIN=medicine uvicorn app:app --port 8000
@@ -58,16 +59,18 @@ from graph.translate import TYPE_FIELDS, translate_details, translate_names, tra
 import pakete
 
 DATA_ROOT = os.path.join(os.path.dirname(__file__), "data")
-FRAGEN_ROOT = os.path.join(os.path.dirname(__file__), "fragen")
+FRAGEN_ROOT = os.path.join(os.path.dirname(__file__), "question_packages")
 # data/<fachgebiet>/graph.gml, gesetzt von open_instance() beim Start
 DATA_PATH = None
-# fragen/<fachgebiet>/ und data/<fachgebiet>/antworten/, ebenso
+# question_packages/<fachgebiet>/ (vorgegeben), data/<fachgebiet>/question_packages/ (hochgeladen)
+# und data/<fachgebiet>/antworten/, ebenso
 FRAGEN_DIR = None
+EIGENE_DIR = None
 ANTWORTEN_DIR = None
 
 store = GraphStore()
 store_lock = threading.Lock()
-antworten_lock = threading.Lock()  # eigene Sperre: eine Antwort zu speichern soll nicht auf /ask warten
+antworten_lock = threading.Lock()  # eigene Sperre fuer Pakete und Antworten: soll nicht auf /ask warten
 _instance_lock = None  # offene .lock-Datei, gehalten, solange der Prozess laeuft
 
 
@@ -95,7 +98,7 @@ def open_instance(domain: str, root: str = None):
     der Zeit vor den Datenordnern (root/graph.gml) wird nicht verschoben -
     der Start bricht dann mit der Anleitung dazu ab.
     """
-    global DATA_PATH, FRAGEN_DIR, ANTWORTEN_DIR, _instance_lock
+    global DATA_PATH, FRAGEN_DIR, EIGENE_DIR, ANTWORTEN_DIR, _instance_lock
     root = root or DATA_ROOT
     if not domain:
         raise RuntimeError("POLYGRAPH_DOMAIN fehlt - z.B. POLYGRAPH_DOMAIN=medicine "
@@ -118,6 +121,7 @@ def open_instance(domain: str, root: str = None):
     label_cache.CACHE_DIR = os.path.join(directory, "labels")
     DATA_PATH = path
     FRAGEN_DIR = os.path.join(FRAGEN_ROOT, domain)
+    EIGENE_DIR = os.path.join(directory, "question_packages")
     ANTWORTEN_DIR = os.path.join(directory, "antworten")
 
 
@@ -133,7 +137,7 @@ app = FastAPI(title="polygraph-service", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=os.environ.get("POLYGRAPH_CORS_ORIGIN_REGEX", r"https?://(localhost|127\.0\.0\.1)(:\d+)?"),
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],  # DELETE: eigene Fragenlisten entfernen
     allow_headers=["Content-Type"],
 )
 
@@ -215,6 +219,11 @@ class RenameIn(BaseModel):
 
 class TypeParentsIn(BaseModel):
     parents: dict[str, Optional[str]]
+
+
+class PaketIn(BaseModel):
+    name: str   # wird zum Dateinamen: nur Buchstaben, Ziffern, _ und -
+    paket: dict  # wie question_packages/<fachgebiet>/*.json; Fragen auch als blosse Texte
 
 
 class AntwortIn(BaseModel):
@@ -562,19 +571,44 @@ def translate(body: TranslateIn):
 
 @app.get("/fragen")
 def fragen_list():
-    """Fragen-Pakete dieses Fachgebiets (fragen/<fachgebiet>/) mit dem letzten Antwort-Lauf."""
-    return {"pakete": pakete.list_pakete(FRAGEN_DIR, ANTWORTEN_DIR)}
+    """Fragen-Pakete dieses Fachgebiets (vorgegebene und hochgeladene) mit dem letzten Antwort-Lauf."""
+    with antworten_lock:
+        return {"pakete": pakete.list_pakete(FRAGEN_DIR, ANTWORTEN_DIR, EIGENE_DIR)}
+
+
+@app.post("/fragen")
+def fragen_upload(body: PaketIn):
+    """Ein eigenes Paket hochladen (Metis) - ersetzt ein gleichnamiges eigenes, nie ein vorgegebenes."""
+    with antworten_lock:
+        try:
+            return pakete.save_paket(FRAGEN_DIR, EIGENE_DIR, body.name, body.paket)
+        except FileExistsError:
+            raise HTTPException(status_code=409, detail=f"'{body.name}' ist ein vorgegebenes Paket - "
+                                                        "bitte einen anderen Namen waehlen")
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.get("/fragen/{name}")
 def fragen_get(name: str):
     """Ein Paket mit allen Fragen - Argos holt es sich beim Start."""
     try:
-        return pakete.load_paket(FRAGEN_DIR, name)
+        return pakete.load_paket(FRAGEN_DIR, name, EIGENE_DIR)
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Fragen-Paket '{name}' gibt es nicht")
     except ValueError as e:
         raise HTTPException(status_code=500, detail=f"Fragen-Paket '{name}' ist kein gueltiges JSON: {e}")
+
+
+@app.delete("/fragen/{name}")
+def fragen_delete(name: str):
+    """Ein hochgeladenes Paket loeschen; seine Antwort-Laeufe bleiben im Datenordner."""
+    with antworten_lock:
+        try:
+            pakete.delete_paket(EIGENE_DIR, name)
+        except FileNotFoundError:
+            raise HTTPException(status_code=404, detail=f"Eigenes Paket '{name}' gibt es nicht")
+    return {"deleted": name}
 
 
 @app.get("/fragen/{name}/antworten")
