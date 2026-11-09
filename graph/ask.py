@@ -4,7 +4,9 @@ ask.py
 Fragen an den Wissensgraphen (GraphRAG mit lokalem Ollama):
 1. Das LLM waehlt aus den Knotennamen die zur Frage passenden aus.
 2. Dazu werden deren Kanten (bis 2 Schritte) und Verbindungspfade zwischen den
-   gewaehlten Knoten aus dem Graphen geholt.
+   gewaehlten Knoten aus dem Graphen geholt. Sind es mehr als MAX_TRIPLES,
+   entscheidet der Bezug zur Frage: englische Suchbegriffe (question_terms)
+   ziehen die passenden Kanten nach vorn, der Rest geht nach Konfidenz.
 3. Ein Agent antwortet anhand dieser Tripel und nennt sie als Beleg. Reichen
    sie nicht, darf er per Werkzeug (suche_knoten, kanten_von, pfad) weitere
    Tripel nachladen - bis zu MAX_TOOL_ROUNDS Runden. Nachgeladene Tripel
@@ -23,6 +25,7 @@ passiert nicht mehr hier, das macht das Frontend aus der JSON-Antwort.
 """
 
 import json
+import math
 import os
 import re
 import time
@@ -39,6 +42,7 @@ DEFAULT_LANGUAGE = "Deutsch"
 HOPS = 2
 MAX_PATH_LENGTH = 4
 MAX_TRIPLES = 100
+OVERVIEW_TRIPLES = 25     # so viele Plaetze bleiben den sichersten Kanten, auch wenn viele zur Frage passen
 MAX_TOOL_ROUNDS = 4
 MAX_TOOL_TRIPLES = 40     # pro Werkzeugaufruf
 MAX_TOTAL_TRIPLES = 250   # Obergrenze ueber alle Runden
@@ -75,8 +79,63 @@ def select_nodes(graph, question: str) -> list:
     return [n for n in names if n in graph.nodes]
 
 
-def collect_edges(graph, selected: list) -> list:
-    """Kanten bis HOPS Schritte um die gewaehlten Knoten plus Kanten auf kurzen Pfaden zwischen ihnen."""
+def question_terms(question: str) -> list:
+    """Englische Suchbegriffe zur Frage - die Frage kann in jeder Sprache kommen, die Tripel sind englisch."""
+    raw = _chat(_load_prompt("ask_terms.md").format(question=question), num_predict=300)
+    raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    try:
+        terms = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    return [t.strip() for t in terms if isinstance(t, str) and t.strip()] if isinstance(terms, list) else []
+
+
+def _term_pattern(term: str):
+    """Kurze Begriffe nur als ganzes Wort (EPS nicht in Epstein), laengere auch als Wortanfang (transistor -> transistors)."""
+    end = r"(?!\w)" if len(term) <= 4 else ""
+    return re.compile(r"(?<!\w)" + re.escape(term) + end, re.IGNORECASE)
+
+
+def edge_text(graph, edge) -> str:
+    """Was an einer Kante durchsucht wird: Knoten, Relation und Angaben wie value oder condition."""
+    u, v, _ = edge
+    data = graph.edges[edge]
+    values = [data.get(q) for q in profile_of(graph).qualifier_fields]
+    return " ".join(str(x).replace("_", " ") for x in (u, data.get("relation"), v, *values) if x is not None)
+
+
+def relevance(graph, edges: list, terms: list) -> dict:
+    """Bezug jeder Kante zu den Begriffen. Ein Begriff zaehlt umso mehr, je seltener er ist - einer, der ueberall vorkommt, zaehlt nichts."""
+    texts = {e: edge_text(graph, e) for e in edges}
+    scores = dict.fromkeys(edges, 0.0)
+    for term in dict.fromkeys(terms):
+        pattern = _term_pattern(term)
+        hits = [e for e in edges if pattern.search(texts[e])]
+        for e in hits:
+            scores[e] += math.log(len(edges) / len(hits))
+    return scores
+
+
+def _distinct_statements(graph, edges: list) -> list:
+    """Jede Aussage einmal, die erste (sicherste) gewinnt: "Gary Dickerson ist CEO" aus zehn Quellen belegte zehn Plaetze."""
+    seen, distinct = set(), []
+    for edge in edges:
+        key = edge_text(graph, edge).casefold()
+        if key not in seen:
+            seen.add(key)
+            distinct.append(edge)
+    return distinct
+
+
+def collect_edges(graph, selected: list, question: str = None) -> list:
+    """
+    Kanten bis HOPS Schritte um die gewaehlten Knoten plus Kanten auf kurzen
+    Pfaden zwischen ihnen. Passen nicht alle in MAX_TRIPLES und ist die Frage
+    bekannt, kommen die zur Frage passenden zuerst (Suchbegriffe nur dann, das
+    spart bei kleinen Graphen den LLM-Aufruf). Weiter entfernte Kanten zaehlen
+    weniger, sonst verdraengt eine andere Firma mit der gesuchten Kennzahl die
+    gefragte.
+    """
     distance = {}  # Kante -> Abstand zum naechsten gewaehlten Knoten (0 = am naechsten)
     frontier = set(selected)
     seen = set(selected)
@@ -104,7 +163,14 @@ def collect_edges(graph, selected: list) -> list:
                         distance[(u, v, k)] = 0
 
     ranked = sorted(distance, key=lambda e: (distance[e], -float(graph.edges[e].get("confidence", 0))))
-    return ranked[:MAX_TRIPLES]
+    ranked = _distinct_statements(graph, ranked) if len(ranked) > MAX_TRIPLES else ranked
+    if len(ranked) <= MAX_TRIPLES or not question:
+        return ranked[:MAX_TRIPLES]
+    scores = relevance(graph, ranked, question_terms(question))
+    fitting = sorted((e for e in ranked if scores[e] > 0), key=lambda e: -scores[e] / (1 + distance[e]))
+    chosen = fitting[:MAX_TRIPLES - OVERVIEW_TRIPLES]
+    taken = set(chosen)
+    return chosen + [e for e in ranked if e not in taken][:MAX_TRIPLES - len(chosen)]
 
 
 def format_triple(number: int, graph, edge) -> str:
@@ -138,9 +204,11 @@ TOOLS = [
     }},
     {"type": "function", "function": {
         "name": "kanten_von",
-        "description": "Liefert alle ein- und ausgehenden Tripel eines Knotens (exakter Knotenname).",
+        "description": "Liefert die ein- und ausgehenden Tripel eines Knotens (exakter Knotenname), sicherste "
+                       "zuerst. Grosse Knoten haben viele Tripel: mit begriff nur die Tripel, die den englischen "
+                       "Begriff enthalten (z.B. knoten='Applied Materials', begriff='return on equity').",
         "parameters": {"type": "object", "required": ["knoten"],
-                       "properties": {"knoten": {"type": "string"}}},
+                       "properties": {"knoten": {"type": "string"}, "begriff": {"type": "string"}}},
     }},
     {"type": "function", "function": {
         "name": "pfad",
@@ -205,10 +273,18 @@ def _tool_search(graph, begriff: str) -> tuple:
     return "Gefundene Knoten:\n" + "\n".join(f"- {n}" for n in hits), []
 
 
-def _tool_edges(graph, evidence: _Evidence, knoten: str) -> tuple:
+def _tool_edges(graph, evidence: _Evidence, knoten: str, begriff: str = None) -> tuple:
     if knoten not in graph.nodes:
         return f"Knoten '{knoten}' existiert nicht - erst mit suche_knoten den exakten Namen finden.", []
-    lines = evidence.add(node_edges(graph, knoten)[:MAX_TOOL_TRIPLES])
+    edges = node_edges(graph, knoten)
+    if begriff:
+        pattern = _term_pattern(str(begriff))
+        edges = [e for e in edges if pattern.search(edge_text(graph, e))]
+        if not edges:
+            return f"Kein Tripel von '{knoten}' enthaelt '{begriff}'.", [knoten]
+    lines = evidence.add(edges[:MAX_TOOL_TRIPLES])
+    if len(edges) > MAX_TOOL_TRIPLES:
+        lines.append(f"({MAX_TOOL_TRIPLES} von {len(edges)} Tripeln - mit begriff gezielter suchen.)")
     return ("\n".join(lines) if lines else f"'{knoten}' hat keine Kanten."), [knoten]
 
 
@@ -234,12 +310,15 @@ def _run_tool(graph, evidence: _Evidence, name: str, args: dict) -> tuple:
         if name == "suche_knoten":
             return _tool_search(graph, args["begriff"])
         if name == "kanten_von":
-            return _tool_edges(graph, evidence, args["knoten"])
+            return _tool_edges(graph, evidence, args["knoten"], args.get("begriff"))
         if name == "pfad":
             return _tool_path(graph, evidence, args["von"], args["nach"])
     except KeyError as missing:
         return f"Fehlendes Argument {missing} fuer {name}.", []
     return f"Unbekanntes Werkzeug '{name}'.", []
+
+
+RETRY_EMPTY = "Deine letzte Antwort war leer. Antworte jetzt nach den Regeln oben mit den vorhandenen Tripeln."
 
 
 def _agent_answer(graph, question: str, evidence: _Evidence, language: str = DEFAULT_LANGUAGE) -> tuple:
@@ -270,7 +349,12 @@ def _agent_answer(graph, question: str, evidence: _Evidence, language: str = DEF
         message = response["message"]
         calls = message.get("tool_calls") or []
         if not calls:
-            return (message.get("content") or "").strip(), steps, focus
+            answer = (message.get("content") or "").strip()
+            if not answer:  # kam vor (Frage nach dem 52-Wochen-Hoch): nur Denken, kein Text
+                print(f"Warnung: leere Antwort ({response.get('done_reason')}), zweiter Versuch ohne Denkschritt")
+                answer = (ollama.chat(model=MODEL, messages=messages + [{"role": "user", "content": RETRY_EMPTY}],
+                                      think=False, options={"num_predict": 2000})["message"].get("content") or "").strip()
+            return answer, steps, focus
 
         messages.append(message)
         for call in calls:
@@ -393,6 +477,9 @@ VERMUTUNG_MARKER = "vermutung (nicht im graphen belegt)"
 # Abkuerzungen mit Punkt, an denen kein Satz endet
 NO_SENTENCE_END = ("z.B.", "z. B.", "u.a.", "d.h.", "bzw.", "ca.", "etc.", "vs.", "e.g.", "i.e.",
                    "Dr.", "Prof.", "Nr.", "evtl.", "ggf.", "inkl.")
+# "am 12. November": der Punkt nach dem Tag beendet keinen Satz
+DATE_DAY = re.compile(r"(?<![\d.,])\d{1,2}\.$")
+MONTH = re.compile(r"(Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)\b")
 CHECK_VERDICTS = ["gedeckt", "teilweise", "nicht_gedeckt", "vermutung", "keine_aussage"]
 CHECK_SCHEMA = {
     "type": "array",
@@ -424,7 +511,8 @@ def split_statements(answer: str) -> list:
             text = text[text.casefold().index(VERMUTUNG_MARKER) + len(VERMUTUNG_MARKER):].lstrip(" :*").strip()
         pieces = []
         for piece in re.split(r"(?<=[.!?])\s+(?=[\"„(\[A-ZÄÖÜ0-9])", text):
-            if pieces and pieces[-1].endswith(NO_SENTENCE_END):
+            if pieces and (pieces[-1].endswith(NO_SENTENCE_END)
+                           or (DATE_DAY.search(pieces[-1]) and MONTH.match(piece))):
                 pieces[-1] += " " + piece
             else:
                 pieces.append(piece)
@@ -473,7 +561,9 @@ def check_answer(graph, answer: str, evidence_edges: list, language: str = DEFAU
     try:
         response = ollama.chat(
             model=MODEL, messages=[{"role": "user", "content": prompt}], think=False,
-            format=CHECK_SCHEMA, options={"num_predict": 300 * len(to_check) + 500, "temperature": 0},
+            # genau ein Urteil pro Satz: sonst fehlte manchmal eines und die ganze Pruefung fiel aus
+            format={**CHECK_SCHEMA, "minItems": len(to_check), "maxItems": len(to_check)},
+            options={"num_predict": 300 * len(to_check) + 500, "temperature": 0},
         )
         if response.get("done_reason") == "length":
             raise ValueError("abgeschnitten")
@@ -506,7 +596,7 @@ def ask(graph, question: str, language: str = DEFAULT_LANGUAGE) -> dict:
 
     selected = select_nodes(graph, question)
     evidence = _Evidence(graph)
-    evidence.add(collect_edges(graph, selected) if selected else [])
+    evidence.add(collect_edges(graph, selected, question) if selected else [])
 
     # Auch ohne Startknoten laeuft der Agent: er kann per suche_knoten
     # selbst Einstiegspunkte finden, die select_nodes uebersehen hat.

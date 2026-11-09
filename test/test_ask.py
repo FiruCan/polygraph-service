@@ -269,3 +269,129 @@ def test_ask_includes_pruefung(graph):
         result = ask_mod.ask(graph, "Was senkt das Risiko?")
     assert result["pruefung"]["status"] == "geprueft"
     assert result["pruefung"]["saetze"][0]["urteil"] == "gedeckt"
+
+
+@pytest.fixture
+def hub():
+    """Ein Knoten mit mehr Kanten, als ins Prompt passen - die gesuchte ist nicht die sicherste."""
+    store = GraphStore()
+    for i in range(150):
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": f"Zahl {i}",
+                          "object_type": "y", "confidence": 1.0})
+    store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": "return on equity",
+                      "object_type": "y", "value": "38%", "confidence": 0.8})
+    store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": "Epstein",
+                      "object_type": "y", "confidence": 0.8})
+    return store.graph
+
+
+def objects(edges):
+    return [v for _, v, _ in edges]
+
+
+def test_big_node_puts_edges_about_the_question_first(hub):
+    with patch.object(ask_mod, "question_terms", return_value=["return on equity", "Firma"]) as terms:
+        edges = ask_mod.collect_edges(hub, ["Firma"], "Wie hoch ist die Eigenkapitalrendite?")
+    terms.assert_called_once()
+    assert len(edges) == ask_mod.MAX_TRIPLES and objects(edges)[0] == "return on equity"
+    assert "Zahl 0" in objects(edges)  # "Firma" steht an jeder Kante und zieht nichts nach vorn
+
+
+def test_edges_about_the_question_leave_room_for_the_overview():
+    store = GraphStore()
+    for i in range(150):
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": f"sicher {i}",
+                          "object_type": "y", "confidence": 1.0})
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": f"eps {i}",
+                          "object_type": "y", "confidence": 0.5})
+    with patch.object(ask_mod, "question_terms", return_value=["eps"]):
+        found = objects(ask_mod.collect_edges(store.graph, ["Firma"], "Gewinn?"))
+    assert sum(o.startswith("eps") for o in found) == ask_mod.MAX_TRIPLES - ask_mod.OVERVIEW_TRIPLES
+    assert sum(o.startswith("sicher") for o in found) == ask_mod.OVERVIEW_TRIPLES
+
+
+def test_direct_edges_beat_the_same_term_two_steps_away():
+    store = GraphStore()
+    for i in range(120):
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": f"Zahl {i}",
+                          "object_type": "y", "confidence": 1.0})
+    store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "competes_with", "object": "Andere",
+                      "object_type": "y", "confidence": 1.0})
+    store.add_triple({"subject": "Andere", "subject_type": "x", "relation": "reports", "object": "eps von Andere",
+                      "object_type": "y", "confidence": 1.0})
+    store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": "eps von Firma",
+                      "object_type": "y", "confidence": 0.5})
+    with patch.object(ask_mod, "question_terms", return_value=["eps"]):
+        found = objects(ask_mod.collect_edges(store.graph, ["Firma"], "Gewinn?"))
+    assert found[:2] == ["eps von Firma", "eps von Andere"]
+
+
+def test_short_terms_match_whole_words_only(hub):
+    with patch.object(ask_mod, "question_terms", return_value=["eps"]):
+        assert "Epstein" not in objects(ask_mod.collect_edges(hub, ["Firma"], "Gewinn?"))
+    assert ask_mod._term_pattern("transistor").search("next-generation transistors")
+
+
+def test_no_terms_keep_the_order_by_confidence(hub):
+    with patch.object(ask_mod, "question_terms", return_value=[]):
+        edges = ask_mod.collect_edges(hub, ["Firma"], "Gewinn?")
+    assert "return on equity" not in objects(edges) and len(edges) == ask_mod.MAX_TRIPLES
+
+
+def test_small_graph_needs_no_terms(graph):
+    with patch.object(ask_mod, "question_terms") as terms:
+        assert len(ask_mod.collect_edges(graph, ["Muskeln"], "Was machen Muskeln?")) == 2
+    terms.assert_not_called()
+
+
+@pytest.mark.parametrize("reply, expected", [
+    ('["return on equity", " ROE ", "", 3]', ["return on equity", "ROE"]),
+    ('```json\n["ROE"]\n```', ["ROE"]),
+    ("keine Ahnung", []),
+    ('{"a": 1}', []),
+])
+def test_question_terms_parses_or_gives_nothing(reply, expected):
+    with patch.object(ask_mod.ollama, "chat", return_value=final(reply)):
+        assert ask_mod.question_terms("Frage?") == expected
+
+
+def test_edge_tool_filters_by_term_and_says_when_cut(hub):
+    evidence = ask_mod._Evidence(hub)
+    text, _ = ask_mod._tool_edges(hub, evidence, "Firma", "return on equity")
+    assert "38%" in text and "Zahl" not in text and len(evidence.edges) == 1
+    text, nodes = ask_mod._tool_edges(hub, evidence, "Firma", "gibt es nicht")
+    assert "enthaelt" in text and nodes == ["Firma"]
+    text, _ = ask_mod._tool_edges(hub, evidence, "Firma")
+    assert f"{ask_mod.MAX_TOOL_TRIPLES} von 152 Tripeln" in text
+
+
+def test_split_statements_keeps_dates_whole():
+    answer = "Der Termin ist am 12. November 2026 [1]. Der Wert stieg auf 20. Danach fiel er [2]."
+    assert [s["satz"] for s in ask_mod.split_statements(answer)] == [
+        "Der Termin ist am 12. November 2026 [1].", "Der Wert stieg auf 20.", "Danach fiel er [2]."]
+
+
+def test_check_asks_for_exactly_one_verdict_per_sentence(graph):
+    edges = all_edges(graph)
+    with patch.object(ask_mod.ollama, "chat", return_value=checker_reply(("gedeckt", [1]), ("gedeckt", [1]))) as chat:
+        ask_mod.check_answer(graph, "Eins [1]. Zwei [1].", edges)
+    schema = chat.call_args.kwargs["format"]
+    assert schema["minItems"] == 2 and schema["maxItems"] == 2
+
+
+def test_empty_answer_is_tried_again_without_thinking(graph):
+    result, chat = run(graph, "Frage?", ["Muskeln"], [final(""), final("Jetzt mit Text [1].")])
+    assert result["answer"] == "Jetzt mit Text [1]." and chat.call_count == 2
+    assert chat.call_args.kwargs["think"] is False and chat.call_args.kwargs.get("tools") is None
+
+
+def test_big_node_shows_each_statement_once():
+    store = GraphStore()
+    for i in range(10):
+        store.add_triple({"subject": "Chef", "subject_type": "x", "relation": "employed_by", "object": "Firma",
+                          "object_type": "y", "value": "CEO", "confidence": 1.0, "source": f"quelle{i}"})
+    for i in range(120):
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": f"Zahl {i}",
+                          "object_type": "y", "confidence": 0.9})
+    edges = ask_mod.collect_edges(store.graph, ["Firma"])
+    assert sum(u == "Chef" for u, _, _ in edges) == 1 and len(edges) == ask_mod.MAX_TRIPLES

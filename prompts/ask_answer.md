@@ -79,7 +79,8 @@ um die Frage zu beantworten, lade gezielt nach, bevor du antwortest:
   Abkuerzungen, Ober-/Unterbegriffe probieren). Alle Knotennamen sind
   ENGLISCH - suche mit englischen Begriffen, auch wenn die Frage in einer
   anderen Sprache gestellt ist.
-- kanten_von(knoten): alle Tripel eines Knotens
+- kanten_von(knoten, begriff): Tripel eines Knotens, bei grossen Knoten mit
+  einem englischen begriff auf die passenden eingegrenzt
 - pfad(von, nach): Tripel auf dem kuerzesten Weg zwischen zwei Knoten
 Nachgeladene Tripel tragen ebenfalls Nummern - zitiere sie genauso.
 Reichen die Tripel schon, antworte direkt ohne Werkzeug. Rufe kein Werkzeug
