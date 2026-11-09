@@ -14,7 +14,9 @@ REGELN:
   hinzufuegen, nichts zusammenfassen.
 - Zahlen bleiben dieselben, nur in englischer Schreibweise: Dezimalkomma
   wird Dezimalpunkt ("1,9 bis 3,3 Prozent" -> "1.9 to 3.3 percent",
-  "Faktor 1,8" -> "factor of 1.8"). Einheiten, Formeln und statistische
+  "Faktor 1,8" -> "factor of 1.8"). In englischen Angaben ist ein Komma vor
+  genau drei Ziffern ein Tausendertrenner und bleibt ("9,115 million" bleibt so).
+  Einheiten, Formeln und statistische
   Kennwerte (ng/ml, Mdn (IQR) = 9 (13), p < 0.05) unveraendert.
 - Belegarten mit den ueblichen englischen Begriffen: "Metaanalyse" ->
   "meta-analysis", "Beobachtungsstudie" -> "observational study",
