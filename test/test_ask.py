@@ -493,3 +493,18 @@ def test_annual_value_named_as_twelve_months_comes_in_for_fiscal_years():
     with patch.object(ask_mod, "question_terms", return_value=["earnings per share", "fiscal year"]):
         found = [store.graph.edges[e].get("value") for e in ask_mod.collect_edges(store.graph, ["Firma"], "Jahre?")]
     assert found[0] == "$8.65"
+
+
+@pytest.mark.parametrize("as_of, shown", [
+    ("twelve months ended October 27, 2024", "as of: twelve months ended October 27, 2024 (fiscal year)"),
+    ("Three Months Ended April 27, 2025", "as of: Three Months Ended April 27, 2025 (quarter)"),
+    ("fiscal year 2025", "as of: fiscal year 2025 |"),          # steht schon da
+    ("nine months to July 2024", "as of: nine months to July 2024 |"),
+])
+def test_triple_names_the_period_of_its_date(as_of, shown):
+    store = GraphStore()
+    store.graph.graph["profile"] = "finance"
+    store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": "earnings per share",
+                      "object_type": "y", "value": "$8.65", "as_of": as_of, "confidence": 0.9})
+    edge = next(iter(store.graph.edges(keys=True)))
+    assert shown in ask_mod.format_triple(1, store.graph, edge) + " |"

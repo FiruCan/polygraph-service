@@ -234,7 +234,7 @@ def test_finance_notes_reach_check_prompt():
     prompt = chat.call_args.kwargs["messages"][0]["content"]
     assert result["status"] == "geprueft"
     assert "Stichtag (as of)" in prompt
-    assert "as of: Q3 2024 | currency: EUR" in prompt
+    assert "as of: Q3 2024 (quarter) | currency: EUR" in prompt
 
 
 def test_finance_instance_reports_its_profile(client):

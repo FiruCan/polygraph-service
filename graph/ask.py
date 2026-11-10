@@ -206,8 +206,16 @@ def format_triple(number: int, graph, edge) -> str:
                                                                           ("confidence", "confidence")]
     for key, label in labels:
         if data.get(key) is not None:
-            parts.append(f"{label}: {data[key]}")
+            parts.append(f"{label}: {data[key]}{_period_hint(data[key]) if key == 'as_of' else ''}")
     return " | ".join(parts)
+
+
+def _period_hint(as_of) -> str:
+    """" (fiscal year)" hinter "twelve months ended October 27, 2024": sonst schrieb das Modell, fuer 2024 fehle
+    der Jahreswert, obwohl er im Prompt stand."""
+    words = period_words(as_of)
+    name = "fiscal year" if "fiscal year" in words else "quarter" if "quarter" in words else ""
+    return f" ({name})" if name and name not in str(as_of).lower() else ""
 
 
 def build_subgraph(graph, edges: list):
