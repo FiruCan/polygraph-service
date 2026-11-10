@@ -75,7 +75,8 @@ def select_nodes(graph, question: str) -> list:
     prompt = _load_prompt("ask_select.md").format(
         nodes="\n".join(f"- {n}" for n in graph.nodes), question=question
     )
-    raw = _chat(prompt).removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    # temperature=0: dieselbe Frage waehlte sonst mal "earnings" mit, mal nicht
+    raw = _chat(prompt, temperature=0).removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     try:
         names = json.loads(raw)
     except json.JSONDecodeError:

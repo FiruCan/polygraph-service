@@ -471,3 +471,9 @@ def test_question_terms_are_the_same_each_time():
     with patch.object(ask_mod.ollama, "chat", return_value=final('["EPS"]')) as chat:
         ask_mod.question_terms("Frage?")
     assert chat.call_args.kwargs["options"]["temperature"] == 0
+
+
+def test_select_nodes_is_the_same_each_time(graph):
+    with patch.object(ask_mod.ollama, "chat", return_value=final('["Muskeln"]')) as chat:
+        assert ask_mod.select_nodes(graph, "Was machen Muskeln?") == ["Muskeln"]
+    assert chat.call_args.kwargs["options"]["temperature"] == 0

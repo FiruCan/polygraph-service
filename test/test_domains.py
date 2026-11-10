@@ -386,5 +386,7 @@ def test_finance_notes_name_estimates_and_fiscal_years():
     notes = get_profile("finance").prompt_notes
     assert "consensus" in notes["terms"] and "fiscal year" in notes["terms"]
     assert "fiscal year" in notes["answer"] and "dasselbe Quartal" in notes["answer"]
+    assert "Consensus Estimate" in notes["answer"] and "adjusted earnings per share" in notes["answer"]
+    assert "Zacks" not in notes["answer"]  # kein Name aus den Testfaellen
     assert get_profile("generic").notes("terms") == ""
 

@@ -83,7 +83,14 @@ PROMPT_NOTES = {
         "  Quartale, sechs oder neun Monate sind keine Jahreswerte. Das Geschaeftsjahr einer Firma\n"
         "  endet oft nicht im Dezember.\n"
         "- Ob eine Firma die Erwartungen uebertroffen hat: vergleiche den berichteten Wert mit der\n"
-        "  Schaetzung (consensus, estimate) fuer dasselbe Quartal und nenne die Differenz."
+        "  Schaetzung (consensus, estimate) fuer dasselbe Quartal und nenne die Differenz.\n"
+        "  Eine Schaetzung steht oft unter dem Namen ihres Anbieters oder als \"Consensus Estimate\"\n"
+        "  im Subjekt (\"... Consensus Estimate --forecasts--> earnings per share\"): Sie gilt fuer die\n"
+        "  Firma, um die es in den Tripeln daneben geht. Fehlt sie nur fuer einige Quartale, vergleiche\n"
+        "  die Quartale, fuer die es sie gibt.\n"
+        "- \"earnings per share\" (nach GAAP) und \"adjusted earnings per share\" (bereinigt, non-GAAP)\n"
+        "  sind zwei verschiedene Kennzahlen, kein Widerspruch zwischen Quellen: sag, welche du nennst,\n"
+        "  und vergleiche eine Schaetzung mit dem bereinigten Wert, wenn sie bereinigt ist."
     ),
     # Ohne diese Hinweise kam zu "Gewinnerwartungen der Analysten" nur "analyst expectations" -
     # die Schaetzung stand als "Zacks Consensus Estimate" im Graphen und fehlte im Prompt
