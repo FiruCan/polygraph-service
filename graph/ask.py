@@ -35,7 +35,7 @@ import networkx as nx
 import ollama
 
 from domains import profile_of
-from graph.dates import parse_as_of
+from graph.dates import parse_as_of, period_words
 
 MODEL = "gemma4:26b"
 # Sprache von Antworten und Erklaerungen, wenn der Aufrufer keine waehlt
@@ -110,7 +110,9 @@ def edge_text(graph, edge) -> str:
     u, v, _ = edge
     data = graph.edges[edge]
     values = [data.get(q) for q in profile_of(graph).qualifier_fields]
-    return " ".join(str(x).replace("_", " ") for x in (u, data.get("relation"), v, *values) if x is not None)
+    # "twelve months ended October 27, 2024" ist ein Geschaeftsjahr - nur so findet "fiscal year" den Jahreswert
+    period = period_words(data.get("as_of")) or None
+    return " ".join(str(x).replace("_", " ") for x in (u, data.get("relation"), v, *values, period) if x is not None)
 
 
 def relevance(graph, edges: list, terms: list) -> dict:

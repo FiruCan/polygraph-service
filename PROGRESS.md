@@ -8,7 +8,8 @@
 - Kleintest (5 Fragen, Graph-Kopie, ohne Import): Frage 4 nein -> Teilantwort mit 2023 und 2025 (2024 fehlt, $8.65 steht als "twelve months ended October 27, 2024" im Graphen und kommt nie ins Prompt). Frage 3 nennt vier Quartalswerte, vergleicht aber nicht mit der Schaetzung (Schaetzung in 2 von 3 nachgespielten Auswahlen im Prompt). Frage 5 bleibt beantwortet, der Vergleich mit 17 % weiter "nicht_gedeckt". Fragen 1 und 2 unveraendert gut.
 - Danach: Die Satzpruefung bekommt die Frage (`check_answer(..., question)`, `{question}` in `prompts/ask_check.md`), damit "ueber 17 Prozent" nicht als ungedeckt gilt. Suchbegriffe mit temperature 0, damit dieselbe Frage dieselbe Auswahl ergibt.
 - Danach: Knotenwahl mit temperature 0. Finanz-Regeln fuer Schaetzungen unter dem Namen ihres Anbieters und fuer GAAP gegen bereinigt. Kleintest: Fragen 1, 2, 4 unveraendert gut, GAAP und bereinigt sauber getrennt. Frage 3 zieht den Vergleich mit der Schaetzung weiter nicht, obwohl sie im Prompt steht - das Tripel hat den Anbieter als Subjekt statt der Firma, das ist eine Sache der Extraktion.
-- Offen (Extraktion): Jahreswerte mit "twelve months ended" statt "fiscal year"; Schaetzungen mit der Firma als Subjekt.
+- Danach: `graph/dates.period_words()` liest Zeitangaben mit: "twelve months ended ...", "FY2024" -> "fiscal year annual", "three months ended ...", "Q1" -> "quarter" (nicht bei trailing/ttm, sechs oder neun Monaten). `edge_text` haengt das an, so findet "fiscal year" den Jahreswert 2024 ($8.65, nachgespielt Platz 30 bzw. 57 von 100, vorher nie im Prompt).
+- Offen (Extraktion): Schaetzungen mit der Firma als Subjekt.
 
 **Verkauf und Verneinung im Finanz-Graphen (gebaut, nur Unit-Tests, kein echter Lauf)**
 - Grund: Firu will wissen, warum gekauft und warum verkauft wird. Verkaeufe fielen weg, weil keine Relation passte, und fuer Verneinungen gab es keine Regel.

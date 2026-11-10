@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from graph.dates import parse_as_of
+from graph.dates import parse_as_of, period_words
 
 D = datetime.date
 
@@ -40,3 +40,20 @@ def test_recognizes_common_forms(text, expected):
 @pytest.mark.parametrize("text", [None, "", "today", "next quarter", "current fiscal year", "last week", "31.02.2026"])
 def test_relative_or_broken_dates_give_none(text):
     assert parse_as_of(text) is None
+
+
+@pytest.mark.parametrize("text, words", [
+    ("twelve months ended October 27, 2024", "fiscal year annual"),
+    ("FY2024", "fiscal year annual"),
+    ("12 months ended Oct 2025", "fiscal year annual"),
+    ("Three Months Ended April 27, 2025", "quarter"),
+    ("Q1 FY2025", "quarter"),
+    ("third quarter 2024", ""),               # steht schon da
+    ("nine months to July 2024", ""),         # kein Jahr und kein Quartal
+    ("Six Months Ended April 28, 2024", ""),
+    ("fiscal 2026 third-quarter", ""),
+    ("trailing twelve months", ""),           # die letzten zwoelf Monate sind kein Geschaeftsjahr
+    (None, ""),
+])
+def test_period_words_name_whole_years_and_quarters(text, words):
+    assert period_words(text) == words

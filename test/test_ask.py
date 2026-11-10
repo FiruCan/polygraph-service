@@ -477,3 +477,19 @@ def test_select_nodes_is_the_same_each_time(graph):
     with patch.object(ask_mod.ollama, "chat", return_value=final('["Muskeln"]')) as chat:
         assert ask_mod.select_nodes(graph, "Was machen Muskeln?") == ["Muskeln"]
     assert chat.call_args.kwargs["options"]["temperature"] == 0
+
+
+def test_annual_value_named_as_twelve_months_comes_in_for_fiscal_years():
+    """Der Jahreswert 2024 stand als "twelve months ended October 27, 2024" im Graphen und kam nie ins Prompt."""
+    store = GraphStore()
+    store.graph.graph["profile"] = "finance"
+    for i in range(150):
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports",
+                          "object": "earnings per share", "object_type": "y", "value": f"{i}.00",
+                          "as_of": f"Q{i % 4 + 1} {2000 + i}", "confidence": 1.0, "source": f"q{i}"})
+    store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": "earnings per share",
+                      "object_type": "y", "value": "$8.65", "as_of": "twelve months ended October 27, 2024",
+                      "confidence": 0.9})
+    with patch.object(ask_mod, "question_terms", return_value=["earnings per share", "fiscal year"]):
+        found = [store.graph.edges[e].get("value") for e in ask_mod.collect_edges(store.graph, ["Firma"], "Jahre?")]
+    assert found[0] == "$8.65"

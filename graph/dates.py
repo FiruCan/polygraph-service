@@ -6,6 +6,10 @@ Stichtage aus dem Freitext der Kanten ("July 26, 2026", "Q3 FY2026", "13.08.2026
 Sortieren: ein Quartal zaehlt als Ende des Kalenderquartals, auch wenn das
 Geschaeftsjahr der Firma anders liegt. Relative Angaben ("next quarter",
 "today") sagen ohne Erscheinungsdatum nichts - None.
+
+period_words() sagt, welcher Zeitraum gemeint ist, in den Worten, nach denen die
+Tripel-Auswahl sucht: "twelve months ended October 27, 2024" ist ein Geschaeftsjahr,
+"three months ended April 26, 2026" ein Quartal.
 """
 
 import calendar
@@ -66,3 +70,21 @@ def parse_as_of(text) -> Optional[datetime.date]:
     take(SHORT_YEAR, lambda y: datetime.date(2000 + int(y), 12, 31))
     take(r"\b(?:fy)?" + YEAR + r"\b", lambda y: datetime.date(int(y), 12, 31))
     return max(found) if found else None
+
+
+TRAILING = re.compile(r"\btrailing\b|\bttm\b|\blast twelve months\b", re.I)
+PART_OF_YEAR = re.compile(r"\bquarter|\bQ[1-4]\b|\b(three|six|nine|3|6|9)[- ]months?\b|\bhalf\b|\bH[12]\b", re.I)
+WHOLE_YEAR = re.compile(r"\b(twelve|12)[- ]months?\b|\bfull[- ]year\b|\bFY\s?\d{2,4}\b|\bfiscal\s+(year\s+)?\d{4}\b"
+                        r"|\bfiscal year\b|\bannual\b", re.I)
+QUARTER = re.compile(r"\bQ[1-4]\b|\b(three|3)[- ]months?\b", re.I)
+
+
+def period_words(text) -> str:
+    """"fiscal year" fuer ein ganzes Geschaeftsjahr, "quarter" fuer ein Quartal, sonst "" - nur was nicht schon dasteht."""
+    text = str(text or "")
+    words = []
+    if WHOLE_YEAR.search(text) and not PART_OF_YEAR.search(text) and not TRAILING.search(text):
+        words.append("fiscal year annual")
+    if QUARTER.search(text) and "quarter" not in text.lower():
+        words.append("quarter")
+    return " ".join(words)
