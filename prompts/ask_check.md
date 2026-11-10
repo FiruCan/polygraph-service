@@ -43,10 +43,16 @@ KEIN Grund fuer "teilweise" oder "nicht_gedeckt":
   ("wie die Isolierung um ein Stromkabel")
 - weggelassene Details (der Satz muss nicht alles aus dem Tripel nennen)
 - einfache Rechnungen aus den Werten der Tripel (Differenz, Veraenderung in
-  Prozent, Vergleich mit einer Zahl wie "ueber 17 Prozent"), wenn das Ergebnis
-  stimmt - rechne nach; stimmt es nicht, ist der Satz "nicht_gedeckt"
+  Prozent), wenn das Ergebnis stimmt - rechne nach; stimmt es nicht, ist der
+  Satz "nicht_gedeckt"
+- Vergleiche eines belegten Werts mit einer Zahl aus der FRAGE (z.B. "liegt
+  ueber den gefragten 17 Prozent"), wenn der Vergleich stimmt - die Zahl aus
+  der Frage muss in keinem Tripel stehen
 - ein Satz, der nur sagt, was in den Tripeln fehlt ("Fuer 2024 liegt kein Wert
   vor") - das ist "keine_aussage"{domain_notes}
+
+FRAGE (nur, damit du weisst, worauf die Antwort sich bezieht - sie ist kein Beleg):
+{question}
 
 TRIPEL:
 {triples}

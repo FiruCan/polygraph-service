@@ -57,12 +57,15 @@ def _load_prompt(name: str) -> str:
         return f.read()
 
 
-def _chat(prompt: str, think: bool = False, num_predict: int = 4000) -> str:
+def _chat(prompt: str, think: bool = False, num_predict: int = 4000, temperature: float = None) -> str:
+    options = {"num_predict": num_predict}
+    if temperature is not None:
+        options["temperature"] = temperature
     response = ollama.chat(
         model=MODEL,
         messages=[{"role": "user", "content": prompt}],
         think=think,
-        options={"num_predict": num_predict},
+        options=options,
     )
     return response["message"]["content"].strip()
 
@@ -81,8 +84,12 @@ def select_nodes(graph, question: str) -> list:
 
 
 def question_terms(question: str, domain_notes: str = "") -> list:
-    """Englische Suchbegriffe zur Frage - die Frage kann in jeder Sprache kommen, die Tripel sind englisch."""
-    raw = _chat(_load_prompt("ask_terms.md").format(question=question, domain_notes=domain_notes), num_predict=300)
+    """
+    Englische Suchbegriffe zur Frage - die Frage kann in jeder Sprache kommen, die Tripel sind englisch.
+    temperature=0: sonst kam die Q3-Schaetzung in zwei von drei Aufrufen derselben Frage ins Prompt, im dritten nicht.
+    """
+    raw = _chat(_load_prompt("ask_terms.md").format(question=question, domain_notes=domain_notes), num_predict=300,
+                temperature=0)
     raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     try:
         terms = json.loads(raw)
@@ -543,13 +550,17 @@ def cited_numbers(text: str) -> list:
     return [int(n) for group in re.findall(r"\[([\d,\s]+)\]", text) for n in re.findall(r"\d+", group)]
 
 
-def check_answer(graph, answer: str, evidence_edges: list, language: str = DEFAULT_LANGUAGE) -> dict:
+def check_answer(graph, answer: str, evidence_edges: list, language: str = DEFAULT_LANGUAGE,
+                 question: str = "") -> dict:
     """
     Antwort-Pruefer: jeder Satz ausserhalb von "Vermutung" wird gegen die
     Tripel geprueft, die die Antwort zitiert - auch Saetze ohne eigenes [n],
     sie duerfen nichts behaupten, was nicht in den Belegen steht. Ein
     LLM-Aufruf fuer alle Saetze (wie der Pruef-Agent in polygraph), pro Satz
     erst Belege und Begruendung, dann Urteil.
+
+    Die Frage geht mit: "hoeher als die 17 Prozent" galt sonst als nicht gedeckt,
+    weil der Pruefer nicht wusste, dass die Grenze aus der Frage stammt.
 
     Die Antwort bleibt unveraendert - Frontend und PDF markieren nicht
     gedeckte Saetze. Scheitert die Pruefung, kommt {"status": "ungeprueft"}
@@ -574,7 +585,7 @@ def check_answer(graph, answer: str, evidence_edges: list, language: str = DEFAU
     prompt = _load_prompt("ask_check.md").format(
         triples="\n".join(format_triple(n, graph, evidence_edges[n - 1]) for n in numbers) or "(keine)",
         sentences="\n".join(f"{i}: {s['satz']}" for i, s in enumerate(to_check, 1)),
-        language=language, domain_notes=profile_of(graph).notes("check"),
+        language=language, domain_notes=profile_of(graph).notes("check"), question=question or "(unbekannt)",
     )
     try:
         response = ollama.chat(
@@ -638,6 +649,6 @@ def ask(graph, question: str, language: str = DEFAULT_LANGUAGE) -> dict:
         "graph": subgraph_store.to_json(),
         "steps": steps,
         "glossary": explain_terms(graph, answer, evidence.edges, language) if answer else [],
-        "pruefung": (check_answer(graph, answer, evidence.edges, language) if answer
+        "pruefung": (check_answer(graph, answer, evidence.edges, language, question) if answer
                      else {"status": "ungeprueft", "fehler": "keine Antwort", "saetze": []}),
     }

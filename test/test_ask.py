@@ -446,3 +446,28 @@ def test_estimate_two_steps_away_comes_in_with_its_terms():
     with patch.object(ask_mod, "question_terms", return_value=["earnings per share", "estimate", "consensus"]) as terms:
         found = [store.graph.edges[e].get("value") for e in ask_mod.collect_edges(store.graph, ["Firma"], "Erwartungen?")]
     assert "$3.38" in found and "consensus" in terms.call_args.args[1]
+
+
+def test_check_sees_the_question_for_numbers_it_names(graph):
+    edges = list(graph.edges(keys=True))
+    with patch.object(ask_mod.ollama, "chat", return_value=checker_reply(("gedeckt", [1]))) as chat:
+        ask_mod.check_answer(graph, "Krafttraining senkt das Risiko [1].", edges, question="Senkt es das Risiko um mehr als 17 Prozent?")
+    assert "mehr als 17 Prozent?" in chat.call_args.kwargs["messages"][0]["content"]
+    with patch.object(ask_mod.ollama, "chat", return_value=checker_reply(("gedeckt", [1]))) as chat:
+        ask_mod.check_answer(graph, "Krafttraining senkt das Risiko [1].", edges)
+    assert "{question}" not in chat.call_args.kwargs["messages"][0]["content"]
+
+
+def test_ask_passes_the_question_to_the_check(graph):
+    with patch.object(ask_mod, "select_nodes", return_value=["Muskeln"]), \
+         patch.object(ask_mod, "explain_terms", return_value=[]), \
+         patch.object(ask_mod, "check_answer", return_value={"status": "geprueft", "saetze": []}) as check, \
+         patch.object(ask_mod.ollama, "chat", return_value=final("Muskeln bilden Myokine [1].")):
+        ask_mod.ask(graph, "Was machen Muskeln?")
+    assert check.call_args.args[-1] == "Was machen Muskeln?"
+
+
+def test_question_terms_are_the_same_each_time():
+    with patch.object(ask_mod.ollama, "chat", return_value=final('["EPS"]')) as chat:
+        ask_mod.question_terms("Frage?")
+    assert chat.call_args.kwargs["options"]["temperature"] == 0
