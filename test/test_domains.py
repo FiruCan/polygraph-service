@@ -381,3 +381,10 @@ def test_finance_prompts_cover_sales_negation_and_named_opinions():
     assert "Keine Anlageempfehlung" in notes["answer"]  # eine eigene Empfehlung bleibt verboten
     assert "keine Anlageempfehlung" in notes["check"] and "negated" in notes["check"]
 
+
+def test_finance_notes_name_estimates_and_fiscal_years():
+    notes = get_profile("finance").prompt_notes
+    assert "consensus" in notes["terms"] and "fiscal year" in notes["terms"]
+    assert "fiscal year" in notes["answer"] and "dasselbe Quartal" in notes["answer"]
+    assert get_profile("generic").notes("terms") == ""
+

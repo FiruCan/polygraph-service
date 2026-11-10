@@ -11,6 +11,10 @@ Beispiele:
 Frage "Wie hoch ist die Eigenkapitalrendite von Apple?" -> ["return on equity", "ROE"]
 Frage "Hilft Kreatin gegen Muskelschwund?" -> ["creatine", "muscle wasting", "muscle atrophy", "sarcopenia"]
 
+Nimm die Woerter, mit denen englische Texte die Sache ausdruecken, nicht nur eine
+Uebersetzung der Frage - auch einzelne Woerter, die in solchen Aussagen stehen.
+Fragt die Frage nach einem Zeitraum, nenne auch Begriffe fuer ihn.{domain_notes}
+
 AUSGABEFORMAT:
 Antworte AUSSCHLIESSLICH mit einem JSON-Array von Strings. Keine Erklaerungen,
 keine Markdown-Codeblock-Markierungen.

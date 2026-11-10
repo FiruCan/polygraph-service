@@ -80,9 +80,9 @@ def select_nodes(graph, question: str) -> list:
     return [n for n in names if n in graph.nodes]
 
 
-def question_terms(question: str) -> list:
+def question_terms(question: str, domain_notes: str = "") -> list:
     """Englische Suchbegriffe zur Frage - die Frage kann in jeder Sprache kommen, die Tripel sind englisch."""
-    raw = _chat(_load_prompt("ask_terms.md").format(question=question), num_predict=300)
+    raw = _chat(_load_prompt("ask_terms.md").format(question=question, domain_notes=domain_notes), num_predict=300)
     raw = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     try:
         terms = json.loads(raw)
@@ -181,7 +181,7 @@ def collect_edges(graph, selected: list, question: str = None) -> list:
     ranked = _distinct_statements(graph, ranked) if len(ranked) > MAX_TRIPLES else ranked
     if len(ranked) <= MAX_TRIPLES or not question:
         return ranked[:MAX_TRIPLES]
-    scores = relevance(graph, ranked, question_terms(question))
+    scores = relevance(graph, ranked, question_terms(question, profile_of(graph).notes("terms")))
     fitting = sorted((e for e in ranked if scores[e] > 0), key=lambda e: -scores[e] / (1 + distance[e]))
     chosen = fitting[:MAX_TRIPLES - OVERVIEW_TRIPLES]
     taken = set(chosen)

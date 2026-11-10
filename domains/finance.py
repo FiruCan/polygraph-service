@@ -78,7 +78,20 @@ PROMPT_NOTES = {
         "- Fragt jemand nach Gruenden fuer Kauf oder Verkauf: nenne beide Seiten, jede mit Namen\n"
         "  und Beleg, und lass die Entscheidung offen.\n"
         "- Ein Tripel mit \"negated: ja\" ist eine Verneinung: Gib es als Verneinung wieder.\n"
-        "- Fehlt etwas in den Tripeln, schreib, dass dazu nichts vorliegt - nicht, dass es nicht so ist."
+        "- Fehlt etwas in den Tripeln, schreib, dass dazu nichts vorliegt - nicht, dass es nicht so ist.\n"
+        "- Ein Wert fuer ein Geschaeftsjahr gilt fuer das ganze Jahr (\"fiscal year\", \"twelve months\").\n"
+        "  Quartale, sechs oder neun Monate sind keine Jahreswerte. Das Geschaeftsjahr einer Firma\n"
+        "  endet oft nicht im Dezember.\n"
+        "- Ob eine Firma die Erwartungen uebertroffen hat: vergleiche den berichteten Wert mit der\n"
+        "  Schaetzung (consensus, estimate) fuer dasselbe Quartal und nenne die Differenz."
+    ),
+    # Ohne diese Hinweise kam zu "Gewinnerwartungen der Analysten" nur "analyst expectations" -
+    # die Schaetzung stand als "Zacks Consensus Estimate" im Graphen und fehlte im Prompt
+    "terms": (
+        "- Erwartungen von Analysten: \"estimate\", \"consensus\", \"expectations\", \"surprise\",\n"
+        "  \"beat\", \"miss\".\n"
+        "- Geschaeftsjahre: \"fiscal year\", \"annual\", \"twelve months\"; Quartale: \"quarter\".\n"
+        "- Kennzahlen mit ihrer Abkuerzung: \"earnings per share\" und \"EPS\"."
     ),
     "check": (
         "- Stichtag (as of) und Waehrung (currency): nennt ein Satz einen Wert mit einem\n"

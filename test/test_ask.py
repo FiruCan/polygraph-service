@@ -417,3 +417,32 @@ def test_triple_shows_when_the_source_was_published():
     assert "published: 2026-08-13" in ask_mod.format_triple(1, store.graph, edge)
     assert ask_mod.triple_dict(store.graph, edge)["published"] == "2026-08-13"
     assert ask_mod.triple_dict(store.graph, edge)["stand"] == "2026-08-13"
+
+
+def test_question_terms_get_the_domain_notes():
+    with patch.object(ask_mod.ollama, "chat", return_value=final('["EPS"]')) as chat:
+        ask_mod.question_terms("Frage?", "\n\nHINWEISE ZUM FACHGEBIET:\n- consensus")
+    assert "- consensus" in chat.call_args.kwargs["messages"][0]["content"]
+    with patch.object(ask_mod.ollama, "chat", return_value=final('["EPS"]')) as chat:
+        ask_mod.question_terms("Frage?")
+    assert "{domain_notes}" not in chat.call_args.kwargs["messages"][0]["content"]
+
+
+def test_estimate_two_steps_away_comes_in_with_its_terms():
+    """Frage nach Erwartungen: die Schaetzung haengt an "Zacks Consensus Estimate", zwei Schritte
+    von der Firma entfernt, und viele direkte EPS-Kanten verdraengten sie, solange "estimate" fehlte."""
+    store = GraphStore()
+    store.graph.graph["profile"] = "finance"
+    for i in range(150):
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports",
+                          "object": "earnings per share", "object_type": "y", "value": f"{i}.00",
+                          "as_of": f"quarter {i}", "confidence": 1.0, "source": f"q{i}"})
+    store.add_triple({"subject": "Zacks Consensus Estimate", "subject_type": "x", "relation": "forecasts",
+                      "object": "earnings per share", "object_type": "y", "value": "$3.38",
+                      "as_of": "third quarter fiscal year 2026", "confidence": 0.9})
+    with patch.object(ask_mod, "question_terms", return_value=["earnings per share"]):
+        assert "$3.38" not in [store.graph.edges[e].get("value")
+                               for e in ask_mod.collect_edges(store.graph, ["Firma"], "Erwartungen?")]
+    with patch.object(ask_mod, "question_terms", return_value=["earnings per share", "estimate", "consensus"]) as terms:
+        found = [store.graph.edges[e].get("value") for e in ask_mod.collect_edges(store.graph, ["Firma"], "Erwartungen?")]
+    assert "$3.38" in found and "consensus" in terms.call_args.args[1]

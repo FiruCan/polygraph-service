@@ -2,6 +2,12 @@
 
 ## Stand
 
+**Antworten: Teilantworten, Rechnen, Suchbegriffe fuer Schaetzungen und Geschaeftsjahre (gebaut, Kleintest gelaufen)**
+- Grund: O'Neil-Fragen 3 und 4 kamen mit "steht nicht in den Tripeln" zurueck, obwohl Jahreswerte 2023 und 2025 im Prompt standen (Frage 4) und die Q3-Schaetzung von Zacks im Graphen (Frage 3, Rang 1549 von 2463: Suchbegriff "analyst expectations" statt "consensus"/"estimate"). Argos importierte darum 21 Quellen in 100 Minuten, keine wurde zitiert.
+- `prompts/ask_answer.md`: Teilantwort mit dem, was fehlt, statt gar keiner; Rechnen aus belegten Werten erlaubt. `prompts/ask_check.md`: richtige Rechnungen und Saetze ueber Fehlendes sind kein Mangel. `prompts/ask_terms.md` hat `{domain_notes}`, `domains/finance.py` liefert dafuer "terms" (estimate, consensus, fiscal year ...) und in "answer" Regeln zu Geschaeftsjahren und zum Vergleich mit der Schaetzung.
+- Kleintest (5 Fragen, Graph-Kopie, ohne Import): Frage 4 nein -> Teilantwort mit 2023 und 2025 (2024 fehlt, $8.65 steht als "twelve months ended October 27, 2024" im Graphen und kommt nie ins Prompt). Frage 3 nennt vier Quartalswerte, vergleicht aber nicht mit der Schaetzung (Schaetzung in 2 von 3 nachgespielten Auswahlen im Prompt). Frage 5 bleibt beantwortet, der Vergleich mit 17 % weiter "nicht_gedeckt". Fragen 1 und 2 unveraendert gut.
+- Offen: Suchbegriffe schwanken von Aufruf zu Aufruf (keine feste Temperatur); Jahreswerte mit "twelve months ended" statt "fiscal year" (Extraktion).
+
 **Verkauf und Verneinung im Finanz-Graphen (gebaut, nur Unit-Tests, kein echter Lauf)**
 - Grund: Firu will wissen, warum gekauft und warum verkauft wird. Verkaeufe fielen weg, weil keine Relation passte, und fuer Verneinungen gab es keine Regel.
 - `domains/finance.py`: Relation `sells_stake_in`, Angabe `negated` ("ja" oder null, auch im Kantenschluessel, damit eine Verneinung die positive Aussage nicht ersetzt), Regeln fuer Extraktion, Antwort und Pruefung. Eine eigene Empfehlung bleibt verboten, eine belegte Einschaetzung mit Namen gilt nicht als Empfehlung.

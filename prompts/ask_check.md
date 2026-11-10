@@ -41,7 +41,12 @@ KEIN Grund fuer "teilweise" oder "nicht_gedeckt":
   erlaubtes Allgemeinwissen
 - kurze bildhafte Vergleiche, die nur einen Begriff veranschaulichen
   ("wie die Isolierung um ein Stromkabel")
-- weggelassene Details (der Satz muss nicht alles aus dem Tripel nennen){domain_notes}
+- weggelassene Details (der Satz muss nicht alles aus dem Tripel nennen)
+- einfache Rechnungen aus den Werten der Tripel (Differenz, Veraenderung in
+  Prozent, Vergleich mit einer Zahl wie "ueber 17 Prozent"), wenn das Ergebnis
+  stimmt - rechne nach; stimmt es nicht, ist der Satz "nicht_gedeckt"
+- ein Satz, der nur sagt, was in den Tripeln fehlt ("Fuer 2024 liegt kein Wert
+  vor") - das ist "keine_aussage"{domain_notes}
 
 TRIPEL:
 {triples}
