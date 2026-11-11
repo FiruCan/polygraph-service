@@ -47,10 +47,12 @@ QUALIFIERS = (
 # technology und organization: im Graphen 122 Knoten "technology" (chip
 # packaging, Hybrid Bonding) und 40 Universitaeten, Institute und Boersen
 # ohne passenden Profil-Typ (2026-11-07). index: ohne ihn fehlte mit festen
-# Typen der Dax-Schlusskurs (Eval holdout_marktbericht)
+# Typen der Dax-Schlusskurs (Eval holdout_marktbericht). fund: ETFs standen
+# als index, product oder organization im Graphen, die Knotenwahl nahm den
+# ETF SOXX fuer den Halbleiterindex SOX (O'Neil-Paket, 2026-11-11)
 ENTITY_TYPES = (
     "company", "sector", "person", "financial_metric", "event", "regulation", "product",
-    "central_bank", "rating_agency", "currency", "technology", "organization", "index",
+    "central_bank", "rating_agency", "currency", "technology", "organization", "index", "fund",
 )
 
 # sells_stake_in: Verkaeufe fielen weg, weil keine Relation passte; eine alte Beteiligung
@@ -84,10 +86,11 @@ PROMPT_NOTES = {
         "  endet oft nicht im Dezember.\n"
         "- Ob eine Firma die Erwartungen uebertroffen hat: vergleiche den berichteten Wert mit der\n"
         "  Schaetzung (consensus, estimate) fuer dasselbe Quartal und nenne die Differenz.\n"
-        "  Eine Schaetzung steht oft unter dem Namen ihres Anbieters oder als \"Consensus Estimate\"\n"
-        "  im Subjekt (\"... Consensus Estimate --forecasts--> earnings per share\"): Sie gilt fuer die\n"
-        "  Firma, um die es in den Tripeln daneben geht. Fehlt sie nur fuer einige Quartale, vergleiche\n"
-        "  die Quartale, fuer die es sie gibt.\n"
+        "  Eine Schaetzung steht oft unter dem Namen ihres Anbieters, als \"analyst consensus\" oder als\n"
+        "  \"Consensus Estimate\" im Subjekt (\"... Consensus Estimate --forecasts--> earnings per share\"):\n"
+        "  Sie gilt fuer die Firma in \"condition\", fehlt dort eine, fuer die Firma, um die es in den\n"
+        "  Tripeln daneben geht. Fehlt sie nur fuer einige Quartale, vergleiche die Quartale, fuer die\n"
+        "  es sie gibt.\n"
         "- \"earnings per share\" (nach GAAP) und \"adjusted earnings per share\" (bereinigt, non-GAAP)\n"
         "  sind zwei verschiedene Kennzahlen, kein Widerspruch zwischen Quellen: sag, welche du nennst,\n"
         "  und vergleiche eine Schaetzung mit dem bereinigten Wert, wenn sie bereinigt ist."
@@ -120,6 +123,10 @@ PROMPT_NOTES = {
     # Beispiele absichtlich nicht aus diesen Testtexten (wie EXAMPLE_TEXT)
     # Aktienkurs eigens genannt: "Die Aktie stieg" ergab trotz der Regel Aktie
     # --sets--> Kurs bzw. X --increases--> Aktie (Eval kurs_heute)
+    # Geschaeftsjahr und Analystenkonsens (O'Neil-Paket, 2026-11-11): Jahreswerte
+    # standen als "twelve months ended ...", Neunmonatswerte nur mit dem Jahr;
+    # Schaetzungen hingen unter "analysts", "Wall Street consensus estimates",
+    # "TIKR's October 19 consensus snapshot" ..., fast nie mit der Firma
     "extract": (
         "- Subjekt einer Kennzahl (Umsatz, EBIT, Marge, Dividende, Kurs, Rendite) ist das\n"
         "  Unternehmen, der Markt oder das Wertpapier, dem sie gehoert - nie die Kennzahl selbst.\n"
@@ -153,9 +160,15 @@ PROMPT_NOTES = {
         "  Zahl (non-GAAP, adjusted, normalized) \"bereinigter Gewinn je Aktie\" - nie nur \"Gewinn\",\n"
         "  auch wenn der Text das kurz so sagt. Umsatz heisst \"Umsatz\".\n"
         "- \"as_of\" nennt immer das Jahr, Quartale mit Geschaeftsjahr (\"Q3 Geschaeftsjahr 2026\").\n"
+        "  Ein ganzes Geschaeftsjahr (\"full year\", \"twelve months ended ...\", \"fiscal 2025\") heisst\n"
+        "  \"Geschaeftsjahr 2025\"; sechs oder neun Monate heissen so (\"erste neun Monate\n"
+        "  Geschaeftsjahr 2026\") - nie nur das Jahr, sonst gilt ein Neunmonatswert als Jahreswert.\n"
         "- Prognosen und Schaetzungen sind kein Bericht: Zahlen fuer die Zukunft oder von Analysten\n"
-        "  ergeben \"forecasts\" (Wer schaetzt --forecasts--> Kennzahl, die Firma in \"condition\"),\n"
-        "  nicht \"reports\", mit \"evidence_level\" Prognose oder Analystenschaetzung.\n"
+        "  ergeben \"forecasts\" (Wer schaetzt --forecasts--> Kennzahl), nicht \"reports\", mit\n"
+        "  \"evidence_level\" Prognose oder Analystenschaetzung. \"condition\" nennt immer die Firma,\n"
+        "  fuer die geschaetzt wird (\"fuer Henkel\"), auch wenn sie nur im Satz davor steht. Der\n"
+        "  Durchschnitt vieler Analysten (Konsens, \"Wall Street erwartet\", consensus estimate) heisst\n"
+        "  immer \"Analystenkonsens\", ein Datendienst, der ihn liefert, steht in \"evidence_level\".\n"
         "- \"acquires\" nur fuer eine vollstaendige Uebernahme. Der Kauf von Anteilen ist\n"
         "  \"holds_stake_in\" mit der Hoehe in \"value\"; ist er nur geplant, \"plans\".\n"
         "- Verkauft oder reduziert jemand Anteile: Verkaeufer --sells_stake_in--> Firma, die Hoehe\n"
@@ -173,7 +186,8 @@ PROMPT_NOTES = {
         "  --employed_by--> Unternehmen, die Funktion in \"value\".\n"
         "- Nur Relationen aus der Liste der bekannten Relationen, keine neuen. Passt keine,\n"
         "  lass die Aussage weg, statt eine unpassende zu waehlen.\n"
-        "- Typen: Aktienindizes (Dax, S&P 500, Nasdaq) sind \"index\"; Universitaeten,\n"
+        "- Typen: Aktienindizes (Dax, S&P 500, Nasdaq) sind \"index\"; ETFs, Investmentfonds und\n"
+        "  Vermoegensverwalter \"fund\", auch ein ETF, der einen Index abbildet; Universitaeten,\n"
         "  Institute, Boersen und Gruppen wie Anleger oder Kunden \"organization\"; Technologien,\n"
         "  Verfahren und Anlagen \"technology\"; Nachfrage, Bewertung, Wachstum und Kennzahlen\n"
         "  \"financial_metric\"; Engpaesse, Abschwuenge und andere Vorgaenge \"event\"."

@@ -390,3 +390,13 @@ def test_finance_notes_name_estimates_and_fiscal_years():
     assert "Zacks" not in notes["answer"]  # kein Name aus den Testfaellen
     assert get_profile("generic").notes("terms") == ""
 
+
+def test_finance_extraction_names_consensus_firm_periods_and_funds():
+    profile = get_profile("finance")
+    notes = profile.prompt_notes["extract"]
+    assert "\"Analystenkonsens\"" in notes and "nennt immer die Firma" in notes
+    assert "\"Geschaeftsjahr 2025\"" in notes and "erste neun Monate" in notes
+    assert "fund" in profile.entity_types and "\"fund\"" in notes
+    for name in ("Zacks", "TIKR", "SOXX", "Applied Materials"):  # kein Name aus den Testfaellen
+        assert name not in notes
+
