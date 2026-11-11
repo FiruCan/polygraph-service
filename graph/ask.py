@@ -115,15 +115,26 @@ def edge_text(graph, edge) -> str:
     return " ".join(str(x).replace("_", " ") for x in (u, data.get("relation"), v, *values, period) if x is not None)
 
 
+def _weighted_terms(terms: list) -> dict:
+    """Ganze Begriffe zaehlen voll, ihre einzelnen Woerter (ab 5 Buchstaben) halb: "share buyback" fand
+    "buybacks" nicht und "stock repurchase" nicht "share repurchases", die Antwort sagte "steht nicht"."""
+    weights = {term.casefold(): 1.0 for term in terms}
+    for term in terms:
+        for word in re.findall(r"\w+", term):
+            if len(word) >= 5:
+                weights.setdefault(word.casefold(), 0.5)
+    return weights
+
+
 def relevance(graph, edges: list, terms: list) -> dict:
     """Bezug jeder Kante zu den Begriffen. Ein Begriff zaehlt umso mehr, je seltener er ist - einer, der ueberall vorkommt, zaehlt nichts."""
     texts = {e: edge_text(graph, e) for e in edges}
     scores = dict.fromkeys(edges, 0.0)
-    for term in dict.fromkeys(terms):
+    for term, weight in _weighted_terms(terms).items():
         pattern = _term_pattern(term)
         hits = [e for e in edges if pattern.search(texts[e])]
         for e in hits:
-            scores[e] += math.log(len(edges) / len(hits))
+            scores[e] += weight * math.log(len(edges) / len(hits))
     return scores
 
 

@@ -332,6 +332,29 @@ def test_short_terms_match_whole_words_only(hub):
     assert ask_mod._term_pattern("transistor").search("next-generation transistors")
 
 
+def test_words_of_a_phrase_find_other_wordings():
+    """Suchbegriff "share buyback", im Tripel "buybacks": ueber das einzelne Wort kommt es trotzdem nach vorn."""
+    store = GraphStore()
+    for i in range(150):
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": f"Zahl {i}",
+                          "object_type": "y", "confidence": 1.0})
+    store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": "buybacks",
+                      "object_type": "y", "value": "440 million", "confidence": 0.5})
+    with patch.object(ask_mod, "question_terms", return_value=["share buyback", "stock repurchase"]):
+        assert objects(ask_mod.collect_edges(store.graph, ["Firma"], "Rueckkaeufe?"))[0] == "buybacks"
+
+
+def test_whole_phrase_counts_more_than_its_words():
+    store = GraphStore()
+    for obj in ("return on equity", "equity", "Zahl"):
+        store.add_triple({"subject": "Firma", "subject_type": "x", "relation": "reports", "object": obj,
+                          "object_type": "y", "confidence": 1.0})
+    edges = list(store.graph.edges(keys=True))
+    scores = ask_mod.relevance(store.graph, edges, ["return on equity"])
+    by_object = {v: scores[(u, v, k)] for u, v, k in edges}
+    assert by_object["return on equity"] > by_object["equity"] > by_object["Zahl"] == 0
+
+
 def test_no_terms_keep_the_order_by_confidence(hub):
     with patch.object(ask_mod, "question_terms", return_value=[]):
         edges = ask_mod.collect_edges(hub, ["Firma"], "Gewinn?")
