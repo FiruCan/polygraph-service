@@ -334,3 +334,11 @@ def test_without_aliases_names_stay():
     store = GraphStore()
     store.add_triple({"subject": "EPS", "subject_type": "x", "relation": "r", "object": "AMAT", "object_type": "y"})
     assert set(store.graph.nodes) == {"EPS", "AMAT"}
+
+
+def test_finance_aliases_keep_consensus_sales_and_share_price_together():
+    store = _finance_store()
+    for subject, obj in (("Wall Street consensus estimates", "revenue"), ("Analystenkonsens", "sales"),
+                         ("consensus estimate", "Umsatz"), ("ACME", "share price"), ("ACME", "Aktienkurs")):
+        store.add_triple({"subject": subject, "relation": "forecasts", "object": obj, "value": obj})
+    assert set(store.graph.nodes) == {"analyst consensus", "revenue", "ACME", "stock price"}

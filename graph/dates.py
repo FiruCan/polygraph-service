@@ -59,10 +59,11 @@ def parse_as_of(text) -> Optional[datetime.date]:
     take(r"\b" + MONTH + r"\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+" + YEAR,
          lambda m, d, y: _safe_date(int(y), MONTHS[m], int(d)))
     take(r"\b(\d{1,2})\.?\s+" + MONTH + r",?\s+" + YEAR, lambda d, m, y: _safe_date(int(y), MONTHS[m], int(d)))
-    take(r"\bq([1-4])\s*(?:of\s+)?(?:fy|fiscal(?: year)?)?\s*'?" + YEAR, lambda q, y: _end_of_quarter(int(q), int(y)))
+    take(r"\bq([1-4])\s*(?:of\s+)?(?:fy|fiscal(?: year)?|financial year)?\s*'?" + YEAR,
+         lambda q, y: _end_of_quarter(int(q), int(y)))
     take(r"\bq([1-4])\s*(?:of\s+)?(?:fy|fiscal(?: year)?)\s*'?(\d\d)\b", lambda q, y: _end_of_quarter(int(q), 2000 + int(y)))
     take(r"\b" + YEAR + r"\s+q([1-4])\b", lambda y, q: _end_of_quarter(int(q), int(y)))
-    take(r"\b" + ORDINAL + r"[- ](?:fiscal[- ])?quarter(?: of)?(?: the)?(?: fiscal)?(?: year)?\s*(?:fy\s*)?" + YEAR,
+    take(r"\b" + ORDINAL + r"[- ](?:fiscal[- ])?quarter(?: of)?(?: the)?(?: fiscal| financial)?(?: year)?\s*(?:fy\s*)?" + YEAR,
          lambda o, y: _end_of_quarter(ORDINALS[o], int(y)))
     take(r"\b(?:fiscal|fy)\s*(?:year\s*)?" + YEAR + r"\s+" + ORDINAL + r"[- ]quarter",
          lambda y, o: _end_of_quarter(ORDINALS[o], int(y)))
@@ -74,8 +75,9 @@ def parse_as_of(text) -> Optional[datetime.date]:
 
 TRAILING = re.compile(r"\btrailing\b|\bttm\b|\blast twelve months\b", re.I)
 PART_OF_YEAR = re.compile(r"\bquarter|\bQ[1-4]\b|\b(three|six|nine|3|6|9)[- ]months?\b|\bhalf\b|\bH[12]\b", re.I)
+# "financial year": falls das Modell "Geschaeftsjahr" trotz der Regel in translate_details.md so uebersetzt
 WHOLE_YEAR = re.compile(r"\b(twelve|12)[- ]months?\b|\bfull[- ]year\b|\bFY\s?\d{2,4}\b|\bfiscal\s+(year\s+)?\d{4}\b"
-                        r"|\bfiscal year\b|\bannual\b", re.I)
+                        r"|\bfiscal year\b|\bfinancial year\b|\bannual\b", re.I)
 QUARTER = re.compile(r"\bQ[1-4]\b|\b(three|3)[- ]months?\b", re.I)
 
 

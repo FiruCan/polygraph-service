@@ -2,6 +2,14 @@
 
 ## Stand
 
+**Pruefung der Kette Extraktion -> Graph fuer den Neuaufbau des Finanz-Graphen (gebaut, nur Unit-Tests)**
+- Grund: Vor dem Neuaufbau (Graph am 2026-11-11 geleert) die ganze Kette von der Regel bis zur Kante gelesen. Die Regeln kamen im Prompt an, gingen aber beim Import teils wieder verloren.
+- `graph/normalize.py`: Feste Namen des Profils (`aliases`) und feste Relationen (`DomainProfile.fixed_relations`, bei closed_relations die des Profils und seiner Vorgaben) gehen nicht mehr durch den LLM-Richter. Vorher liefen die Aliase erst in `add_triple`, nach `find_match`: der Richter konnte "adjusted EPS" in "earnings per share" oder sells_stake_in in holds_stake_in fuehren, beim Neuaufbau abhaengig von der Reihenfolge der Importe. Geprueft wird die Schreibweise vor und nach der Uebersetzung ("Umsatz" -> revenue).
+- `domains/finance.py`: Aliase fuer den Analystenkonsens (im Backup vom 2026-11-09 unter 13 Namen), "sales"/"turnover" -> revenue (18 Kanten neben 134), "share price"/"Aktienkurs" -> stock price. Regel: Zeitraeume nie im Knotennamen ("fiscal 2027 revenue", "2026 Q4 estimates" standen im Graphen). Beispiel an die eigenen Regeln angepasst ("Q2 Geschaeftsjahr 2024", decreases statt triggers_decline_of, alle Qualifier inklusive negated).
+- `prompts/translate_details.md`: "Geschaeftsjahr" immer "fiscal year". `graph/dates.py` erkennt zur Sicherheit auch "financial year" (Geschaeftsjahr, Quartal).
+- polygraph: Der Pruef-Agent sieht jetzt den Stichtag und das Erscheinungsdatum; zwei neue Gold-Texte decken Konsens, Fonds, Verkauf, Verneinung und neun Monate ab.
+- Offen: Schaetzungen haengen weiter nur ueber "condition" an der Firma, nicht ueber eine Kante. Service auf 8060 muss neu starten, damit `/profile` die Aenderungen liefert; danach `evals/sync_config.py` und eine Eval ueber alle Gold-Texte.
+
 **Antworten: Teilantworten, Rechnen, Suchbegriffe fuer Schaetzungen und Geschaeftsjahre (gebaut, Kleintest gelaufen)**
 - Grund: O'Neil-Fragen 3 und 4 kamen mit "steht nicht in den Tripeln" zurueck, obwohl Jahreswerte 2023 und 2025 im Prompt standen (Frage 4) und die Q3-Schaetzung von Zacks im Graphen (Frage 3, Rang 1549 von 2463: Suchbegriff "analyst expectations" statt "consensus"/"estimate"). Argos importierte darum 21 Quellen in 100 Minuten, keine wurde zitiert.
 - `prompts/ask_answer.md`: Teilantwort mit dem, was fehlt, statt gar keiner; Rechnen aus belegten Werten erlaubt. `prompts/ask_check.md`: richtige Rechnungen und Saetze ueber Fehlendes sind kein Mangel. `prompts/ask_terms.md` hat `{domain_notes}`, `domains/finance.py` liefert dafuer "terms" (estimate, consensus, fiscal year ...) und in "answer" Regeln zu Geschaeftsjahren und zum Vergleich mit der Schaetzung.

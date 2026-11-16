@@ -288,6 +288,30 @@ def test_finance_offers_news_and_science_variants():
     assert {"company", "index", "sector"} <= set(data["variants"]["news"]["entity_types"])
     assert get_profile("medicine").to_json()["variants"] == {}
 
+def test_finance_fixes_its_relations_and_those_of_its_variants():
+    fixed = get_profile("finance").fixed_relations
+    assert {"sells_stake_in", "holds_stake_in", "occurred_in", "enables"} <= fixed
+    assert get_profile("medicine").fixed_relations == frozenset()  # offene Relationen: weiter der Richter
+
+
+def test_finance_example_follows_its_own_rules():
+    profile = get_profile("finance")
+    for t in profile.example_output:
+        assert set(profile.qualifier_fields) <= set(t), t
+        assert t["relation"] in profile.relation_types and t["relation"] != "triggers_decline_of"
+        assert t["subject_type"] in profile.entity_types and t["object_type"] in profile.entity_types
+    quarter = profile.example_output[0]["as_of"]
+    assert "Geschaeftsjahr" in quarter and "2024" in quarter
+
+
+def test_finance_import_passes_fixed_names_and_relations(client):
+    assign_profile(app_module.store.graph, "finance")
+    client.post("/triples", json={"triples": [{"subject": "ACME", "relation": "sells_stake_in", "object": "Umsatz"}]})
+    kwargs = client.normalize.call_args.kwargs
+    assert kwargs["aliases"]["umsatz"] == "revenue"
+    assert "sells_stake_in" in kwargs["fixed_relations"]
+
+
 def finance_store():
     store = GraphStore()
     assign_profile(store.graph, "finance")
@@ -397,6 +421,7 @@ def test_finance_extraction_names_consensus_firm_periods_and_funds():
     assert "\"Analystenkonsens\"" in notes and "nennt immer die Firma" in notes
     assert "\"Geschaeftsjahr 2025\"" in notes and "erste neun Monate" in notes
     assert "fund" in profile.entity_types and "\"fund\"" in notes
+    assert "Zeitraeume stehen nie im Namen" in notes
     for name in ("Zacks", "TIKR", "SOXX", "Applied Materials"):  # kein Name aus den Testfaellen
         assert name not in notes
 

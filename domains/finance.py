@@ -159,6 +159,9 @@ PROMPT_NOTES = {
         "- Feste Namen fuer Kennzahlen: Gewinn je Aktie heisst \"Gewinn je Aktie\", die bereinigte\n"
         "  Zahl (non-GAAP, adjusted, normalized) \"bereinigter Gewinn je Aktie\" - nie nur \"Gewinn\",\n"
         "  auch wenn der Text das kurz so sagt. Umsatz heisst \"Umsatz\".\n"
+        "- Zeitraeume stehen nie im Namen von Subjekt oder Objekt (nicht \"Umsatz Geschaeftsjahr\n"
+        "  2027\", \"Schaetzungen fuer 2026\"), sondern in \"as_of\": Objekt \"Umsatz\", \"as_of\"\n"
+        "  \"Geschaeftsjahr 2027\".\n"
         "- \"as_of\" nennt immer das Jahr, Quartale mit Geschaeftsjahr (\"Q3 Geschaeftsjahr 2026\").\n"
         "  Ein ganzes Geschaeftsjahr (\"full year\", \"twelve months ended ...\", \"fiscal 2025\") heisst\n"
         "  \"Geschaeftsjahr 2025\"; sechs oder neun Monate heissen so (\"erste neun Monate\n"
@@ -202,17 +205,24 @@ EXAMPLE_TEXT = (
     "Maerz 2022 die Aktienkurse im Tech-Sektor um durchschnittlich 8 Prozent."
 )
 
+def _triple(subject, subject_type, relation, obj, object_type, confidence=0.9, **qualifiers):
+    """Beispiel-Tripel mit allen Qualifiern des Profils (fehlende als None)."""
+    return {"subject": subject, "subject_type": subject_type, "subject_type_is_new": False,
+            "relation": relation, "relation_is_new": False,
+            "object": obj, "object_type": object_type, "object_type_is_new": False,
+            **{q.name: qualifiers.get(q.name) for q in QUALIFIERS}, "confidence": confidence}
+
+
+# Wie die Regeln oben: Quartal mit Geschaeftsjahr, die Richtung in "decreases" statt
+# triggers_decline_of, der Sektor in "condition" statt im Namen. Das Modell folgte dem
+# Beispiel ("zweites Quartal 2024") eher als der Regel.
 EXAMPLE_OUTPUT = (
-    {"subject": "Allianz", "subject_type": "company", "subject_type_is_new": False,
-     "relation": "reports", "relation_is_new": False,
-     "object": "operativer Gewinn", "object_type": "financial_metric", "object_type_is_new": False,
-     "value": "3,8 Milliarden", "condition": None, "evidence_level": "Quartalsbericht",
-     "as_of": "zweites Quartal 2024", "currency": "EUR", "confidence": 0.95},
-    {"subject": "Zinserhoehung der Fed", "subject_type": "event", "subject_type_is_new": False,
-     "relation": "triggers_decline_of", "relation_is_new": False,
-     "object": "Aktienkurse im Tech-Sektor", "object_type": "financial_metric", "object_type_is_new": False,
-     "value": "durchschnittlich 8 Prozent", "condition": "Tech-Sektor", "evidence_level": "Analystenschaetzung",
-     "as_of": "Maerz 2022", "currency": None, "confidence": 0.8},
+    _triple("Allianz", "company", "reports", "operativer Gewinn", "financial_metric", 0.95,
+            value="3,8 Milliarden", evidence_level="Quartalsbericht", as_of="Q2 Geschaeftsjahr 2024",
+            currency="EUR"),
+    _triple("Zinserhoehung der Fed", "event", "decreases", "Aktienkurse", "financial_metric", 0.8,
+            value="durchschnittlich 8 Prozent", condition="Tech-Sektor", evidence_level="Analystenschaetzung",
+            as_of="Maerz 2022"),
 )
 
 
@@ -225,20 +235,21 @@ ALIASES = {
     **dict.fromkeys(("non-gaap eps", "adjusted eps", "normalized eps", "non-gaap earnings per share",
                      "non-gaap earnings per diluted share", "bereinigter gewinn je aktie"),
                     "adjusted earnings per share"),
-    **dict.fromkeys(("net revenue", "net sales", "revenues", "total revenue", "umsatz"), "revenue"),
+    # sales: 18 Kanten neben 134 unter revenue (2026-11-09), fast alle Umsatzzahlen
+    **dict.fromkeys(("net revenue", "net revenues", "net sales", "revenues", "total revenue", "total revenues",
+                     "sales", "turnover", "umsatz", "umsatzerloese", "umsatzerlöse"), "revenue"),
+    **dict.fromkeys(("share price", "stock prices", "share prices", "aktienkurs", "aktienkurse"), "stock price"),
+    # Die Extraktion nennt den Durchschnitt der Analysten "Analystenkonsens" (extract-Regel), uebersetzt
+    # hiess er mal so, mal anders - im Graphen lag er unter 13 Namen (2026-11-09)
+    **dict.fromkeys(("analystenkonsens", "analysts' consensus", "analyst consensus estimate",
+                     "analyst consensus estimates", "consensus", "consensus estimate", "consensus estimates",
+                     "wall street consensus", "wall street consensus estimate", "wall street consensus estimates",
+                     "street consensus"), "analyst consensus"),
     **dict.fromkeys(("amat", "applied materials, inc.", "applied materials inc", "applied materials inc."),
                     "Applied Materials"),
     **dict.fromkeys(("besi", "be semiconductor", "be semiconductor industries", "be semiconductor industries nv"),
                     "BE Semiconductor Industries N.V."),
 }
-
-
-def _triple(subject, subject_type, relation, obj, object_type, confidence=0.9, **qualifiers):
-    """Beispiel-Tripel mit allen Qualifiern des Profils (fehlende als None)."""
-    return {"subject": subject, "subject_type": subject_type, "subject_type_is_new": False,
-            "relation": relation, "relation_is_new": False,
-            "object": obj, "object_type": object_type, "object_type_is_new": False,
-            **{q.name: qualifiers.get(q.name) for q in QUALIFIERS}, "confidence": confidence}
 
 
 # Nachrichten aller Art im Finanz-Graphen (2026-11-07): Erdbeben, Kriege, Wahlen

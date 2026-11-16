@@ -156,3 +156,11 @@ def test_review_path_is_per_domain(monkeypatch):
         path = translate_graph.review_path("http://x")
     get.assert_called_once_with("http://x/profile", timeout=60)
     assert path == os.path.join(translate_graph.HERE, "data", "finance", "translate_review.json")
+
+
+def test_details_prompt_fixes_the_fiscal_year():
+    with patch("graph.translate.ollama.chat",
+               return_value=answer([("Geschaeftsjahr 2025", "fiscal year 2025")])) as chat:
+        translate.translate_details(["Geschaeftsjahr 2025"])
+    prompt = chat.call_args.kwargs["messages"][0]["content"]
+    assert '"Geschaeftsjahr 2025" -> "fiscal year 2025"' in prompt and "nie \"financial year\"" in prompt

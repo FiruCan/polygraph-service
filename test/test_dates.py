@@ -32,6 +32,9 @@ D = datetime.date
     ("FY2025", D(2025, 12, 31)),
     ("fiscal 2025 to fiscal 2027", D(2027, 12, 31)),
     ("2021", D(2021, 12, 31)),
+    ("Q3 fiscal year 2026", D(2026, 9, 30)),
+    ("Q3 financial year 2026", D(2026, 9, 30)),
+    ("third quarter of financial year 2026", D(2026, 9, 30)),
 ])
 def test_recognizes_common_forms(text, expected):
     assert parse_as_of(text) == expected
@@ -45,6 +48,9 @@ def test_relative_or_broken_dates_give_none(text):
 @pytest.mark.parametrize("text, words", [
     ("twelve months ended October 27, 2024", "fiscal year annual"),
     ("FY2024", "fiscal year annual"),
+    ("fiscal year 2025", "fiscal year annual"),
+    ("financial year 2025", "fiscal year annual"),
+    ("first nine months of fiscal year 2026", ""),  # kein ganzes Jahr
     ("12 months ended Oct 2025", "fiscal year annual"),
     ("Three Months Ended April 27, 2025", "quarter"),
     ("Q1 FY2025", "quarter"),

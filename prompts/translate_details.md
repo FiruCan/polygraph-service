@@ -23,6 +23,12 @@ REGELN:
   "Laengsschnittstudie" -> "longitudinal study", "Kohortenstudie" ->
   "cohort study", "Obduktionen" -> "autopsies", "Analystenschaetzung" ->
   "analyst estimate". Abkuerzungen wie RCT bleiben.
+- Zeitraeume wie in englischen Geschaeftsberichten, "Geschaeftsjahr" immer
+  als "fiscal year" (nie "financial year" oder "business year"):
+  "Geschaeftsjahr 2025" -> "fiscal year 2025", "Q3 Geschaeftsjahr 2026" ->
+  "Q3 fiscal year 2026", "erste neun Monate Geschaeftsjahr 2026" -> "first
+  nine months of fiscal year 2026", "zweites Quartal 2024" -> "second
+  quarter 2024".
 - Fachbegriffe so, wie sie im FACHGEBIET auf Englisch heissen:
   "MS-Patienten" -> "MS patients", "im Euroraum" -> "in the euro area".
   Eigennamen und Quellenangaben bleiben ("Enrich-Bengoa et al. 2022";

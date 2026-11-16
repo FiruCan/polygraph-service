@@ -271,7 +271,8 @@ def add_triples(body: TriplesIn):
         # Das Fachgebiet fuer mehrdeutige Woerter ergibt sich aus dem Graphen
         # und den neuen Tripeln selbst, nicht aus einer festen Domain.
         topics = store.topics(t.get(f) for t in body.triples for f in TYPE_FIELDS)
-        detail_fields = profile_of(store.graph).detail_fields
+        profile = profile_of(store.graph)
+        detail_fields = profile.detail_fields
         known = set(store.known_entities())
         translate_names([t[f] for t in body.triples for f in ("subject", "object")
                          if isinstance(t.get(f), str) and t[f] not in known], topics=topics)
@@ -287,7 +288,8 @@ def add_triples(body: TriplesIn):
         merges = []
         for triple in body.triples:
             normalized = normalize_triple(triple, store.known_entities(), store.known_relations(),
-                                          detail_fields=detail_fields)
+                                          detail_fields=detail_fields, aliases=profile.aliases,
+                                          fixed_relations=profile.fixed_relations)
             for field in TYPE_FIELDS:
                 if isinstance(triple.get(field), str) and triple[field] in types:
                     normalized[field] = types[triple[field]]

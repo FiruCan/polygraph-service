@@ -181,13 +181,33 @@ def similar_entities(names: list, known_terms: list, limit: int = 3,
     return result
 
 
+def fixed_name(names, aliases: dict) -> Optional[str]:
+    """
+    Fester Knotenname des Profils (DomainProfile.aliases) fuer eine der
+    Schreibweisen - auch wenn sie schon der feste Name ist -, sonst None.
+    """
+    targets = {name.casefold(): name for name in aliases.values()}
+    for name in names:
+        key = name.casefold()
+        if key in aliases:
+            return aliases[key]
+        if key in targets:
+            return targets[key]
+    return None
+
+
 def normalize_triple(triple: dict, known_entities: list, known_relations: list,
-                     detail_fields: tuple = generic.PROFILE.detail_fields) -> dict:
+                     detail_fields: tuple = generic.PROFILE.detail_fields,
+                     aliases: dict = None, fixed_relations=()) -> dict:
     """
     Ersetzt subject/object/relation im Tripel durch den kanonischen,
     bereits bekannten Begriff, falls das LLM sie als identisch bestaetigt.
     Subjekt und Objekt werden vorher ins Englische uebersetzt, ebenso die
     Kanten-Angaben in detail_fields (DomainProfile.detail_fields).
+    Feste Namen (aliases) und feste Relationen (fixed_relations) des Profils
+    gehen nicht durch den Richter: er hielt sonst "adjusted EPS" fuer
+    "earnings per share" oder sells_stake_in fuer holds_stake_in, und beim
+    Neuaufbau haengt das Ergebnis von der Reihenfolge der Importe ab.
     Modifiziert eine Kopie, nicht das Original.
     """
     normalized = dict(triple)
@@ -197,9 +217,12 @@ def normalize_triple(triple: dict, known_entities: list, known_relations: list,
         # dann gegen die (englischen) bekannten Knoten abgleichen. Ein
         # exakt bekannter Name braucht keinen LLM-Aufruf.
         term = triple[field] if triple[field] in known else to_english(triple[field])
-        normalized[field] = find_match(term, known_entities) or term
+        normalized[field] = (fixed_name((triple[field], term), aliases or {})
+                             or find_match(term, known_entities) or term)
     for field in detail_fields:
         if isinstance(triple.get(field), str) and triple[field].strip():
             normalized[field] = detail_to_english(triple[field])
-    normalized["relation"] = find_match(triple["relation"], known_relations) or triple["relation"]
+    relation = triple["relation"]
+    normalized["relation"] = (relation if relation in fixed_relations
+                              else find_match(relation, known_relations) or relation)
     return normalized

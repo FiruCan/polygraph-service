@@ -144,3 +144,41 @@ def test_similar_entities_no_hints_for_known_name_any_case():
 
 def test_similar_entities_empty_graph():
     assert normalize.similar_entities(["IL-6"], []) == {"IL-6": []}
+
+
+def test_profile_names_skip_the_judge():
+    # Der Richter hielt "adjusted EPS" fuer "earnings per share" - der feste Name des Profils gewinnt
+    aliases = {"adjusted eps": "adjusted earnings per share", "umsatz": "revenue"}
+    judge = {"adjusted EPS": "earnings per share", "revenue": "sales", "ACME": "ACME"}
+    with patch("graph.normalize.find_match", side_effect=lambda term, known: judge.get(term)) as match, \
+         patch("graph.normalize.to_english", side_effect=lambda n: {"Umsatz": "sales"}.get(n, n)):
+        eps = normalize_triple({"subject": "ACME", "relation": "reports", "object": "adjusted EPS"},
+                               ["ACME", "earnings per share"], [], aliases=aliases)
+        revenue = normalize_triple({"subject": "ACME", "relation": "reports", "object": "Umsatz"},
+                                   ["ACME", "sales"], [], aliases=aliases)
+        target = normalize_triple({"subject": "ACME", "relation": "reports", "object": "Revenue"},
+                                  ["ACME", "sales"], [], aliases=aliases)
+    assert eps["object"] == "adjusted earnings per share"
+    assert revenue["object"] == "revenue"  # die deutsche Schreibweise zaehlt, nicht die Uebersetzung
+    assert target["object"] == "revenue"   # der feste Name selbst geht auch nicht zum Richter
+    assert all(c.args[0] not in ("adjusted EPS", "sales", "Revenue") for c in match.call_args_list)
+
+
+def test_fixed_relations_skip_the_judge():
+    triple = {"subject": "a", "relation": "sells_stake_in", "object": "b"}
+    with patch("graph.normalize.find_match",
+               side_effect=lambda term, known: "holds_stake_in" if term == "sells_stake_in" else term), \
+         patch("graph.normalize.to_english", side_effect=lambda n: n):
+        fixed = normalize_triple(triple, ["a", "b"], ["holds_stake_in"],
+                                 fixed_relations=frozenset({"sells_stake_in", "holds_stake_in"}))
+        open_list = normalize_triple(triple, ["a", "b"], ["holds_stake_in"])
+    assert fixed["relation"] == "sells_stake_in"
+    assert open_list["relation"] == "holds_stake_in"  # ohne feste Liste entscheidet weiter der Richter
+
+
+def test_fixed_name_matches_any_case_and_targets():
+    aliases = {"eps": "earnings per share"}
+    assert normalize.fixed_name(("EPS",), aliases) == "earnings per share"
+    assert normalize.fixed_name(("Earnings per Share",), aliases) == "earnings per share"
+    assert normalize.fixed_name(("Gewinn", "profit"), aliases) is None
+    assert normalize.fixed_name(("EPS",), {}) is None

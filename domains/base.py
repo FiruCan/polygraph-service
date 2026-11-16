@@ -104,6 +104,13 @@ class DomainProfile:
         return tuple(q.name for q in self.qualifiers)
 
     @property
+    def fixed_relations(self) -> frozenset:
+        """Relationen, die der Import nicht mit aehnlichen zusammenfuehrt: bei closed_relations die des Profils und seiner Vorgaben."""
+        if not self.closed_relations:
+            return frozenset()
+        return frozenset(self.relation_types).union(*(v.relation_types for v in self.variants.values()))
+
+    @property
     def detail_fields(self) -> tuple:
         """Kanten-Felder mit Freitext, die beim Import uebersetzt werden."""
         return tuple(q.name for q in self.qualifiers if q.translate)
