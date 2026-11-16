@@ -3,7 +3,7 @@ Integrationstest: prueft den echten LLM-Richter (graph/normalize.py::_judge,
 prompts/normalize_judge.md) gegen echtes Ollama mit Begriffspaaren bekannter
 Soll-Antwort. Wird uebersprungen, wenn Ollama nicht laeuft.
 
-Nach jeder Aenderung an normalize_judge.md oder JUDGE_MODEL laufen lassen:
+Nach jeder Aenderung an normalize_judge.md oder am Modell (llm.json) laufen lassen:
     python3 -m pytest test/test_normalize_judge_live.py -v
 
 Aufbau der Faelle: Synonyme, die zusammengefuehrt werden MUESSEN, und
@@ -28,7 +28,7 @@ from graph import normalize
 
 def _ollama_available() -> bool:
     try:
-        normalize.ollama.list()
+        normalize.llm.ollama.list()
         return True
     except Exception:
         return False

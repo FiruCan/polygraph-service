@@ -44,7 +44,7 @@ def seed_key(s):
 
 
 def test_empty_graph_no_seeds_no_llm():
-    with patch("graph.suggest.ollama.chat") as chat:
+    with patch("graph.llm.ollama.chat") as chat:
         assert suggest_questions(nx.MultiDiGraph(), history=SuggestionHistory()) == []
     chat.assert_not_called()
 
@@ -146,7 +146,7 @@ def test_focus_vergleich_and_detail_touch_topic():
 
 
 def test_suggest_passes_focus():
-    with patch("graph.suggest.ollama.chat", side_effect=RuntimeError("weg")):
+    with patch("graph.llm.ollama.chat", side_effect=RuntimeError("weg")):
         result = suggest_questions(chain_graph(), 4, random.Random(1), history=SuggestionHistory(),
                                    focus=["Myokine"])
     assert result and all("Myokine" in q["nodes"] for q in result)
@@ -156,14 +156,14 @@ def test_suggest_uses_llm_wording():
     g = chain_graph()
     n = len(find_seeds(g, 3, random.Random(1)))
     items = [{"nr": i, "frage": f"Frage {i}?"} for i in range(1, n + 1)]
-    with patch("graph.suggest.ollama.chat", return_value=answer(items)) as chat:
+    with patch("graph.llm.ollama.chat", return_value=answer(items)) as chat:
         result = suggest_questions(g, 3, random.Random(1), history=SuggestionHistory())
     assert [q["question"] for q in result] == [f"Frage {i}?" for i in range(1, n + 1)]
     assert chat.call_args.kwargs["format"]["items"]["required"] == ["nr", "frage"]
 
 
 def test_suggest_falls_back_to_template_when_llm_fails():
-    with patch("graph.suggest.ollama.chat", side_effect=RuntimeError("weg")):
+    with patch("graph.llm.ollama.chat", side_effect=RuntimeError("weg")):
         result = suggest_questions(chain_graph(), 4, random.Random(1), history=SuggestionHistory())
     assert result
     for q in result:
@@ -179,7 +179,7 @@ def test_suggest_falls_back_to_template_when_llm_fails():
 
 
 def test_suggest_fills_missing_items_from_template():
-    with patch("graph.suggest.ollama.chat", return_value=answer([{"nr": 1, "frage": "Nur eine?"}])):
+    with patch("graph.llm.ollama.chat", return_value=answer([{"nr": 1, "frage": "Nur eine?"}])):
         result = suggest_questions(chain_graph(), 3, random.Random(1), history=SuggestionHistory())
     assert result[0]["question"] == "Nur eine?"
     assert all(q["question"] for q in result[1:])

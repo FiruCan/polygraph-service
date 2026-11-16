@@ -31,25 +31,25 @@ def answer(pairs):
 
 
 def test_translates_and_keeps_missing_names_unchanged():
-    with patch("graph.translate.ollama.chat", return_value=answer([("Muskeln", "muscles")])):
+    with patch("graph.llm.ollama.chat", return_value=answer([("Muskeln", "muscles")])):
         assert translate_names(["Muskeln", "IL-6"]) == {"Muskeln": "muscles", "IL-6": "IL-6"}
 
 
 def test_ignores_names_not_asked_for_and_empty_translations():
-    with patch("graph.translate.ollama.chat",
+    with patch("graph.llm.ollama.chat",
                return_value=answer([("erfunden", "made up"), ("Krebs", " ")])):
         assert translate_names(["Krebs"]) == {"Krebs": "Krebs"}
 
 
 def test_broken_answer_keeps_names():
     broken = {"message": {"content": "{kaputt"}}
-    with patch("graph.translate.ollama.chat", return_value=broken):
+    with patch("graph.llm.ollama.chat", return_value=broken):
         assert translate_names(["Krebs"]) == {"Krebs": "Krebs"}
 
 
 def test_batches_and_caches():
     names = [f"n{i}" for i in range(translate.BATCH_SIZE + 5)]
-    with patch("graph.translate.ollama.chat", side_effect=lambda **kw: answer([])) as chat:
+    with patch("graph.llm.ollama.chat", side_effect=lambda **kw: answer([])) as chat:
         progress = []
         translate_names(names, progress=lambda done, total: progress.append(done))
         translate_names(names)
@@ -70,7 +70,7 @@ def test_normalize_triple_translates_new_names_before_matching():
 
 
 def test_details_use_own_prompt_and_cache():
-    with patch("graph.translate.ollama.chat",
+    with patch("graph.llm.ollama.chat",
                return_value=answer([("Metaanalyse", "meta-analysis")])) as chat:
         assert translate.translate_details(["Metaanalyse"]) == {"Metaanalyse": "meta-analysis"}
         assert translate_names(["Metaanalyse"]) == {"Metaanalyse": "meta-analysis"}  # eigener Cache je Art
@@ -89,7 +89,7 @@ def test_normalize_triple_translates_edge_details():
 
 
 def test_types_use_own_prompt():
-    with patch("graph.translate.ollama.chat",
+    with patch("graph.llm.ollama.chat",
                return_value=answer([("Krankheiten", "diseases")])) as chat:
         assert translate.translate_types(["Krankheiten", "signaling_molecule"]) == {
             "Krankheiten": "diseases", "signaling_molecule": "signaling_molecule"}
@@ -97,12 +97,12 @@ def test_types_use_own_prompt():
 
 
 def test_prompt_names_topics_of_the_graph():
-    with patch("graph.translate.ollama.chat", return_value=answer([("Bewegung", "motion")])) as chat:
+    with patch("graph.llm.ollama.chat", return_value=answer([("Bewegung", "motion")])) as chat:
         translate.translate_names(["Bewegung"], topics="physical_quantity, experiment")
     prompt = chat.call_args.kwargs["messages"][0]["content"]
     assert "physical_quantity, experiment" in prompt
     assert "biomedizin" not in prompt.lower() and "Gesundheitskontext" not in prompt
-    with patch("graph.translate.ollama.chat", return_value=answer([])) as chat:
+    with patch("graph.llm.ollama.chat", return_value=answer([])) as chat:
         translate.translate_details(["Faktor 1,8"])  # leerer Graph
     assert translate.NO_TOPICS in chat.call_args.kwargs["messages"][0]["content"]
 
@@ -159,7 +159,7 @@ def test_review_path_is_per_domain(monkeypatch):
 
 
 def test_details_prompt_fixes_the_fiscal_year():
-    with patch("graph.translate.ollama.chat",
+    with patch("graph.llm.ollama.chat",
                return_value=answer([("Geschaeftsjahr 2025", "fiscal year 2025")])) as chat:
         translate.translate_details(["Geschaeftsjahr 2025"])
     prompt = chat.call_args.kwargs["messages"][0]["content"]

@@ -2,7 +2,7 @@
 
 Haelt einen Wissensgraphen (NetworkX, persistiert als `data/<fachgebiet>/graph.gml`) und
 bietet ihn per HTTP an: Tripel einspeisen, Fragen stellen (GraphRAG, lokales
-Ollama), Graph abrufen. Reine API ohne eigene Oberflaeche - die
+Ollama oder ein anderer Anbieter, siehe `llm.json`), Graph abrufen. Reine API ohne eigene Oberflaeche - die
 Weboberflaeche liegt im Projekt [polygraph](../polygraph) (`kg/`, Port 8001).
 
 Gedacht als **eigenstaendiger Service pro Person/Domain**: Wer einen eigenen
@@ -47,6 +47,48 @@ pip install -r requirements.txt
 ollama pull gemma4:26b   # Fragen + Normalisierungs-Entscheidung
 ollama pull bge-m3       # Normalisierungs-Kandidatensuche (Embeddings)
 ```
+
+## LLM-Anbieter (`llm.json`)
+
+Welcher Server und welches Modell die LLM-Aufrufe bekommen, steht in
+`llm.json` im Projektordner, nicht im Code (`graph/llm.py`). Dieselbe Datei
+lesen polygraph (Extraktion, Eval) und Argos (Pruefung).
+
+```bash
+cp llm.example.json llm.json   # dann den Key eintragen
+```
+
+**Umschalten zwischen OpenCode und Ollama = ein Wort:**
+
+```json
+"chat": { "provider": "opencode" }     // oder "ollama"
+```
+
+- `providers`: je Anbieter `type` (`ollama` oder `openai` fuer jede
+  OpenAI-kompatible API) und `model`. Bei `ollama` optional `host` (Standard
+  `localhost:11434`), bei `openai` `base_url` und `api_key` (oder `api_key_env`
+  = Name einer Umgebungsvariable). Nur bei `openai`: `think_off` und
+  `think_on` = Felder, die bei `think=False` bzw. `think=True` mitgehen, z.B.
+  `{"reasoning_effort": "none"}` und `{"reasoning_effort": "medium"}`. Ohne
+  `think_off` denkt Qwen3 vor jeder Antwort und verbraucht das Token-Budget.
+  `"max_tokens": false` = keine Laengengrenze mitschicken, der Server
+  entscheidet (die Grenzen im Code sind fuer Antworten ohne Denken bemessen,
+  Denk-Tokens zaehlen mit; noetig fuer `reasoning_effort` ueber `none`).
+- `chat`: welcher Anbieter alle Aufgaben bekommt. Ein `model` hier geht dem
+  Modell des Anbieters vor (dann beim Umschalten mit aendern).
+- `tasks`: optional pro Aufgabe ein anderer Anbieter, z.B.
+  `"translate": {"provider": "ollama"}`. Aufgaben: hier `ask`, `suggest`,
+  `translate`, `localize`, `normalize`, `dedupe`; polygraph `extract`,
+  `classify`, `vocabulary`; Argos `check`.
+- `embed`: Embeddings fuer die Normalisierung (`bge-m3` ueber Ollama). Ein
+  anderes Modell verschiebt die Aehnlichkeitswerte (`CANDIDATE_THRESHOLD`).
+
+Die Datei wird bei jedem Aufruf neu gelesen, wenn sie sich geaendert hat -
+kein Neustart noetig, aber nicht waehrend eines Imports umschalten. Fehlt
+`llm.json` ganz, laeuft alles lokal ueber Ollama (`gemma4:26b`, `bge-m3`).
+Steht die Datei da, gilt nur ihr Inhalt: fehlt etwas (`chat`, `type`,
+`model`), gibt es einen Fehler statt still lokalem Ollama. `llm.json` steht
+in `.gitignore` (API-Key).
 
 ## Starten
 

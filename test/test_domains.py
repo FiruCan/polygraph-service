@@ -71,7 +71,7 @@ def test_medicine_notes_reach_check_prompt():
     graph.add_edge("clemastine", "remyelination", relation="promotes", model="mice")
     edges = list(graph.edges(keys=True))
     reply = {"message": {"content": '[{"nr": 1, "belege": [1], "begruendung": "ok", "urteil": "gedeckt"}]'}}
-    with patch("graph.ask.ollama.chat", return_value=reply) as chat:
+    with patch("graph.llm.ollama.chat", return_value=reply) as chat:
         check_answer(graph, "Clemastin foerdert die Remyelinisierung [1].", edges)
     prompt = chat.call_args.kwargs["messages"][0]["content"]
     assert "Studienmodell (model)" in prompt
@@ -229,7 +229,7 @@ def test_finance_notes_reach_check_prompt():
     graph.add_edge("ACME", "revenue", relation="reports", value="1.2 bn", as_of="Q3 2024", currency="EUR")
     edges = list(graph.edges(keys=True))
     reply = {"message": {"content": '[{"nr": 1, "belege": [1], "begruendung": "ok", "urteil": "gedeckt"}]'}}
-    with patch("graph.ask.ollama.chat", return_value=reply) as chat:
+    with patch("graph.llm.ollama.chat", return_value=reply) as chat:
         result = check_answer(graph, "ACME meldete einen Umsatz von 1,2 Milliarden Euro [1].", edges)
     prompt = chat.call_args.kwargs["messages"][0]["content"]
     assert result["status"] == "geprueft"

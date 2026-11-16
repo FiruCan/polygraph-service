@@ -17,3 +17,5 @@ data/*/
 .claude/
 # erzeugte Review-Dateien (translate_graph.py)
 data/*.json
+# LLM-Anbieter mit API-Key (Vorlage: llm.example.json)
+llm.json

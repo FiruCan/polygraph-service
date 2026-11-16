@@ -44,12 +44,11 @@ import threading
 from collections import deque
 
 import networkx as nx
-import ollama
 
 from domains import profile_of
+from graph import llm
 from graph.ask import DEFAULT_LANGUAGE
 
-MODEL = "gemma4:26b"
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "suggest_questions.md")
 MAX_FACTS = 6           # Fakten pro Knoten-Ausgangspunkt im Prompt
 CONTEXT_FACTS = 2       # Zusatzfakten zum Subjekt bei "detail"
@@ -307,9 +306,8 @@ def suggest_questions(graph, count: int = 5, rng: random.Random = None,
 
     texts = {}
     try:
-        response = ollama.chat(
-            model=MODEL,
-            messages=[{"role": "user", "content": build_prompt(seeds, language, profile_of(graph).notes("suggest"))}],
+        response = llm.chat(
+            "suggest", messages=[{"role": "user", "content": build_prompt(seeds, language, profile_of(graph).notes("suggest"))}],
             think=False,
             format=QUESTIONS_SCHEMA,
             options={"num_predict": 2000, "temperature": 0.9},

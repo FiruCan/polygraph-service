@@ -47,14 +47,14 @@ def chat_answer(treffer):
 
 
 def test_find_match_exact_skips_llm():
-    with patch("graph.normalize.ollama.chat") as chat, patch("graph.normalize.ollama.embed") as embed:
+    with patch("graph.llm.ollama.chat") as chat, patch("graph.llm.ollama.embed") as embed:
         assert find_match("Krebs", ["Krebs"]) == "Krebs"
     chat.assert_not_called()
     embed.assert_not_called()
 
 
 def test_find_match_case_insensitive_skips_llm():
-    with patch("graph.normalize.ollama.chat") as chat:
+    with patch("graph.llm.ollama.chat") as chat:
         assert find_match(" krebs", ["Krebs"]) == "Krebs"
     chat.assert_not_called()
 
@@ -64,8 +64,8 @@ def test_find_match_empty_graph_returns_none():
 
 
 def test_find_match_asks_judge_only_with_candidates_above_threshold():
-    with patch("graph.normalize.ollama.embed", side_effect=fake_embed), \
-         patch("graph.normalize.ollama.chat", return_value=chat_answer("Interleukin-6")) as chat:
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
+         patch("graph.llm.ollama.chat", return_value=chat_answer("Interleukin-6")) as chat:
         result = find_match("IL-6", ["Interleukin-6", "IL-8", "Krebs"])
     assert result == "Interleukin-6"
     prompt = chat.call_args.kwargs["messages"][0]["content"]
@@ -74,28 +74,28 @@ def test_find_match_asks_judge_only_with_candidates_above_threshold():
 
 
 def test_find_match_no_candidate_above_threshold_skips_llm():
-    with patch("graph.normalize.ollama.embed", side_effect=fake_embed), \
-         patch("graph.normalize.ollama.chat") as chat:
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
+         patch("graph.llm.ollama.chat") as chat:
         assert find_match("IL-6", ["Krebs"]) is None
     chat.assert_not_called()
 
 
 def test_judge_null_answer_means_new_entity():
-    with patch("graph.normalize.ollama.embed", side_effect=fake_embed), \
-         patch("graph.normalize.ollama.chat", return_value=chat_answer(None)):
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
+         patch("graph.llm.ollama.chat", return_value=chat_answer(None)):
         assert find_match("IL-6", ["Interleukin-6"]) is None
 
 
 def test_judge_answer_not_in_candidates_is_rejected():
     # Das LLM darf keinen Begriff erfinden, der nicht zur Auswahl stand
-    with patch("graph.normalize.ollama.embed", side_effect=fake_embed), \
-         patch("graph.normalize.ollama.chat", return_value=chat_answer("Interleukin 6 (IL-6)")):
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
+         patch("graph.llm.ollama.chat", return_value=chat_answer("Interleukin 6 (IL-6)")):
         assert find_match("IL-6", ["Interleukin-6"]) is None
 
 
 def test_judge_requests_enum_of_candidates_plus_null():
-    with patch("graph.normalize.ollama.embed", side_effect=fake_embed), \
-         patch("graph.normalize.ollama.chat", return_value=chat_answer("Interleukin-6")) as chat:
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
+         patch("graph.llm.ollama.chat", return_value=chat_answer("Interleukin-6")) as chat:
         find_match("IL-6", ["Interleukin-6", "IL-8"])
     schema = chat.call_args.kwargs["format"]
     assert schema["properties"]["treffer"]["enum"] == ["Interleukin-6", "IL-8", None]
@@ -105,8 +105,8 @@ def test_judge_requests_enum_of_candidates_plus_null():
 
 def test_judge_broken_json_means_no_merge():
     broken = {"message": {"content": '{"begruendung": "abgeschnitt'}}
-    with patch("graph.normalize.ollama.embed", side_effect=fake_embed), \
-         patch("graph.normalize.ollama.chat", return_value=broken):
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
+         patch("graph.llm.ollama.chat", return_value=broken):
         assert find_match("IL-6", ["Interleukin-6"]) is None
 
 
@@ -123,14 +123,14 @@ def test_normalize_triple_maps_fields_and_keeps_rest():
 
 
 def test_top_matches_sorted_by_cosine():
-    with patch("graph.normalize.ollama.embed", side_effect=fake_embed):
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed):
         scored = normalize._top_matches(np.array(VECTORS["IL-6"]), ["Krebs", "IL-8", "Interleukin-6"])
     assert [term for _, term in scored] == ["Interleukin-6", "IL-8", "Krebs"]
 
 
 def test_similar_entities_returns_close_terms_without_llm():
-    with patch("graph.normalize.ollama.embed", side_effect=fake_embed), \
-         patch("graph.normalize.ollama.chat") as chat:
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
+         patch("graph.llm.ollama.chat") as chat:
         result = normalize.similar_entities(["IL-6", "Krebs"], ["Interleukin-6", "IL-8", "Krebs"])
     chat.assert_not_called()
     assert result["IL-6"] == ["Interleukin-6", "IL-8"]  # nach Aehnlichkeit sortiert
@@ -138,7 +138,7 @@ def test_similar_entities_returns_close_terms_without_llm():
 
 
 def test_similar_entities_no_hints_for_known_name_any_case():
-    with patch("graph.normalize.ollama.embed", side_effect=fake_embed):
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed):
         assert normalize.similar_entities(["krebs"], ["Krebs", "IL-6"]) == {"krebs": []}
 
 

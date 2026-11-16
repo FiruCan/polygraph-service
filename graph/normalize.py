@@ -5,7 +5,7 @@ Normalisierung von Entitaets- und Relationsnamen, damit z.B. "IL-6" und
 "Interleukin-6 (IL-6)" oder "Muskeln" und "Muskulatur" auf denselben Knoten
 abgebildet werden - aber "Typ-I-Diabetes" und "Typ-II-Diabetes" nicht.
 
-Zwei Stufen, komplett lokal ueber Ollama:
+Zwei Stufen, ueber graph/llm.py (ohne llm.json komplett lokal ueber Ollama):
 1. Kandidatensuche per Embedding (bge-m3, Kosinus-Aehnlichkeit). Die Werte
    ueberlappen stark (Typ-I/Typ-II-Diabetes 0.92 = verschieden, MS/Multiple
    Sklerose 0.59 = gleich), ein Schwellenwert allein trennt daher nicht -
@@ -29,13 +29,11 @@ from functools import lru_cache
 from typing import Optional
 
 import numpy as np
-import ollama
 
 from domains import generic
+from graph import llm
 from graph.translate import detail_to_english, to_english
 
-EMBED_MODEL = "bge-m3"
-JUDGE_MODEL = "gemma4:26b"
 CANDIDATE_THRESHOLD = 0.55
 # Hinweis-Schwelle fuer similar_entities(): bewusst niedrig, weil das
 # Embedding Abkuerzungen schlecht erkennt ("IL6": IL-8 0.67, Interleukin-6
@@ -49,7 +47,7 @@ PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "normaliz
 @lru_cache(maxsize=4096)
 def _embed(text: str) -> np.ndarray:
     """Embeddet einen Begriff, gecacht damit jeder Begriff nur einmal berechnet wird."""
-    vec = ollama.embed(model=EMBED_MODEL, input=text)["embeddings"][0]
+    vec = llm.embed(text)["embeddings"][0]
     return np.array(vec, dtype=np.float32)
 
 
@@ -104,9 +102,8 @@ def judge_verdict(term: str, candidates: tuple) -> tuple:
     with open(PROMPT_PATH, "r", encoding="utf-8") as f:
         template = f.read()
     prompt = template.format(term=term, candidates="\n".join(f"- {c}" for c in candidates))
-    response = ollama.chat(
-        model=JUDGE_MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    response = llm.chat(
+        "normalize", messages=[{"role": "user", "content": prompt}],
         think=False,
         format=judge_schema(candidates),
         options={"num_predict": 300, "temperature": 0},

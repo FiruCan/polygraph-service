@@ -44,7 +44,7 @@ def run(graph, question, selected, replies):
     with patch.object(ask_mod, "select_nodes", return_value=selected), \
          patch.object(ask_mod, "explain_terms", return_value=[]), \
          patch.object(ask_mod, "check_answer", return_value={"status": "geprueft", "saetze": []}), \
-         patch.object(ask_mod.ollama, "chat", side_effect=replies) as chat:
+         patch.object(ask_mod.llm.ollama, "chat", side_effect=replies) as chat:
         return ask_mod.ask(graph, question), chat
 
 
@@ -137,7 +137,7 @@ def test_explain_terms_keeps_known_and_drops_guesses(graph):
         {"begriff": "Myokine", "bekannt": True, "erklaerung": "doppelt"},
         {"begriff": "Erfunden", "bekannt": True, "erklaerung": "nicht in der Liste"},
     ])
-    with patch.object(ask_mod.ollama, "chat", return_value=reply) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=reply) as chat:
         glossary = ask_mod.explain_terms(graph, answer, all_edges(graph))
     assert glossary == [
         {"term": "Myokine", "type": "x", "explanation": "Botenstoffe aus Muskelzellen."},
@@ -148,19 +148,19 @@ def test_explain_terms_keeps_known_and_drops_guesses(graph):
 
 
 def test_explain_terms_without_candidates_skips_llm(graph):
-    with patch.object(ask_mod.ollama, "chat") as chat:
+    with patch.object(ask_mod.llm.ollama, "chat") as chat:
         assert ask_mod.explain_terms(graph, "Das steht nicht im Graphen.", all_edges(graph)) == []
     chat.assert_not_called()
 
 
 def test_explain_terms_failure_gives_empty_glossary(graph):
-    with patch.object(ask_mod.ollama, "chat", side_effect=RuntimeError("down")):
+    with patch.object(ask_mod.llm.ollama, "chat", side_effect=RuntimeError("down")):
         assert ask_mod.explain_terms(graph, "Myokine [2].", all_edges(graph)) == []
 
 
 def test_ask_returns_glossary(graph):
     with patch.object(ask_mod, "select_nodes", return_value=["Muskeln"]), \
-         patch.object(ask_mod.ollama, "chat", side_effect=[
+         patch.object(ask_mod.llm.ollama, "chat", side_effect=[
              final("Muskeln schuetten Myokine aus [1]."),
              glossary_reply([{"begriff": "Myokine", "bekannt": True, "erklaerung": "Botenstoffe."}]),
          ]):
@@ -173,7 +173,7 @@ def test_ask_returns_glossary(graph):
 def test_explain_term_uses_context_but_no_triples(graph):
     reply = {"message": {"role": "assistant", "content": json.dumps(
         {"bekannt": True, "erklaerung": "  LINGO-1 ist ein Protein ...  "})}}
-    with patch.object(ask_mod.ollama, "chat", return_value=reply) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=reply) as chat:
         result = ask_mod.explain_term("LINGO-1", "Was hemmt Remyelinisierung?", "LINGO-1 hemmt sie [2].", "gene")
     assert result == {"term": "LINGO-1", "explanation": "LINGO-1 ist ein Protein ...", "known": True,
                       "used_sources": False}
@@ -184,7 +184,7 @@ def test_explain_term_uses_context_but_no_triples(graph):
 
 def test_explain_term_passes_source_sentences(graph):
     reply = {"message": {"role": "assistant", "content": json.dumps({"bekannt": True, "erklaerung": "CN045 ..."})}}
-    with patch.object(ask_mod.ollama, "chat", return_value=reply) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=reply) as chat:
         result = ask_mod.explain_term("CN045", passages=["We identified a lead hit (CN045)."])
     assert result["used_sources"] is True
     assert "- We identified a lead hit (CN045)." in chat.call_args.kwargs["messages"][0]["content"]
@@ -221,7 +221,7 @@ def test_cited_numbers():
 def test_check_answer_sends_only_cited_triples_and_skips_vermutung(graph):
     edges = list(graph.edges(keys=True))
     answer = "Krafttraining senkt das Risiko [1]. Myokine heilen Krebs [3].\nVermutung (nicht im Graphen belegt): Vielleicht."
-    with patch.object(ask_mod.ollama, "chat",
+    with patch.object(ask_mod.llm.ollama, "chat",
                       return_value=checker_reply(("gedeckt", [1]), ("nicht_gedeckt", [9]))) as chat:
         result = ask_mod.check_answer(graph, answer, edges, "Deutsch")
     prompt = chat.call_args.kwargs["messages"][0]["content"]
@@ -235,7 +235,7 @@ def test_check_answer_sends_only_cited_triples_and_skips_vermutung(graph):
 def test_check_answer_llm_marks_vermutung_in_other_languages(graph):
     edges = list(graph.edges(keys=True))
     answer = "Strength training lowers the risk [1].\nAssumption (not proven in the graph): It may help the brain."
-    with patch.object(ask_mod.ollama, "chat", return_value=checker_reply(
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=checker_reply(
             ("gedeckt", [1]), ("vermutung", []))) as chat:
         result = ask_mod.check_answer(graph, answer, edges, "Englisch")
     assert "auf Englisch" in chat.call_args.kwargs["messages"][0]["content"]
@@ -249,13 +249,13 @@ def test_check_answer_llm_marks_vermutung_in_other_languages(graph):
 ])
 def test_check_answer_failure_returns_unchecked(graph, reply):
     edges = list(graph.edges(keys=True))
-    with patch.object(ask_mod.ollama, "chat", return_value=reply):
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=reply):
         result = ask_mod.check_answer(graph, "Krafttraining senkt das Risiko [1].", edges)
     assert result["status"] == "ungeprueft" and result["saetze"] == [] and result["fehler"]
 
 
 def test_check_answer_without_checkable_sentences_skips_llm(graph):
-    with patch.object(ask_mod.ollama, "chat") as chat:
+    with patch.object(ask_mod.llm.ollama, "chat") as chat:
         result = ask_mod.check_answer(graph, "Vermutung (nicht im Graphen belegt): Vielleicht.", [])
     chat.assert_not_called()
     assert result["status"] == "geprueft"
@@ -264,7 +264,7 @@ def test_check_answer_without_checkable_sentences_skips_llm(graph):
 def test_ask_includes_pruefung(graph):
     with patch.object(ask_mod, "select_nodes", return_value=["Krafttraining"]), \
          patch.object(ask_mod, "explain_terms", return_value=[]), \
-         patch.object(ask_mod.ollama, "chat", side_effect=[
+         patch.object(ask_mod.llm.ollama, "chat", side_effect=[
              final("Krafttraining senkt das Risiko [1]."), checker_reply(("gedeckt", [1]))]):
         result = ask_mod.ask(graph, "Was senkt das Risiko?")
     assert result["pruefung"]["status"] == "geprueft"
@@ -374,7 +374,7 @@ def test_small_graph_needs_no_terms(graph):
     ('{"a": 1}', []),
 ])
 def test_question_terms_parses_or_gives_nothing(reply, expected):
-    with patch.object(ask_mod.ollama, "chat", return_value=final(reply)):
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=final(reply)):
         assert ask_mod.question_terms("Frage?") == expected
 
 
@@ -396,7 +396,7 @@ def test_split_statements_keeps_dates_whole():
 
 def test_check_asks_for_exactly_one_verdict_per_sentence(graph):
     edges = all_edges(graph)
-    with patch.object(ask_mod.ollama, "chat", return_value=checker_reply(("gedeckt", [1]), ("gedeckt", [1]))) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=checker_reply(("gedeckt", [1]), ("gedeckt", [1]))) as chat:
         ask_mod.check_answer(graph, "Eins [1]. Zwei [1].", edges)
     schema = chat.call_args.kwargs["format"]
     assert schema["minItems"] == 2 and schema["maxItems"] == 2
@@ -443,10 +443,10 @@ def test_triple_shows_when_the_source_was_published():
 
 
 def test_question_terms_get_the_domain_notes():
-    with patch.object(ask_mod.ollama, "chat", return_value=final('["EPS"]')) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=final('["EPS"]')) as chat:
         ask_mod.question_terms("Frage?", "\n\nHINWEISE ZUM FACHGEBIET:\n- consensus")
     assert "- consensus" in chat.call_args.kwargs["messages"][0]["content"]
-    with patch.object(ask_mod.ollama, "chat", return_value=final('["EPS"]')) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=final('["EPS"]')) as chat:
         ask_mod.question_terms("Frage?")
     assert "{domain_notes}" not in chat.call_args.kwargs["messages"][0]["content"]
 
@@ -473,10 +473,10 @@ def test_estimate_two_steps_away_comes_in_with_its_terms():
 
 def test_check_sees_the_question_for_numbers_it_names(graph):
     edges = list(graph.edges(keys=True))
-    with patch.object(ask_mod.ollama, "chat", return_value=checker_reply(("gedeckt", [1]))) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=checker_reply(("gedeckt", [1]))) as chat:
         ask_mod.check_answer(graph, "Krafttraining senkt das Risiko [1].", edges, question="Senkt es das Risiko um mehr als 17 Prozent?")
     assert "mehr als 17 Prozent?" in chat.call_args.kwargs["messages"][0]["content"]
-    with patch.object(ask_mod.ollama, "chat", return_value=checker_reply(("gedeckt", [1]))) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=checker_reply(("gedeckt", [1]))) as chat:
         ask_mod.check_answer(graph, "Krafttraining senkt das Risiko [1].", edges)
     assert "{question}" not in chat.call_args.kwargs["messages"][0]["content"]
 
@@ -485,19 +485,19 @@ def test_ask_passes_the_question_to_the_check(graph):
     with patch.object(ask_mod, "select_nodes", return_value=["Muskeln"]), \
          patch.object(ask_mod, "explain_terms", return_value=[]), \
          patch.object(ask_mod, "check_answer", return_value={"status": "geprueft", "saetze": []}) as check, \
-         patch.object(ask_mod.ollama, "chat", return_value=final("Muskeln bilden Myokine [1].")):
+         patch.object(ask_mod.llm.ollama, "chat", return_value=final("Muskeln bilden Myokine [1].")):
         ask_mod.ask(graph, "Was machen Muskeln?")
     assert check.call_args.args[-1] == "Was machen Muskeln?"
 
 
 def test_question_terms_are_the_same_each_time():
-    with patch.object(ask_mod.ollama, "chat", return_value=final('["EPS"]')) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=final('["EPS"]')) as chat:
         ask_mod.question_terms("Frage?")
     assert chat.call_args.kwargs["options"]["temperature"] == 0
 
 
 def test_select_nodes_is_the_same_each_time(graph):
-    with patch.object(ask_mod.ollama, "chat", return_value=final('["Muskeln"]')) as chat:
+    with patch.object(ask_mod.llm.ollama, "chat", return_value=final('["Muskeln"]')) as chat:
         assert ask_mod.select_nodes(graph, "Was machen Muskeln?") == ["Muskeln"]
     assert chat.call_args.kwargs["options"]["temperature"] == 0
 

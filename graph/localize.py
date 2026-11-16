@@ -21,11 +21,9 @@ import os
 import re
 import threading
 
-import ollama
-
+from graph import llm
 from graph.translate import NO_TOPICS
 
-LOCALIZE_MODEL = "gemma4:26b"
 BATCH_SIZE = 40
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "localize_labels.md")
 TEXTS_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "translate_texts.md")
@@ -101,9 +99,8 @@ def _translate_batch(texts: list, language: str, topics: str = "") -> dict:
         template = f.read()
     prompt = template.format(language=language, names="\n".join(f"- {t}" for t in texts),
                              topics=topics or NO_TOPICS)
-    response = ollama.chat(
-        model=LOCALIZE_MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    response = llm.chat(
+        "localize", messages=[{"role": "user", "content": prompt}],
         think=False,
         format=SCHEMA,
         options={"num_predict": 60 * len(texts) + 200, "temperature": 0},
@@ -160,9 +157,8 @@ def translate_texts(texts: list, language: str) -> list:
     with open(TEXTS_PROMPT_PATH, "r", encoding="utf-8") as f:
         template = f.read()
     blocks = "\n\n".join(f"### Text {i}\n{t}" for i, t in enumerate(texts, 1))
-    response = ollama.chat(
-        model=LOCALIZE_MODEL,
-        messages=[{"role": "user", "content": template.format(language=language, texts=blocks)}],
+    response = llm.chat(
+        "localize", messages=[{"role": "user", "content": template.format(language=language, texts=blocks)}],
         think=False,
         format=TEXTS_SCHEMA,
         options={"num_predict": sum(len(t) for t in texts) + 100 * len(texts) + 500, "temperature": 0},

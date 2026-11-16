@@ -2,6 +2,15 @@
 
 ## Stand
 
+**LLM-Anbieter umschaltbar ueber llm.json (gebaut, nur Unit-Tests)**
+- Grund: Firu will statt Ollama einen Remote-Server mit API-Key (OpenCode, OpenAI-kompatibel, `http://100.93.10.11:8888/v1`) nutzen und spaeter ohne Codeaenderung zurueck oder zu einem anderen Anbieter wechseln.
+- `graph/llm.py`: `chat(task, ...)` und `embed(...)` statt `ollama.chat`/`ollama.embed` in ask, suggest, translate, localize, normalize, dedupe; die Modellkonstanten (`MODEL`, `JUDGE_MODEL`, `EMBED_MODEL` ...) sind weg. Anbieter `ollama` oder `openai`; fuer `openai` werden `format` -> `response_format` (json_schema), `num_predict` -> `max_tokens` und Tool-Aufrufe (ids, Argumente als JSON-Text) uebersetzt, die Antwort kommt im Ollama-Format zurueck. `think` entfaellt dort.
+- `llm.json` (in `.gitignore`, Vorlage `llm.example.json`): `providers`, `chat`, `embed`, optional `tasks` pro Aufgabe. Ohne Datei wie bisher Ollama mit gemma4:26b und bge-m3. Neu gelesen, sobald sich die Datei aendert.
+- Tests: `test/test_llm.py`; `test/conftest.py` blendet eine echte `llm.json` in allen Tests aus; Patches zielen auf `graph.llm.ollama`.
+- Danach: Modell `Qwen3.8-Flash-Next-GGUF`. Probe ueber `graph/llm.py`: Text, JSON-Schema und Werkzeugaufruf gehen (je ~2 s). Qwen denkt aber vor jeder Antwort und verbraucht damit `max_tokens` - `"think_off": {"reasoning_effort": "none"}` am Anbieter geht bei `think=False` mit (auch `chat_template_kwargs.enable_thinking=false` wirkt, `think: false` nicht).
+- Danach: polygraph (`pipeline/llm.py`) und Argos (`argos/llm.py`, Pruefung `check.py`) lesen dieselbe Datei (`../polygraph-service/llm.json`), alle drei mit demselben Format. Embeddings bleiben laut Datei bei Ollama.
+- Offen: zweite Runde einer Werkzeug-Schleife live (nur Unit-Tests), Eval ueber alle Gold-Texte mit Qwen.
+
 **Pruefung der Kette Extraktion -> Graph fuer den Neuaufbau des Finanz-Graphen (gebaut, nur Unit-Tests)**
 - Grund: Vor dem Neuaufbau (Graph am 2026-11-11 geleert) die ganze Kette von der Regel bis zur Kante gelesen. Die Regeln kamen im Prompt an, gingen aber beim Import teils wieder verloren.
 - `graph/normalize.py`: Feste Namen des Profils (`aliases`) und feste Relationen (`DomainProfile.fixed_relations`, bei closed_relations die des Profils und seiner Vorgaben) gehen nicht mehr durch den LLM-Richter. Vorher liefen die Aliase erst in `add_triple`, nach `find_match`: der Richter konnte "adjusted EPS" in "earnings per share" oder sells_stake_in in holds_stake_in fuehren, beim Neuaufbau abhaengig von der Reihenfolge der Importe. Geprueft wird die Schreibweise vor und nach der Uebersetzung ("Umsatz" -> revenue).

@@ -30,9 +30,8 @@ in app.py) und fuer die einmalige Umstellung des Bestands
 import json
 import os
 
-import ollama
+from graph import llm
 
-TRANSLATE_MODEL = "gemma4:26b"
 BATCH_SIZE = 40
 PROMPT_DIR = os.path.join(os.path.dirname(__file__), "..", "prompts")
 PROMPTS = {"names": "translate_names.md", "details": "translate_details.md",
@@ -70,9 +69,8 @@ def _translate_batch(names: list, kind: str, topics: str = "") -> dict:
         template = f.read()
     prompt = template.format(names="\n".join(f"- {n}" for n in names),
                              topics=topics or NO_TOPICS)
-    response = ollama.chat(
-        model=TRANSLATE_MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    response = llm.chat(
+        "translate", messages=[{"role": "user", "content": prompt}],
         think=False,
         format=SCHEMA,
         options={"num_predict": 60 * len(names) + 200, "temperature": 0},

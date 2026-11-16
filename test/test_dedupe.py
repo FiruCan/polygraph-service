@@ -116,8 +116,8 @@ def graph_with(*names):
 
 def run(graph, *responses, **kwargs):
     """find_duplicates mit festen Antworten des Richters, der Reihe nach -> (Ergebnis, chat-Mock)."""
-    with patch("graph.dedupe.ollama.embed", side_effect=fake_embed), \
-         patch("graph.dedupe.ollama.chat", side_effect=list(responses)) as chat:
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
+         patch("graph.llm.ollama.chat", side_effect=list(responses)) as chat:
         return dedupe.find_duplicates(graph, **kwargs), chat
 
 

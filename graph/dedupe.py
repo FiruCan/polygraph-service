@@ -72,9 +72,9 @@ from collections import defaultdict
 from typing import Callable, Optional
 
 import numpy as np
-import ollama
 
-from graph.normalize import CANDIDATE_THRESHOLD, EMBED_MODEL, JUDGE_MODEL, judge_schema
+from graph import llm
+from graph.normalize import CANDIDATE_THRESHOLD, judge_schema
 
 DEDUPE_THRESHOLD = 0.75
 MAX_CANDIDATES = 5
@@ -120,7 +120,7 @@ def embed_all(names: list) -> np.ndarray:
     """Normierte Embeddings (N, D) - in Paketen statt einzeln, ~4x schneller."""
     vectors = []
     for i in range(0, len(names), EMBED_BATCH):
-        vectors += ollama.embed(model=EMBED_MODEL, input=names[i:i + EMBED_BATCH])["embeddings"]
+        vectors += llm.embed(names[i:i + EMBED_BATCH])["embeddings"]
     matrix = np.array(vectors, dtype=np.float32)
     return matrix / (np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-12)
 
@@ -165,8 +165,8 @@ def judge(graph, term: str, candidates: list) -> dict:
     seen, steps, calls = list(candidates), [], 0
 
     for _ in range(MAX_TOOL_ROUNDS):
-        response = ollama.chat(model=JUDGE_MODEL, messages=messages, tools=TOOLS, think=False,
-                               options={"num_predict": 400, "temperature": 0})
+        response = llm.chat("dedupe", messages=messages, tools=TOOLS, think=False,
+                            options={"num_predict": 400, "temperature": 0})
         calls += 1
         message = response["message"]
         tool_calls = message.get("tool_calls") or []
@@ -186,8 +186,8 @@ def judge(graph, term: str, candidates: list) -> dict:
 
     allowed = tuple(n for n in dict.fromkeys(seen) if n != term)
     messages.append({"role": "user", "content": FORCE_VERDICT})
-    response = ollama.chat(model=JUDGE_MODEL, messages=messages, think=False, format=judge_schema(allowed),
-                           options={"num_predict": 300, "temperature": 0})
+    response = llm.chat("dedupe", messages=messages, think=False, format=judge_schema(allowed),
+                        options={"num_predict": 300, "temperature": 0})
     calls += 1
     # Abgeschnittene/kaputte Antwort = im Zweifel nicht zusammenfuehren (wie normalize.judge_verdict)
     try:

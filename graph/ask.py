@@ -32,12 +32,11 @@ import time
 from itertools import combinations
 
 import networkx as nx
-import ollama
 
 from domains import profile_of
+from graph import llm
 from graph.dates import parse_as_of, period_words
 
-MODEL = "gemma4:26b"
 # Sprache von Antworten und Erklaerungen, wenn der Aufrufer keine waehlt
 DEFAULT_LANGUAGE = "Deutsch"
 HOPS = 2
@@ -61,9 +60,8 @@ def _chat(prompt: str, think: bool = False, num_predict: int = 4000, temperature
     options = {"num_predict": num_predict}
     if temperature is not None:
         options["temperature"] = temperature
-    response = ollama.chat(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    response = llm.chat(
+        "ask", messages=[{"role": "user", "content": prompt}],
         think=think,
         options=options,
     )
@@ -389,8 +387,8 @@ def _agent_answer(graph, question: str, evidence: _Evidence, language: str = DEF
         if last:
             messages.append({"role": "user", "content":
                              "Keine weiteren Werkzeugaufrufe moeglich. Antworte jetzt mit den vorhandenen Tripeln."})
-        response = ollama.chat(
-            model=MODEL, messages=messages, tools=None if last else TOOLS,
+        response = llm.chat(
+            "ask", messages=messages, tools=None if last else TOOLS,
             think=True, options={"num_predict": 6000},
         )
         message = response["message"]
@@ -399,8 +397,8 @@ def _agent_answer(graph, question: str, evidence: _Evidence, language: str = DEF
             answer = (message.get("content") or "").strip()
             if not answer:  # kam vor (Frage nach dem 52-Wochen-Hoch): nur Denken, kein Text
                 print(f"Warnung: leere Antwort ({response.get('done_reason')}), zweiter Versuch ohne Denkschritt")
-                answer = (ollama.chat(model=MODEL, messages=messages + [{"role": "user", "content": RETRY_EMPTY}],
-                                      think=False, options={"num_predict": 2000})["message"].get("content") or "").strip()
+                answer = (llm.chat("ask", messages=messages + [{"role": "user", "content": RETRY_EMPTY}],
+                                   think=False, options={"num_predict": 2000})["message"].get("content") or "").strip()
             return answer, steps, focus
 
         messages.append(message)
@@ -457,9 +455,8 @@ def explain_terms(graph, answer: str, edges: list, language: str = DEFAULT_LANGU
     types = dict(candidates)
     terms = "\n".join(f"- {n}" + (f" (Typ: {t})" if t else "") for n, t in candidates)
     try:
-        response = ollama.chat(
-            model=MODEL,
-            messages=[{"role": "user", "content": _load_prompt("ask_glossary.md").format(
+        response = llm.chat(
+            "ask", messages=[{"role": "user", "content": _load_prompt("ask_glossary.md").format(
                 terms=terms, answer=answer, language=language)}],
             think=False,
             format=_glossary_schema([n for n, _ in candidates]),
@@ -506,9 +503,8 @@ def explain_term(term: str, question: str = "", answer: str = "", node_type: str
         passages="\n".join(f"- {p}" for p in passages) if passages else "(kein Quelltext vorhanden)",
         language=language,
     )
-    response = ollama.chat(
-        model=MODEL,
-        messages=[{"role": "user", "content": prompt}],
+    response = llm.chat(
+        "ask", messages=[{"role": "user", "content": prompt}],
         think=True,
         format=EXPLAIN_SCHEMA,
         options={"num_predict": 4000, "temperature": 0.3},
@@ -610,8 +606,8 @@ def check_answer(graph, answer: str, evidence_edges: list, language: str = DEFAU
         language=language, domain_notes=profile_of(graph).notes("check"), question=question or "(unbekannt)",
     )
     try:
-        response = ollama.chat(
-            model=MODEL, messages=[{"role": "user", "content": prompt}], think=False,
+        response = llm.chat(
+            "ask", messages=[{"role": "user", "content": prompt}], think=False,
             # genau ein Urteil pro Satz: sonst fehlte manchmal eines und die ganze Pruefung fiel aus
             format={**CHECK_SCHEMA, "minItems": len(to_check), "maxItems": len(to_check)},
             options={"num_predict": 300 * len(to_check) + 500, "temperature": 0},
