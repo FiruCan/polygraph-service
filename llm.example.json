@@ -11,7 +11,19 @@
       "type": "openai",
       "base_url": "http://100.93.10.11:8888/v1",
       "api_key": "HIER-DEN-KEY-EINTRAGEN",
-      "model": "Qwen3.8-Flash-Next-GGUF",
+      "model": "unsloth/Qwen3.8-Flash-Next-GGUF",
+      "think_off": {
+        "reasoning_effort": "none"
+      },
+      "think_on": {
+        "reasoning_effort": "medium"
+      }
+    },
+    "opencode-denkt": {
+      "type": "openai",
+      "base_url": "http://100.93.10.11:8888/v1",
+      "api_key": "HIER-DEN-KEY-EINTRAGEN",
+      "model": "unsloth/Qwen3.8-Flash-Next-GGUF",
       "think_off": {
         "reasoning_effort": "medium"
       },
@@ -25,5 +37,12 @@
     "provider": "ollama",
     "model": "bge-m3"
   },
-  "tasks": {}
+  "tasks": {
+    "ask": {
+      "provider": "opencode-denkt"
+    },
+    "check": {
+      "provider": "opencode-denkt"
+    }
+  }
 }
