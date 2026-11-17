@@ -52,7 +52,8 @@ from graph.ask import (DEFAULT_LANGUAGE, ask as run_ask, explain_term, node_edge
                        select_nodes, triple_dict)
 from graph.dedupe import DEDUPE_THRESHOLD, find_duplicates
 from graph.localize import localize, translate_texts
-from graph.normalize import normalize_triple, similar_entities, warm_embeddings
+from graph import llm
+from graph.normalize import normalize_triple, prejudge, similar_entities, warm_embeddings
 from graph.store import GraphStore, hierarchy_path
 from graph.suggest import suggest_questions
 from graph.translate import TYPE_FIELDS, translate_details, translate_names, translate_types
@@ -275,7 +276,42 @@ def add_triples(body: TriplesIn):
     """
     Tripel normalisieren und einfuegen. Mit source werden vorher alle Kanten
     dieser Quelle entfernt (Re-Import ersetzt statt zu wachsen).
+
+    Die LLM-Vorarbeit (Uebersetzen, Richter-Fragen) laeuft ohne Graph-Sperre auf
+    einer Vorschau - der Graph, wie er nach dem Entfernen der Quelle aussieht.
+    Vorher hielt ein Import die Sperre ueber alle LLM-Aufrufe, Fragen und
+    /graph warteten so lange. Die Einfuegeschleife findet die Ergebnisse im
+    Cache; was ein paralleler Import inzwischen geaendert hat, fragt sie selbst.
     """
+    with store_lock:
+        preview = GraphStore()
+        preview.graph = store.graph.copy()  # ~10 ms bei 3.000 Knoten
+    if body.source:
+        preview.remove_edges_by_source(body.source)
+
+    # Alle neuen Namen und Angaben vorab in wenigen Paketen uebersetzen
+    # (der Graph ist immer englisch) - normalize_triple findet sie dann
+    # im Cache statt einen LLM-Aufruf pro Feld zu machen.
+    # Das Fachgebiet fuer mehrdeutige Woerter ergibt sich aus dem Graphen
+    # und den neuen Tripeln selbst, nicht aus einer festen Domain.
+    topics = preview.topics(t.get(f) for t in body.triples for f in TYPE_FIELDS)
+    profile = profile_of(preview.graph)
+    detail_fields = profile.detail_fields
+    known_entities = preview.known_entities()
+    known = set(known_entities)
+    translate_names([t[f] for t in body.triples for f in ("subject", "object")
+                     if isinstance(t.get(f), str) and t[f] not in known], topics=topics)
+    translate_details([t[f] for t in body.triples for f in detail_fields
+                       if isinstance(t.get(f), str) and t[f].strip()], topics=topics)
+    # Typen ebenso; ein schon bekannter Typ ist englisch (Bestand mit
+    # translate_graph.py umgestellt) und braucht keinen LLM-Aufruf.
+    known_types = set(preview.known_types())
+    types = translate_types([t[f] for t in body.triples for f in TYPE_FIELDS
+                             if isinstance(t.get(f), str) and t[f].strip() and t[f] not in known_types],
+                            topics=topics)
+    prejudge(body.triples, known_entities, preview.known_relations(), aliases=profile.aliases,
+             fixed_relations=profile.fixed_relations, workers=llm.parallel("normalize"))
+
     with store_lock:
         removed_nodes_before = store.graph.number_of_nodes()
         removed_edges_before = store.graph.number_of_edges()
@@ -285,26 +321,6 @@ def add_triples(body: TriplesIn):
             "nodes": removed_nodes_before - store.graph.number_of_nodes(),
             "edges": removed_edges_before - store.graph.number_of_edges(),
         }
-
-        # Alle neuen Namen und Angaben vorab in wenigen Paketen uebersetzen
-        # (der Graph ist immer englisch) - normalize_triple findet sie dann
-        # im Cache statt einen LLM-Aufruf pro Feld zu machen.
-        # Das Fachgebiet fuer mehrdeutige Woerter ergibt sich aus dem Graphen
-        # und den neuen Tripeln selbst, nicht aus einer festen Domain.
-        topics = store.topics(t.get(f) for t in body.triples for f in TYPE_FIELDS)
-        profile = profile_of(store.graph)
-        detail_fields = profile.detail_fields
-        known = set(store.known_entities())
-        translate_names([t[f] for t in body.triples for f in ("subject", "object")
-                         if isinstance(t.get(f), str) and t[f] not in known], topics=topics)
-        translate_details([t[f] for t in body.triples for f in detail_fields
-                           if isinstance(t.get(f), str) and t[f].strip()], topics=topics)
-        # Typen ebenso; ein schon bekannter Typ ist englisch (Bestand mit
-        # translate_graph.py umgestellt) und braucht keinen LLM-Aufruf.
-        known_types = set(store.known_types())
-        types = translate_types([t[f] for t in body.triples for f in TYPE_FIELDS
-                                 if isinstance(t.get(f), str) and t[f].strip() and t[f] not in known_types],
-                                topics=topics)
 
         merges = []
         for triple in body.triples:
@@ -360,7 +376,9 @@ def vocabulary():
 def entities_similar(body: SimilarIn):
     """Entity-Linking-Hinweise fuer polygraph: aehnliche, schon bekannte Knoten pro Name."""
     with store_lock:
-        return {"matches": similar_entities(body.names, store.known_entities(), body.limit)}
+        known = store.known_entities()
+    # Embeddings ohne Sperre: kalt (vor dem Vorlauf beim Start) dauern sie Sekunden
+    return {"matches": similar_entities(body.names, known, body.limit)}
 
 
 @app.post("/vocabulary/rename")
@@ -525,9 +543,14 @@ def questions_suggest(count: int = Query(5, ge=1, le=10),
 
 @app.post("/ask")
 def ask_question(body: QuestionIn):
-    """Frage an den Graphen (GraphRAG): Antwort, verwendete Tripel und Teilgraph."""
+    """
+    Frage an den Graphen (GraphRAG): Antwort, verwendete Tripel und Teilgraph.
+    Auf einer Kopie: die Antwort braucht eine bis zwei Minuten LLM-Zeit, unter
+    der Sperre wartete ein Import im End-to-End-Test 92 s statt 5 s.
+    """
     with store_lock:
-        return run_ask(store.graph, body.question, language=body.language)
+        graph = store.graph.copy()
+    return run_ask(graph, body.question, language=body.language)
 
 
 @app.get("/nodes/search")

@@ -85,6 +85,12 @@ def target(section: str, task: Optional[str] = None) -> tuple:
     return provider, model
 
 
+def parallel(task: str) -> int:
+    """Wie viele Aufrufe einer Aufgabe gleichzeitig laufen duerfen ("parallel" am Anbieter, Standard 1)."""
+    provider, _ = target("chat", task)
+    return max(1, int(provider.get("parallel", 1)))
+
+
 def chat(task: str, **kwargs):
     """Wie ollama.chat(model=..., **kwargs); Anbieter und Modell kommen aus llm.json."""
     provider, model = target("chat", task)

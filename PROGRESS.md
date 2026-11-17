@@ -2,6 +2,14 @@
 
 ## Stand
 
+**Richter parallel, LLM-Arbeit ohne Graph-Sperre (gebaut, Unit-Tests)**
+- Grund: End-to-End-Test (2026-11-17): 27 Richter-Fragen nacheinander kosteten 54 s eines 230-s-Imports; /ask hielt die Graph-Sperre ueber die ganze LLM-Zeit, ein Import eines Tripels wartete 92 s statt 5 s, /health 85 s. Der Remote-Server rechnet 4 Anfragen gleichzeitig in 1,1 s (nacheinander 4,9 s).
+- `graph/normalize.py`: `prejudge()` stellt die Richter-Fragen eines Imports vorab, `workers` gleichzeitig; `normalize_triple` findet die Urteile im Cache von `judge_verdict` (gleiches Ergebnis wie vorher). Kandidatensuche als `_direct_match`/`_candidates` aus `find_match` herausgezogen.
+- `graph/llm.py::parallel(task)`: `"parallel"` am Anbieter in llm.json, Standard 1 (= wie bisher). llm.json/Vorlage: `opencode` mit `"parallel": 4`.
+- `app.py`: `/triples` uebersetzt und fragt die Richter ohne Sperre auf einer Vorschau (Kopie des Graphen ohne die Kanten der Quelle), gesperrt wird nur Entfernen/Einfuegen/Speichern. `/ask` arbeitet auf einer Kopie (9 ms bei 2.972 Knoten), `/entities/similar` holt nur die Knotenliste unter der Sperre.
+- Tests: `test/test_normalize.py`, `test/test_app.py`, `test/test_llm.py` (403 Tests gruen).
+- Offen: Service neu starten; Wirkung im echten Import noch nicht gemessen.
+
 **Embeddings in Paketen statt einzeln (gebaut, Unit-Tests, Kaltstart gemessen)**
 - Grund: End-to-End-Test aller Endpunkte mit Qwen (Testinstanzen, Kopie des Finanz-Graphen vom 2026-11-09, 1.111 Knoten): nach einem Neustart berechnete der erste Import alle Embeddings einzeln, 1.132 Aufrufe in 140 s (0,35 s je Begriff, 50 im Paket 0,5 s). /entities/similar lief dabei in den 30-s-Timeout von polygraph, die Extraktion lief still ohne Graph-Hinweise. Der Import desselben Artikels brauchte kalt 176 s, warm 74 s.
 - `graph/normalize.py`: `_vectors` (Begriff -> Vektor, ohne Obergrenze) statt `lru_cache(4096)`; `_embed_many` rechnet fehlende Begriffe in Paketen von 64. `find_match` holt neuen Begriff und unbekannte Knoten in einem Durchgang, `similar_entities` alle Namen und Knoten vorab. Ab 4.096 Begriffen haette der alte Cache bei jedem Import neu gerechnet.

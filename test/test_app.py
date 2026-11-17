@@ -407,3 +407,37 @@ def test_warm_embeddings_failure_only_warns(client, capsys):
     with patch("graph.llm.ollama.embed", side_effect=ConnectionError("Ollama aus")):
         app_module.warm_known_embeddings()  # wirft nicht: der Service startet trotzdem
     assert "nicht vorberechnet" in capsys.readouterr().out
+
+
+def test_ask_runs_on_a_copy_without_the_lock(client):
+    client.post("/triples", json={"triples": [triple()]})
+
+    def fake_ask(graph, question, language):
+        assert not app_module.store_lock.locked()  # Importe und /graph warten nicht auf die Antwort
+        assert graph is not app_module.store.graph and graph.number_of_nodes() == 2
+        return {"answer": "x"}
+    with patch("app.run_ask", side_effect=fake_ask):
+        assert client.post("/ask", json={"question": "Was senkt Krebs?"}).json() == {"answer": "x"}
+
+
+def test_import_translates_and_judges_without_the_lock(client):
+    seen = []
+
+    def unlocked(names, topics=""):
+        seen.append(app_module.store_lock.locked())
+        return {n: n for n in names}
+    with patch("app.translate_names", side_effect=unlocked), \
+         patch("app.prejudge", side_effect=lambda *a, **kw: seen.append(app_module.store_lock.locked())) as pre:
+        assert client.post("/triples", json={"triples": [triple()]}).status_code == 200
+    assert seen == [False, False]
+    assert pre.call_args.kwargs["workers"] == 1  # ohne "parallel" in llm.json wie bisher einzeln
+
+
+def test_reimport_prework_sees_the_graph_without_the_source(client):
+    # Ein Knoten, der nur an der Quelle hing, faellt beim Re-Import weg - die
+    # Vorarbeit muss ihn wie einen neuen Namen uebersetzen, sonst geschaehe das
+    # einzeln unter der Sperre
+    client.post("/triples", json={"triples": [triple("Krafttraining", "Krebs")], "source": "a.html"})
+    with patch("app.translate_names", side_effect=lambda names, topics="": {n: n for n in names}) as tr:
+        client.post("/triples", json={"triples": [triple("Krafttraining", "Krebs")], "source": "a.html"})
+    assert set(tr.call_args.args[0]) == {"Krafttraining", "Krebs"}

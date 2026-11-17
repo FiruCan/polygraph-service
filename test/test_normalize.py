@@ -208,3 +208,22 @@ def test_find_match_embeds_new_term_with_new_known_terms_in_one_call():
         assert find_match("IL-6", ["Interleukin-6", "Krebs"]) == "Interleukin-6"
     assert embed.call_count == 1
     assert set(embed.call_args.kwargs["input"]) == {"IL-6", "Interleukin-6", "Krebs"}
+
+
+def test_prejudge_asks_in_parallel_and_normalize_reuses_the_verdicts():
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
+         patch("graph.normalize.to_english", side_effect=lambda n: n), \
+         patch("graph.llm.ollama.chat", return_value=chat_answer("Interleukin-6")) as chat:
+        asked = normalize.prejudge([{"subject": "IL-6", "relation": "increases_risk_of", "object": "Krebs"}],
+                                   ["Interleukin-6", "Krebs"], ["increases_risk_of"], workers=4)
+        assert asked == 1 and chat.call_count == 1  # Krebs und die Relation sind schon bekannt
+        result = normalize_triple({"subject": "IL-6", "relation": "increases_risk_of", "object": "Krebs"},
+                                  ["Interleukin-6", "Krebs"], ["increases_risk_of"])
+    assert result["subject"] == "Interleukin-6"
+    assert chat.call_count == 1  # Urteil aus dem Cache, kein zweiter Aufruf
+
+
+def test_prejudge_with_one_worker_does_nothing():
+    with patch("graph.llm.ollama.chat") as chat, patch("graph.llm.ollama.embed") as embed:
+        assert normalize.prejudge([{"subject": "IL-6", "relation": "r", "object": "Krebs"}], ["Krebs"], ["r"]) == 0
+    chat.assert_not_called(); embed.assert_not_called()

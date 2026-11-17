@@ -25,6 +25,7 @@ Voraussetzung: 'ollama pull bge-m3'.
 
 import json
 import os
+from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from typing import Optional
 
@@ -143,20 +144,18 @@ def judge_verdict(term: str, candidates: tuple) -> tuple:
     return (answer if answer in candidates else None), reason
 
 
-def find_match(term: str, known_terms: list) -> Optional[str]:
-    """
-    Gibt den bekannten Begriff zurueck, der dieselbe Entitaet wie 'term'
-    bezeichnet, oder None, falls 'term' neu ist.
-    """
+def _direct_match(term: str, known_terms: list) -> Optional[str]:
+    """Bekannter Begriff in gleicher oder anderer Gross-/Kleinschreibung - ohne LLM."""
     if term in known_terms:
         return term
     lowered = {k.lower().strip(): k for k in known_terms}
-    if term.lower().strip() in lowered:
-        return lowered[term.lower().strip()]
+    return lowered.get(term.lower().strip())
 
+
+def _candidates(term: str, known_terms: list) -> tuple:
+    """Bekannte Begriffe, ueber die der Richter fuer 'term' entscheiden soll (leer: keiner)."""
     if not known_terms:
-        return None
-
+        return ()
     _embed_many([term, *known_terms])  # neuer Begriff und unbekannte Knoten in einem Durchgang
     scored = _top_matches(_vectors[term], known_terms)
     # Erst nach Schwellenwert filtern, DANACH auf MAX_JUDGE_CANDIDATES
@@ -166,7 +165,18 @@ def find_match(term: str, known_terms: list) -> Optional[str]:
     # Sklerose", nur 0.587 - keine Textueberlappung mit "MS") aus den
     # Top-N verdraengen, wenn man zuerst kappt und erst dann filtert.
     above_threshold = [k for score, k in scored if score >= CANDIDATE_THRESHOLD]
-    candidates = tuple(above_threshold[:MAX_JUDGE_CANDIDATES])
+    return tuple(above_threshold[:MAX_JUDGE_CANDIDATES])
+
+
+def find_match(term: str, known_terms: list) -> Optional[str]:
+    """
+    Gibt den bekannten Begriff zurueck, der dieselbe Entitaet wie 'term'
+    bezeichnet, oder None, falls 'term' neu ist.
+    """
+    direct = _direct_match(term, known_terms)
+    if direct:
+        return direct
+    candidates = _candidates(term, known_terms)
     if not candidates:
         return None
     return _judge(term, candidates)
@@ -249,3 +259,37 @@ def normalize_triple(triple: dict, known_entities: list, known_relations: list,
     normalized["relation"] = (relation if relation in fixed_relations
                               else find_match(relation, known_relations) or relation)
     return normalized
+
+
+def prejudge(triples: list, known_entities: list, known_relations: list, aliases: dict = None,
+             fixed_relations=(), workers: int = 1) -> int:
+    """
+    Stellt die Richter-Fragen eines Imports vorab, 'workers' gleichzeitig -
+    normalize_triple findet die Urteile danach im Cache von judge_verdict.
+    Die Begriffe entstehen wie in normalize_triple; das Ergebnis bleibt also
+    dasselbe, nur schneller: im End-to-End-Test kosteten 27 Fragen
+    nacheinander 54 s eines 230-s-Imports, der Server beantwortet 4 Fragen
+    gleichzeitig in der Zeit von einer. Knoten, die erst ein frueheres Tripel
+    desselben Imports anlegt, aendern die Kandidaten - diese Fragen stellt
+    normalize_triple wie bisher selbst. -> Anzahl gestellter Fragen.
+    """
+    if workers <= 1:
+        return 0
+    known = set(known_entities)
+    questions = set()
+    for triple in triples:
+        for field in ("subject", "object"):
+            term = triple[field] if triple[field] in known else to_english(triple[field])
+            if fixed_name((triple[field], term), aliases or {}) or _direct_match(term, known_entities):
+                continue
+            candidates = _candidates(term, known_entities)
+            if candidates:
+                questions.add((term, candidates))
+        relation = triple["relation"]
+        if relation not in fixed_relations and not _direct_match(relation, known_relations):
+            candidates = _candidates(relation, known_relations)
+            if candidates:
+                questions.add((relation, candidates))
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        list(pool.map(lambda q: judge_verdict(*q), questions))
+    return len(questions)

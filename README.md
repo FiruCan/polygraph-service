@@ -74,6 +74,8 @@ cp llm.example.json llm.json   # dann den Key eintragen
   `"max_tokens": false` = keine Laengengrenze mitschicken, der Server
   entscheidet (die Grenzen im Code sind fuer Antworten ohne Denken bemessen,
   Denk-Tokens zaehlen mit; noetig fuer `reasoning_effort` ueber `none`).
+  `"parallel": 4` = so viele Richter-Fragen eines Imports gleichzeitig
+  (Normalisierung, Standard 1); nur sinnvoll, wenn der Server parallel rechnet.
 - `chat`: welcher Anbieter alle Aufgaben bekommt. Ein `model` hier geht dem
   Modell des Anbieters vor (dann beim Umschalten mit aendern).
 - `tasks`: optional pro Aufgabe ein anderer Anbieter, z.B.

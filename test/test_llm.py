@@ -190,3 +190,12 @@ def test_max_tokens_false_sends_no_limit(write_config):
     with patch("graph.llm.httpx.post", return_value=completion("ok")) as post:
         llm.chat("ask", messages=[], options={"num_predict": 30})
     assert "max_tokens" not in post.call_args.kwargs["json"]
+
+
+def test_parallel_from_llm_json(write_config):
+    assert llm.parallel("normalize") == 1  # ohne Datei wie bisher
+    write_config({"providers": {"opencode": {**OPENCODE, "model": "qwen", "parallel": 4},
+                                "ollama": {"type": "ollama", "model": "gemma4:26b"}},
+                  "chat": {"provider": "opencode"}, "tasks": {"translate": {"provider": "ollama"}}})
+    assert llm.parallel("normalize") == 4
+    assert llm.parallel("translate") == 1
