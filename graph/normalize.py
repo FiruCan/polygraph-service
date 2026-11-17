@@ -41,14 +41,31 @@ CANDIDATE_THRESHOLD = 0.55
 # Extraktionsmodell (Regel in polygraph/prompts/extract.md).
 SIMILAR_THRESHOLD = 0.6
 MAX_JUDGE_CANDIDATES = 20
+EMBED_BATCH = 64
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "normalize_judge.md")
 
+# Begriff -> Embedding, ohne Obergrenze: jeder Begriff wird nur einmal berechnet.
+# Vorher lru_cache(4096) mit einem Aufruf pro Begriff - nach einem Neustart
+# brauchte der erste Import so 140 s fuer 1.132 Begriffe (0,35 s je Aufruf,
+# 50 Begriffe im Paket 0,5 s), und /entities/similar lief in den 30-s-Timeout
+# von polygraph: die Extraktion lief dann still ohne Graph-Hinweise. Ab 4.096
+# Begriffen haette der Cache bei jedem Import neu gerechnet. Ein Vektor (bge-m3)
+# sind 4 KB, 10.000 Begriffe also rund 40 MB.
+_vectors: dict = {}
 
-@lru_cache(maxsize=4096)
+
+def _embed_many(terms) -> None:
+    """Berechnet die noch fehlenden Embeddings in Paketen von EMBED_BATCH."""
+    todo = list(dict.fromkeys(t for t in terms if t not in _vectors))
+    for i in range(0, len(todo), EMBED_BATCH):
+        batch = todo[i:i + EMBED_BATCH]
+        for term, vec in zip(batch, llm.embed(batch)["embeddings"]):
+            _vectors[term] = np.array(vec, dtype=np.float32)
+
+
 def _embed(text: str) -> np.ndarray:
-    """Embeddet einen Begriff, gecacht damit jeder Begriff nur einmal berechnet wird."""
-    vec = llm.embed(text)["embeddings"][0]
-    return np.array(vec, dtype=np.float32)
+    _embed_many([text])
+    return _vectors[text]
 
 
 def _top_matches(term_vec: np.ndarray, known_terms: list) -> list:
@@ -57,7 +74,8 @@ def _top_matches(term_vec: np.ndarray, known_terms: list) -> list:
     ein Matrix-Vektor-Produkt statt einer Python-Schleife mit sum()/sqrt()
     pro Begriffspaar. Gibt (score, term) absteigend sortiert zurueck.
     """
-    matrix = np.stack([_embed(k) for k in known_terms])  # (N, D)
+    _embed_many(known_terms)
+    matrix = np.stack([_vectors[k] for k in known_terms])  # (N, D)
     term_norm = term_vec / (np.linalg.norm(term_vec) + 1e-12)
     matrix_norm = matrix / (np.linalg.norm(matrix, axis=1, keepdims=True) + 1e-12)
     scores = matrix_norm @ term_norm  # (N,) - eine Matrixmultiplikation statt N Python-Schleifen
@@ -132,8 +150,8 @@ def find_match(term: str, known_terms: list) -> Optional[str]:
     if not known_terms:
         return None
 
-    term_vec = _embed(term)
-    scored = _top_matches(term_vec, known_terms)
+    _embed_many([term, *known_terms])  # neuer Begriff und unbekannte Knoten in einem Durchgang
+    scored = _top_matches(_vectors[term], known_terms)
     # Erst nach Schwellenwert filtern, DANACH auf MAX_JUDGE_CANDIDATES
     # begrenzen (nicht umgekehrt): bei einem grossen Graphen koennen viele
     # lexikalisch aehnliche, aber inhaltlich andere Begriffe (z.B.
@@ -165,6 +183,7 @@ def similar_entities(names: list, known_terms: list, limit: int = 3,
     if not known_terms:
         return {name: [] for name in names}
     lowered = {k.lower().strip() for k in known_terms}
+    _embed_many([n for n in names if n.lower().strip() not in lowered] + list(known_terms))
     result = {}
     for name in names:
         if name.lower().strip() in lowered:

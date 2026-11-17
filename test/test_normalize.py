@@ -20,11 +20,11 @@ from graph.normalize import find_match, normalize_triple
 
 @pytest.fixture(autouse=True)
 def clear_caches():
-    normalize._embed.cache_clear()
+    normalize._vectors.clear()
     normalize._judge.cache_clear()
     normalize.judge_verdict.cache_clear()
     yield
-    normalize._embed.cache_clear()
+    normalize._vectors.clear()
     normalize._judge.cache_clear()
     normalize.judge_verdict.cache_clear()
 
@@ -39,7 +39,7 @@ VECTORS = {
 
 
 def fake_embed(model, input):
-    return {"embeddings": [VECTORS[input]]}
+    return {"embeddings": [VECTORS[n] for n in input]}
 
 
 def chat_answer(treffer):
@@ -182,3 +182,29 @@ def test_fixed_name_matches_any_case_and_targets():
     assert normalize.fixed_name(("Earnings per Share",), aliases) == "earnings per share"
     assert normalize.fixed_name(("Gewinn", "profit"), aliases) is None
     assert normalize.fixed_name(("EPS",), {}) is None
+
+
+def test_embeddings_in_batches_and_only_once():
+    # Kaltstart mit 130 bekannten Begriffen: 3 Pakete statt 130 Einzelaufrufe,
+    # beim zweiten Mal kein Aufruf mehr (vorher 0,35 s je Begriff)
+    known = [f"Begriff {i}" for i in range(130)]
+    vectors = {k: [1.0, float(i), 0.0] for i, k in enumerate(known)}
+    vectors["neu"] = [0.0, 0.0, 1.0]
+    with patch("graph.llm.ollama.embed", side_effect=lambda model, input: {"embeddings": [vectors[n] for n in input]}) as embed:
+        similar = normalize.similar_entities(["neu"], known)
+        assert [len(c.kwargs["input"]) for c in embed.call_args_list] == [64, 64, 3]
+        embed.reset_mock()
+        normalize.similar_entities(["neu"], known)
+        with patch("graph.llm.ollama.chat") as chat:
+            assert find_match("neu", known) is None  # kein Kandidat ueber der Schwelle
+        chat.assert_not_called()
+    embed.assert_not_called()
+    assert similar == {"neu": []}
+
+
+def test_find_match_embeds_new_term_with_new_known_terms_in_one_call():
+    with patch("graph.llm.ollama.embed", side_effect=fake_embed) as embed, \
+         patch("graph.llm.ollama.chat", return_value=chat_answer("Interleukin-6")):
+        assert find_match("IL-6", ["Interleukin-6", "Krebs"]) == "Interleukin-6"
+    assert embed.call_count == 1
+    assert set(embed.call_args.kwargs["input"]) == {"IL-6", "Interleukin-6", "Krebs"}

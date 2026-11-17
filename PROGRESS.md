@@ -2,6 +2,13 @@
 
 ## Stand
 
+**Embeddings in Paketen statt einzeln (gebaut, Unit-Tests, Kaltstart gemessen)**
+- Grund: End-to-End-Test aller Endpunkte mit Qwen (Testinstanzen, Kopie des Finanz-Graphen vom 2026-11-09, 1.111 Knoten): nach einem Neustart berechnete der erste Import alle Embeddings einzeln, 1.132 Aufrufe in 140 s (0,35 s je Begriff, 50 im Paket 0,5 s). /entities/similar lief dabei in den 30-s-Timeout von polygraph, die Extraktion lief still ohne Graph-Hinweise. Der Import desselben Artikels brauchte kalt 176 s, warm 74 s.
+- `graph/normalize.py`: `_vectors` (Begriff -> Vektor, ohne Obergrenze) statt `lru_cache(4096)`; `_embed_many` rechnet fehlende Begriffe in Paketen von 64. `find_match` holt neuen Begriff und unbekannte Knoten in einem Durchgang, `similar_entities` alle Namen und Knoten vorab. Ab 4.096 Begriffen haette der alte Cache bei jedem Import neu gerechnet.
+- Gemessen (lokales bge-m3, 1.148 Begriffe): kalt 15 s statt 140 s, warm 0,01 s.
+- Tests: `test/test_normalize.py` (Pakete 64/64/3, zweiter Aufruf ohne Embedding, find_match in einem Aufruf).
+- Offen: Medizin-Graph (2.972 Knoten) braucht kalt noch ~40 s, mehr als die 30 s von polygraph. Weitere Befunde des Tests (Reihenfolge nach Wirkung): Tripel-Schema mit 15 Pflichtfeldern blaeht die Antwort auf (~500 Zeichen je Tripel, ~45 % der Importzeit), Pruef-Agent verwirft ~20 %, Richter-Aufrufe einzeln nacheinander, /ask haelt die Graph-Sperre ueber die ganze LLM-Zeit (Import wartete 92 s), SEC 403 wegen User-Agent `Mozilla/5.0`. Netzwerk zum Remote-Server unter 2 %.
+
 **LLM-Anbieter umschaltbar ueber llm.json (gebaut, nur Unit-Tests)**
 - Grund: Firu will statt Ollama einen Remote-Server mit API-Key (OpenCode, OpenAI-kompatibel, `http://100.93.10.11:8888/v1`) nutzen und spaeter ohne Codeaenderung zurueck oder zu einem anderen Anbieter wechseln.
 - `graph/llm.py`: `chat(task, ...)` und `embed(...)` statt `ollama.chat`/`ollama.embed` in ask, suggest, translate, localize, normalize, dedupe; die Modellkonstanten (`MODEL`, `JUDGE_MODEL`, `EMBED_MODEL` ...) sind weg. Anbieter `ollama` oder `openai`; fuer `openai` werden `format` -> `response_format` (json_schema), `num_predict` -> `max_tokens` und Tool-Aufrufe (ids, Argumente als JSON-Text) uebersetzt, die Antwort kommt im Ollama-Format zurueck. `think` entfaellt dort.
