@@ -7,6 +7,7 @@ echte Datenordner wird nie beruehrt.
 
 import os
 import sys
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -104,3 +105,12 @@ def test_server_start_opens_the_instance(root, monkeypatch):
     with TestClient(app_module.app) as client:
         assert client.get("/health").json() == {"status": "ok", "nodes": 2, "edges": 1}
         assert client.get("/profile").json()["fixed"] is True
+
+
+def test_server_start_warms_embeddings_in_background(root, monkeypatch):
+    write_graph(root / "medicine" / "graph.gml")
+    monkeypatch.setenv("POLYGRAPH_DOMAIN", "medicine")
+    monkeypatch.setenv("POLYGRAPH_WARM_EMBEDDINGS", "1")
+    with patch.object(app_module, "warm_known_embeddings") as warm, TestClient(app_module.app):
+        pass
+    warm.assert_called_once()

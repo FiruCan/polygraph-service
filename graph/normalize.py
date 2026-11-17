@@ -63,6 +63,13 @@ def _embed_many(terms) -> None:
             _vectors[term] = np.array(vec, dtype=np.float32)
 
 
+def warm_embeddings(terms) -> int:
+    """Embeddings vorab berechnen (beim Serverstart), -> Anzahl neu berechneter Begriffe."""
+    before = len(_vectors)
+    _embed_many(terms)
+    return len(_vectors) - before
+
+
 def _embed(text: str) -> np.ndarray:
     _embed_many([text])
     return _vectors[text]

@@ -388,3 +388,22 @@ def test_questions_suggest_blank_topic_is_random(client):
         r = client.get("/questions/suggest?topic=%20%20")
     sel.assert_not_called()
     assert r.json() == {"questions": []}
+
+
+def test_warm_embeddings_covers_nodes_and_relations(client, capsys):
+    from graph import normalize
+    normalize._vectors.clear()
+    client.post("/triples", json={"triples": [triple(), triple("Laufen", "Herz", "strengthens")]})
+    with patch("graph.llm.ollama.embed", side_effect=lambda model, input: {"embeddings": [[1.0, 0.0]] * len(input)}) as embed:
+        app_module.warm_known_embeddings()
+    assert set(embed.call_args.kwargs["input"]) == {"Krafttraining", "Krebs", "Laufen", "Herz",
+                                                    "reduces_risk_of", "strengthens"}
+    assert "6 Begriffe" in capsys.readouterr().out
+    normalize._vectors.clear()
+
+
+def test_warm_embeddings_failure_only_warns(client, capsys):
+    client.post("/triples", json={"triples": [triple()]})
+    with patch("graph.llm.ollama.embed", side_effect=ConnectionError("Ollama aus")):
+        app_module.warm_known_embeddings()  # wirft nicht: der Service startet trotzdem
+    assert "nicht vorberechnet" in capsys.readouterr().out

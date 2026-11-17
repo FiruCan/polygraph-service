@@ -52,7 +52,7 @@ from graph.ask import (DEFAULT_LANGUAGE, ask as run_ask, explain_term, node_edge
                        select_nodes, triple_dict)
 from graph.dedupe import DEDUPE_THRESHOLD, find_duplicates
 from graph.localize import localize, translate_texts
-from graph.normalize import normalize_triple, similar_entities
+from graph.normalize import normalize_triple, similar_entities, warm_embeddings
 from graph.store import GraphStore, hierarchy_path
 from graph.suggest import suggest_questions
 from graph.translate import TYPE_FIELDS, translate_details, translate_names, translate_types
@@ -125,11 +125,32 @@ def open_instance(domain: str, root: str = None):
     ANTWORTEN_DIR = os.path.join(directory, "antworten")
 
 
+def warm_known_embeddings():
+    """
+    Embeddings aller Knoten und Relationen im Hintergrund vorberechnen, damit
+    schon der erste Import nach dem Start sie im Cache findet. Ohne das brauchte
+    /entities/similar beim Medizin-Graphen (2.972 Knoten) kalt ~40 s - mehr als
+    die 30 s, die polygraph darauf wartet, bevor es ohne Graph-Hinweise extrahiert.
+    Anfragen waehrend des Vorlaufs rechnen fehlende Begriffe selbst.
+    """
+    with store_lock:
+        terms = store.known_entities() + store.known_relations()
+    started = datetime.now()
+    try:
+        added = warm_embeddings(terms)
+    except Exception as e:  # z.B. Ollama aus - dann wie frueher beim ersten Import
+        print(f"Warnung: Embeddings nicht vorberechnet ({e}), sie entstehen beim ersten Import")
+        return
+    print(f"Embeddings vorberechnet: {added} Begriffe in {(datetime.now() - started).total_seconds():.0f} s")
+
+
 @asynccontextmanager
 async def lifespan(app):
     # Beim Serverstart, nicht beim Import: Tests (TestClient ohne "with")
     # beruehren so nie einen echten Datenordner.
     open_instance(os.environ.get("POLYGRAPH_DOMAIN"))
+    if os.environ.get("POLYGRAPH_WARM_EMBEDDINGS", "1") != "0":
+        threading.Thread(target=warm_known_embeddings, daemon=True).start()
     yield
 
 
