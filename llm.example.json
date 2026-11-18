@@ -18,7 +18,7 @@
       "think_on": {
         "reasoning_effort": "medium"
       },
-      "parallel": 4
+      "parallel": 2
     },
     "opencode-denkt": {
       "type": "openai",
