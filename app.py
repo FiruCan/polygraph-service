@@ -56,7 +56,6 @@ from graph import llm
 from graph.normalize import normalize_triple, prejudge, similar_entities, warm_embeddings
 from graph.store import GraphStore, hierarchy_path
 from graph.suggest import suggest_questions
-from graph.translate import TYPE_FIELDS, translate_details, translate_names, translate_types
 import pakete
 
 DATA_ROOT = os.path.join(os.path.dirname(__file__), "data")
@@ -277,7 +276,7 @@ def add_triples(body: TriplesIn):
     Tripel normalisieren und einfuegen. Mit source werden vorher alle Kanten
     dieser Quelle entfernt (Re-Import ersetzt statt zu wachsen).
 
-    Die LLM-Vorarbeit (Uebersetzen, Richter-Fragen) laeuft ohne Graph-Sperre auf
+    Die LLM-Vorarbeit (Richter-Fragen) laeuft ohne Graph-Sperre auf
     einer Vorschau - der Graph, wie er nach dem Entfernen der Quelle aussieht.
     Vorher hielt ein Import die Sperre ueber alle LLM-Aufrufe, Fragen und
     /graph warteten so lange. Die Einfuegeschleife findet die Ergebnisse im
@@ -289,26 +288,12 @@ def add_triples(body: TriplesIn):
     if body.source:
         preview.remove_edges_by_source(body.source)
 
-    # Alle neuen Namen und Angaben vorab in wenigen Paketen uebersetzen
-    # (der Graph ist immer englisch) - normalize_triple findet sie dann
-    # im Cache statt einen LLM-Aufruf pro Feld zu machen.
-    # Das Fachgebiet fuer mehrdeutige Woerter ergibt sich aus dem Graphen
-    # und den neuen Tripeln selbst, nicht aus einer festen Domain.
-    topics = preview.topics(t.get(f) for t in body.triples for f in TYPE_FIELDS)
+    # Keine Uebersetzung beim Import: polygraph extrahiert Namen, Angaben und
+    # Typen schon englisch (2026-11-18). Vorher ein LLM-Aufruf je Paket neuer
+    # Namen, Angaben und Typen - im End-to-End-Test ~12 s je Import, auch fuer
+    # schon englische Namen.
     profile = profile_of(preview.graph)
-    detail_fields = profile.detail_fields
     known_entities = preview.known_entities()
-    known = set(known_entities)
-    translate_names([t[f] for t in body.triples for f in ("subject", "object")
-                     if isinstance(t.get(f), str) and t[f] not in known], topics=topics)
-    translate_details([t[f] for t in body.triples for f in detail_fields
-                       if isinstance(t.get(f), str) and t[f].strip()], topics=topics)
-    # Typen ebenso; ein schon bekannter Typ ist englisch (Bestand mit
-    # translate_graph.py umgestellt) und braucht keinen LLM-Aufruf.
-    known_types = set(preview.known_types())
-    types = translate_types([t[f] for t in body.triples for f in TYPE_FIELDS
-                             if isinstance(t.get(f), str) and t[f].strip() and t[f] not in known_types],
-                            topics=topics)
     prejudge(body.triples, known_entities, preview.known_relations(), aliases=profile.aliases,
              fixed_relations=profile.fixed_relations, workers=llm.parallel("normalize"))
 
@@ -325,11 +310,7 @@ def add_triples(body: TriplesIn):
         merges = []
         for triple in body.triples:
             normalized = normalize_triple(triple, store.known_entities(), store.known_relations(),
-                                          detail_fields=detail_fields, aliases=profile.aliases,
-                                          fixed_relations=profile.fixed_relations)
-            for field in TYPE_FIELDS:
-                if isinstance(triple.get(field), str) and triple[field] in types:
-                    normalized[field] = types[triple[field]]
+                                          aliases=profile.aliases, fixed_relations=profile.fixed_relations)
             for field in ("subject", "object", "relation"):
                 if normalized[field] != triple[field]:
                     merges.append([field, triple[field], normalized[field]])
@@ -458,7 +439,7 @@ def nodes_merge(body: MergeIn):
 @app.post("/graph/backup")
 def graph_backup():
     """
-    Kopie des Graphen mit Zeitstempel (wie translate_graph.py apply) - vor
+    Kopie des Graphen mit Zeitstempel - vor
     automatischen Zusammenfuehrungen (polygraph dedupe.py --auto), die sich
     sonst nur durch Neuimport der Quellen rueckgaengig machen liessen. Die
     Typ-Hierarchie wird mitkopiert (graph.backup-<Zeit>.hierarchy.json).
@@ -476,7 +457,7 @@ def graph_backup():
 @app.post("/nodes/rename")
 def nodes_rename(body: NodeRenameIn):
     """
-    Knoten umbenennen (Umstellung auf englische Namen, translate_graph.py);
+    Knoten umbenennen (z.B. Umstellung auf englische Namen);
     existiert der neue Name schon, werden beide zusammengefuehrt. Viele auf
     einmal, gespeichert wird nur einmal am Ende. Fehlt ein Knoten (z.B.
     schon umbenannt), wird er uebersprungen statt alles abzubrechen.
@@ -500,7 +481,7 @@ def nodes_rename(body: NodeRenameIn):
 @app.post("/edges/rewrite")
 def edges_rewrite(body: EdgeRewriteIn):
     """
-    Angaben an Kanten ersetzen (Umstellung auf Englisch, translate_graph.py):
+    Angaben an Kanten ersetzen (z.B. Umstellung auf Englisch):
     jede Kante, deren Feld genau 'old' ist, bekommt 'new'. Gespeichert wird
     einmal am Ende. Nur Kanten-Angaben des Profils (detail_fields), sonst 422.
     """

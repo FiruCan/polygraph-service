@@ -22,31 +22,31 @@ QUALIFIERS = (
     generic.QUALIFIERS[0],  # value
     Qualifier("population", "population", "Gruppe", description=(
         "Fuer welche Menschen die Aussage gilt: Patientengruppe, Alter, Geschlecht,\n"
-        "  Erkrankung mit Verlaufsform oder Schweregrad (z.B. \"Erwachsene mit Praediabetes\",\n"
-        "  \"Kinder\", \"schubfoermige MS\", \"ab EDSS 7,0\"). Tiere und Zellkulturen gehoeren\n"
+        "  Erkrankung mit Verlaufsform oder Schweregrad (z.B. \"adults with prediabetes\",\n"
+        "  \"children\", \"relapsing MS\", \"EDSS 7.0 and above\"). Tiere und Zellkulturen gehoeren\n"
         "  in \"model\". Sonst: null.")),
     Qualifier("model", "model", "Modell", description=(
         "Studienmodell, wenn die Aussage nicht an Menschen gezeigt wurde: Tierart,\n"
-        "  Tiermodell, Zellkultur, in vitro (z.B. \"Maeuse\", \"EAE-Mausmodell\", \"in vitro\").\n"
+        "  Tiermodell, Zellkultur, in vitro (z.B. \"mice\", \"EAE mouse model\", \"in vitro\").\n"
         "  An Menschen oder nicht genannt: null.")),
     Qualifier("dose", "dose", "Dosis", description=(
         "Wie eine Massnahme angewendet wird: Dosis, Haeufigkeit, Intensitaet,\n"
-        "  Darreichungsform, Dauer einer einzelnen Einheit (z.B. \"850 mg zweimal taeglich\",\n"
-        "  \"oral\", \"fuenfmal pro Woche, 30 Minuten\"). Sonst: null.")),
+        "  Darreichungsform, Dauer einer einzelnen Einheit (z.B. \"850 mg twice daily\",\n"
+        "  \"oral\", \"five times a week, 30 minutes\"). Sonst: null.")),
     Qualifier("duration", "duration", "Dauer", description=(
         "Wie lange oder in welchem Zeitfenster: Behandlungs- oder Beobachtungsdauer,\n"
-        "  Lebens- oder Krankheitsphase, in der etwas wirkt (z.B. \"drei Jahre\",\n"
-        "  \"innerhalb von 24 Wochen\", \"in der Kindheit\", \"waehrend eines Schubs\").\n"
+        "  Lebens- oder Krankheitsphase, in der etwas wirkt (z.B. \"three years\",\n"
+        "  \"within 24 weeks\", \"in childhood\", \"during a relapse\").\n"
         "  Sonst: null.")),
     Qualifier("condition", "condition", "Bedingung", description=(
         "Weitere Umstaende, unter denen die Aussage gilt: Ort im Koerper, Zustand,\n"
-        "  Voraussetzung, Land oder Region (z.B. \"in der weissen Substanz\", \"bei erhaltenen\n"
-        "  Axonen\", \"in der EU\").\n"
+        "  Voraussetzung, Land oder Region (z.B. \"in the white matter\", \"with preserved\n"
+        "  axons\", \"in the EU\").\n"
         "  Gruppe, Modell, Dosis, Dauer und Studiendesign stehen in ihren eigenen Feldern,\n"
         "  nicht hier. Sonst: null.")),
     Qualifier("evidence_level", "evidence", "Evidenz", description=(
-        "Studiendesign, nur falls im Text genannt (z.B. \"RCT\", \"Kohortenstudie\",\n"
-        "  \"Meta-Analyse\", \"Fallbericht\", \"Phase-II-Studie\", \"Tierstudie\").\n"
+        "Studiendesign, nur falls im Text genannt (z.B. \"RCT\", \"cohort study\",\n"
+        "  \"meta-analysis\", \"case report\", \"phase II trial\", \"animal study\").\n"
         "  Sonst: null. Nicht raten.")),
 )
 
@@ -59,9 +59,9 @@ PROMPT_NOTES = {
         "- Sagt der Text, wie etwas wirkt (\"indem es X anregt\", \"ueber X\"), erzeuge dafuer\n"
         "  eigene Tripel (A --increases--> X, X --increases--> B) statt den Weg in \"condition\"\n"
         "  zu schreiben.\n"
-        "- Die Richtung gehoert in die Relation: \"reduces\" statt \"causes\" mit \"verringert\"\n"
+        "- Die Richtung gehoert in die Relation: \"reduces\" statt \"causes\" mit \"decreased\"\n"
         "  in \"condition\".\n"
-        "- Das Objekt ist die Groesse, auf die gewirkt wird (\"Schubrate\"), nicht ein\n"
+        "- Das Objekt ist die Groesse, auf die gewirkt wird (\"relapse rate\"), nicht ein\n"
         "  Oberbegriff mit dem eigentlichen Ziel in \"condition\"."
     ),
     "answer": (
@@ -81,7 +81,8 @@ PROMPT_NOTES = {
     ),
 }
 
-# Absichtlich nicht aus dem Eval-Text (polygraph evals/texts/ms_therapie.txt)
+# Absichtlich nicht aus dem Eval-Text (polygraph evals/texts/ms_therapie.txt).
+# Deutscher Text, englische Tripel: der Graph ist komplett englisch (2026-11-18)
 EXAMPLE_TEXT = (
     "In einer randomisierten Studie senkte Metformin (850 mg zweimal taeglich) bei Erwachsenen mit "
     "Praediabetes das Risiko fuer Typ-II-Diabetes innerhalb von drei Jahren um 31 Prozent. Bei Ratten "
@@ -95,23 +96,23 @@ _NONE = {"value": None, "population": None, "model": None, "dose": None, "durati
 EXAMPLE_OUTPUT = (
     {"subject": "Metformin", "subject_type": "substance", "subject_type_is_new": False,
      "relation": "reduces_risk_of", "relation_is_new": True,
-     "object": "Typ-II-Diabetes", "object_type": "disease", "object_type_is_new": True,
-     **_NONE, "value": "31 Prozent", "population": "Erwachsene mit Praediabetes",
-     "dose": "850 mg zweimal taeglich", "duration": "drei Jahre", "evidence_level": "RCT",
+     "object": "type 2 diabetes", "object_type": "disease", "object_type_is_new": True,
+     **_NONE, "value": "31 percent", "population": "adults with prediabetes",
+     "dose": "850 mg twice daily", "duration": "three years", "evidence_level": "RCT",
      "confidence": 0.95},
-    {"subject": "Ausdauertraining", "subject_type": "activity", "subject_type_is_new": False,
+    {"subject": "endurance training", "subject_type": "activity", "subject_type_is_new": False,
      "relation": "increases", "relation_is_new": False,
-     "object": "Insulinempfindlichkeit", "object_type": "metric", "object_type_is_new": False,
-     **_NONE, "model": "Ratten", "dose": "fuenfmal pro Woche, 30 Minuten", "confidence": 0.85},
-    {"subject": "Ausdauertraining", "subject_type": "activity", "subject_type_is_new": False,
+     "object": "insulin sensitivity", "object_type": "metric", "object_type_is_new": False,
+     **_NONE, "model": "rats", "dose": "five times a week, 30 minutes", "confidence": 0.85},
+    {"subject": "endurance training", "subject_type": "activity", "subject_type_is_new": False,
      "relation": "increases", "relation_is_new": False,
-     "object": "Zahl der Mitochondrien", "object_type": "metric", "object_type_is_new": False,
-     **_NONE, "model": "Ratten", "dose": "fuenfmal pro Woche, 30 Minuten", "condition": "im Muskel",
+     "object": "number of mitochondria", "object_type": "metric", "object_type_is_new": False,
+     **_NONE, "model": "rats", "dose": "five times a week, 30 minutes", "condition": "in muscle",
      "confidence": 0.85},
-    {"subject": "Zahl der Mitochondrien", "subject_type": "metric", "subject_type_is_new": False,
+    {"subject": "number of mitochondria", "subject_type": "metric", "subject_type_is_new": False,
      "relation": "increases", "relation_is_new": False,
-     "object": "Insulinempfindlichkeit", "object_type": "metric", "object_type_is_new": False,
-     **_NONE, "model": "Ratten", "confidence": 0.8},
+     "object": "insulin sensitivity", "object_type": "metric", "object_type_is_new": False,
+     **_NONE, "model": "rats", "confidence": 0.8},
 )
 
 # Dieselbe Aussage einer Quelle fuer Erwachsene und fuer Kinder, an Maeusen und

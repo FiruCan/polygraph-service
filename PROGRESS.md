@@ -2,6 +2,12 @@
 
 ## Stand
 
+**Profile mit englischen Beispielen und Namen (gebaut, Unit-Tests)**
+- Grund: Der Graph ist komplett englisch, polygraph extrahierte aber "in der Sprache des Textes" - und das Finanzprofil schrieb feste deutsche Namen vor ("Umsatz", "Gewinn je Aktie", "Analystenkonsens", "Q3 Geschaeftsjahr 2026", Ereignisse wie "Erdbeben in Taiwan 2026"). Aus englischen Texten kamen so gemischte Namen ("Ransomware-Angriff auf Nordhafen"), beim Import uebersetzt.
+- `domains/finance.py`, `medicine.py`, `generic.py`: Beispiele zeigen deutschen Text mit englischen Tripeln; feste Namen "revenue", "earnings per share", "adjusted earnings per share", "stock price", "analyst consensus"; as_of "Q3 fiscal 2026", "fiscal 2025", "first nine months of fiscal 2026", relative Daten als "2025-03-14"; Ereignisse "earthquake in Taiwan 2026". Anweisungen bleiben deutsch, "negated" bleibt "ja" (fester Wert). ALIASES unveraendert (fangen deutsche Namen weiter ab).
+- `graph/translate.py` unveraendert als Sicherheitsnetz: fragt das LLM weiter fuer jeden neuen Namen, auch englische - offen, ob der Import das bei englischen Tripeln ueberspringt (~12 s je Import im End-to-End-Test).
+- Tests: `test/test_domains.py`.
+
 **Richter parallel, LLM-Arbeit ohne Graph-Sperre (gebaut, Unit-Tests)**
 - Grund: End-to-End-Test (2026-11-17): 27 Richter-Fragen nacheinander kosteten 54 s eines 230-s-Imports; /ask hielt die Graph-Sperre ueber die ganze LLM-Zeit, ein Import eines Tripels wartete 92 s statt 5 s, /health 85 s. Der Remote-Server rechnet 4 Anfragen gleichzeitig in 1,1 s (nacheinander 4,9 s).
 - `graph/normalize.py`: `prejudge()` stellt die Richter-Fragen eines Imports vorab, `workers` gleichzeitig; `normalize_triple` findet die Urteile im Cache von `judge_verdict` (gleiches Ergebnis wie vorher). Kandidatensuche als `_direct_match`/`_candidates` aus `find_match` herausgezogen.

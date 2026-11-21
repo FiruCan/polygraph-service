@@ -2,7 +2,7 @@
 localize.py
 -----------
 Anzeige des Graphen in der Sprache des Lesers. Im Graphen selbst ist alles
-englisch (graph/translate.py); die Oberflaeche zeigt Knotennamen, Typen,
+englisch (polygraph extrahiert so); die Oberflaeche zeigt Knotennamen, Typen,
 Beziehungen und Kanten-Angaben aber in der gewaehlten Sprache ("Deutsch",
 "Tuerkisch", ...). Nur fuer die Darstellung - an den Daten aendert sich nichts.
 
@@ -22,9 +22,10 @@ import re
 import threading
 
 from graph import llm
-from graph.translate import NO_TOPICS
 
 BATCH_SIZE = 40
+# Fachgebiet im Prompt, solange der Graph noch keine Typen hat
+NO_TOPICS = "(noch unbekannt - der Graph ist leer)"
 PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "localize_labels.md")
 TEXTS_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "prompts", "translate_texts.md")
 # pro Instanz data/<fachgebiet>/labels, gesetzt von app.open_instance()

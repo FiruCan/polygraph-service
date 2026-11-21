@@ -23,12 +23,8 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DATA_PATH", str(tmp_path / "graph.gml"))
     monkeypatch.setattr(app_module, "store", GraphStore())
     # Normalisierung ohne Ollama: Begriffe bleiben, wie sie sind
-    with patch("app.normalize_triple", side_effect=lambda t, e, r, **kw: dict(t)), \
-         patch("app.translate_names") as names, patch("app.translate_details") as details, \
-         patch("app.translate_types", side_effect=lambda types, topics="": {t: t for t in types}) as types:
-        client = TestClient(app_module.app)
-        client.translate_names, client.translate_details, client.translate_types = names, details, types
-        yield client
+    with patch("app.normalize_triple", side_effect=lambda t, e, r, **kw: dict(t)):
+        yield TestClient(app_module.app)
 
 
 def triple(subject="Krafttraining", obj="Krebs", relation="reduces_risk_of"):
@@ -313,21 +309,15 @@ def test_nodes_rename_renames_merges_and_skips(client):
     assert nodes == {"cancer", "strength training", "Fatigue"}
 
 
-def test_post_triples_pretranslates_new_names_and_details(client):
-    client.post("/triples", json={"triples": [triple("Krafttraining", "Krebs")]})
-    client.post("/triples", json={"triples": [dict(triple("Krafttraining", "Muskeln"),
-                                                   value="20 Prozent", condition=" ")]})
-    assert client.translate_names.call_args.args[0] == ["Muskeln"]  # bekannter Knoten nicht
-    assert client.translate_details.call_args.args[0] == ["20 Prozent"]  # leere Angabe nicht
-
-
-def test_post_triples_passes_topics_from_graph_and_new_triples(client):
-    # Fachgebiet = haeufigste Typen des Graphen plus die der neuen Tripel
-    client.post("/triples", json={"triples": [dict(triple(), subject_type="company", object_type="sector")]})
-    client.post("/triples", json={"triples": [dict(triple(obj="Banken"), subject_type="company",
-                                                   object_type="sector")]})
-    assert client.translate_names.call_args.kwargs["topics"] == "company, sector"
-    assert client.translate_types.call_args.kwargs["topics"] == "company, sector"
+def test_post_triples_stores_names_details_and_types_without_translating(client):
+    # polygraph extrahiert schon englisch (2026-11-18) - der Import uebersetzt nichts mehr
+    with patch("graph.llm.chat") as chat:
+        client.post("/triples", json={"triples": [dict(triple("strength training", "cancer"), value="20 percent",
+                                                       subject_type="activity", object_type="disease")]})
+    chat.assert_not_called()
+    nodes = {n["id"]: n["type"] for n in client.get("/graph").json()["nodes"]}
+    assert nodes == {"strength training": "activity", "cancer": "disease"}
+    assert client.get("/graph").json()["edges"][0]["value"] == "20 percent"
 
 
 def test_vocabulary_lists_types_and_relations_by_count(client):
@@ -342,17 +332,6 @@ def test_vocabulary_lists_types_and_relations_by_count(client):
         "relations": [{"name": "reduces_risk_of", "count": 2}, {"name": "increases_risk_of", "count": 1}],
         "type_parents": {},
     }
-
-
-def test_post_triples_translates_new_types(client):
-    client.post("/triples", json={"triples": [dict(triple(), subject_type="lifestyle_factor",
-                                                   object_type="disease")]})
-    client.translate_types.side_effect = lambda types, topics="": {t: "diseases" for t in types}
-    client.post("/triples", json={"triples": [dict(triple(obj="Diabetes"), subject_type="lifestyle_factor",
-                                                   object_type="Krankheiten")]})
-    assert client.translate_types.call_args.args[0] == ["Krankheiten"]  # bekannter Typ nicht
-    types = {n["id"]: n["type"] for n in client.get("/graph").json()["nodes"]}
-    assert types == {"Krafttraining": "lifestyle_factor", "Krebs": "disease", "Diabetes": "diseases"}
 
 
 def test_edges_rewrite(client):
@@ -420,24 +399,19 @@ def test_ask_runs_on_a_copy_without_the_lock(client):
         assert client.post("/ask", json={"question": "Was senkt Krebs?"}).json() == {"answer": "x"}
 
 
-def test_import_translates_and_judges_without_the_lock(client):
+def test_import_judges_without_the_lock(client):
     seen = []
-
-    def unlocked(names, topics=""):
-        seen.append(app_module.store_lock.locked())
-        return {n: n for n in names}
-    with patch("app.translate_names", side_effect=unlocked), \
-         patch("app.prejudge", side_effect=lambda *a, **kw: seen.append(app_module.store_lock.locked())) as pre:
+    with patch("app.prejudge", side_effect=lambda *a, **kw: seen.append(app_module.store_lock.locked())) as pre:
         assert client.post("/triples", json={"triples": [triple()]}).status_code == 200
-    assert seen == [False, False]
+    assert seen == [False]
     assert pre.call_args.kwargs["workers"] == 1  # ohne "parallel" in llm.json wie bisher einzeln
 
 
 def test_reimport_prework_sees_the_graph_without_the_source(client):
     # Ein Knoten, der nur an der Quelle hing, faellt beim Re-Import weg - die
-    # Vorarbeit muss ihn wie einen neuen Namen uebersetzen, sonst geschaehe das
-    # einzeln unter der Sperre
+    # Richter-Vorarbeit darf ihn nicht mehr als bekannt behandeln
     client.post("/triples", json={"triples": [triple("Krafttraining", "Krebs")], "source": "a.html"})
-    with patch("app.translate_names", side_effect=lambda names, topics="": {n: n for n in names}) as tr:
+    client.post("/triples", json={"triples": [triple("Rauchen", "Krebs")], "source": "b.html"})
+    with patch("app.prejudge", return_value=0) as pre:
         client.post("/triples", json={"triples": [triple("Krafttraining", "Krebs")], "source": "a.html"})
-    assert set(tr.call_args.args[0]) == {"Krafttraining", "Krebs"}
+    assert set(pre.call_args.args[1]) == {"Rauchen", "Krebs"}

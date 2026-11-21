@@ -113,9 +113,7 @@ def test_judge_broken_json_means_no_merge():
 def test_normalize_triple_maps_fields_and_keeps_rest():
     triple = {"subject": "IL-6", "relation": "reduces", "object": "Entzündungen", "value": "x"}
     matches = {"IL-6": "Interleukin-6", "Entzündungen": None, "reduces": "reduces"}
-    with patch("graph.normalize.find_match", side_effect=lambda term, known: matches[term]), \
-         patch("graph.normalize.to_english", side_effect=lambda n: n), \
-         patch("graph.normalize.detail_to_english", side_effect=lambda t: t):
+    with patch("graph.normalize.find_match", side_effect=lambda term, known: matches[term]):
         result = normalize_triple(triple, ["Interleukin-6"], ["reduces"])
     assert result == {"subject": "Interleukin-6", "relation": "reduces",
                       "object": "Entzündungen", "value": "x"}
@@ -149,9 +147,8 @@ def test_similar_entities_empty_graph():
 def test_profile_names_skip_the_judge():
     # Der Richter hielt "adjusted EPS" fuer "earnings per share" - der feste Name des Profils gewinnt
     aliases = {"adjusted eps": "adjusted earnings per share", "umsatz": "revenue"}
-    judge = {"adjusted EPS": "earnings per share", "revenue": "sales", "ACME": "ACME"}
-    with patch("graph.normalize.find_match", side_effect=lambda term, known: judge.get(term)) as match, \
-         patch("graph.normalize.to_english", side_effect=lambda n: {"Umsatz": "sales"}.get(n, n)):
+    judge = {"adjusted EPS": "earnings per share", "Umsatz": "sales", "ACME": "ACME"}
+    with patch("graph.normalize.find_match", side_effect=lambda term, known: judge.get(term)) as match:
         eps = normalize_triple({"subject": "ACME", "relation": "reports", "object": "adjusted EPS"},
                                ["ACME", "earnings per share"], [], aliases=aliases)
         revenue = normalize_triple({"subject": "ACME", "relation": "reports", "object": "Umsatz"},
@@ -159,16 +156,15 @@ def test_profile_names_skip_the_judge():
         target = normalize_triple({"subject": "ACME", "relation": "reports", "object": "Revenue"},
                                   ["ACME", "sales"], [], aliases=aliases)
     assert eps["object"] == "adjusted earnings per share"
-    assert revenue["object"] == "revenue"  # die deutsche Schreibweise zaehlt, nicht die Uebersetzung
+    assert revenue["object"] == "revenue"  # eine deutsche Schreibweise faengt der feste Name weiter ab
     assert target["object"] == "revenue"   # der feste Name selbst geht auch nicht zum Richter
-    assert all(c.args[0] not in ("adjusted EPS", "sales", "Revenue") for c in match.call_args_list)
+    assert all(c.args[0] not in ("adjusted EPS", "Umsatz", "Revenue") for c in match.call_args_list)
 
 
 def test_fixed_relations_skip_the_judge():
     triple = {"subject": "a", "relation": "sells_stake_in", "object": "b"}
     with patch("graph.normalize.find_match",
-               side_effect=lambda term, known: "holds_stake_in" if term == "sells_stake_in" else term), \
-         patch("graph.normalize.to_english", side_effect=lambda n: n):
+               side_effect=lambda term, known: "holds_stake_in" if term == "sells_stake_in" else term):
         fixed = normalize_triple(triple, ["a", "b"], ["holds_stake_in"],
                                  fixed_relations=frozenset({"sells_stake_in", "holds_stake_in"}))
         open_list = normalize_triple(triple, ["a", "b"], ["holds_stake_in"])
@@ -212,7 +208,6 @@ def test_find_match_embeds_new_term_with_new_known_terms_in_one_call():
 
 def test_prejudge_asks_in_parallel_and_normalize_reuses_the_verdicts():
     with patch("graph.llm.ollama.embed", side_effect=fake_embed), \
-         patch("graph.normalize.to_english", side_effect=lambda n: n), \
          patch("graph.llm.ollama.chat", return_value=chat_answer("Interleukin-6")) as chat:
         asked = normalize.prejudge([{"subject": "IL-6", "relation": "increases_risk_of", "object": "Krebs"}],
                                    ["Interleukin-6", "Krebs"], ["increases_risk_of"], workers=4)

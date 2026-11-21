@@ -333,8 +333,8 @@ class GraphStore:
 
     def rename_node(self, old: str, new: str) -> dict:
         """
-        Benennt einen Knoten um (Umstellung auf englische Namen,
-        translate_graph.py). Gibt es 'new' schon, wird 'old' dorthin
+        Benennt einen Knoten um (z.B. Umstellung auf englische Namen).
+        Gibt es 'new' schon, wird 'old' dorthin
         zusammengefuehrt (merge_nodes) statt einen zweiten Knoten anzulegen.
         -> {"merged": bool, ...Zaehler von merge_nodes}. KeyError, wenn 'old'
         fehlt; ValueError bei old == new.

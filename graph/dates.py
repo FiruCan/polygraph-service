@@ -75,7 +75,7 @@ def parse_as_of(text) -> Optional[datetime.date]:
 
 TRAILING = re.compile(r"\btrailing\b|\bttm\b|\blast twelve months\b", re.I)
 PART_OF_YEAR = re.compile(r"\bquarter|\bQ[1-4]\b|\b(three|six|nine|3|6|9)[- ]months?\b|\bhalf\b|\bH[12]\b", re.I)
-# "financial year": falls das Modell "Geschaeftsjahr" trotz der Regel in translate_details.md so uebersetzt
+# "financial year": falls das Modell "Geschaeftsjahr" trotz der Regel im Profil (fiscal) so uebersetzt
 WHOLE_YEAR = re.compile(r"\b(twelve|12)[- ]months?\b|\bfull[- ]year\b|\bFY\s?\d{2,4}\b|\bfiscal\s+(year\s+)?\d{4}\b"
                         r"|\bfiscal year\b|\bfinancial year\b|\bannual\b", re.I)
 QUARTER = re.compile(r"\bQ[1-4]\b|\b(three|3)[- ]months?\b", re.I)

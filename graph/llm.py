@@ -17,7 +17,7 @@ Zwei Arten von Anbietern ("type"):
   Anbieters mit (z.B. {"reasoning_effort": "none"}), bei think=True die aus
   "think_on" (z.B. {"reasoning_effort": "medium"}) - je Server verschieden.
 
-Aufgaben (task): ask, suggest, translate, localize, normalize, dedupe. Ein
+Aufgaben (task): ask, suggest, localize, normalize, dedupe. Ein
 Eintrag unter "tasks" ueberschreibt fuer eine Aufgabe Anbieter und/oder Modell
 aus "chat". Embeddings kommen immer aus "embed".
 """

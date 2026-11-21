@@ -6,7 +6,8 @@ eine neue Instanz ohne POLYGRAPH_DOMAIN und fuer einen alten Graphen, dem
 noch kein Profil zugewiesen wurde. Das Startvokabular ist das von polygraph
 (configs/start_vocabulary.json), ebenso das Beispiel und die Feldregeln
 (prompts/extract.md) - so bleibt der Extraktions-Prompt fuer diese Profile
-genau der bisherige.
+genau der bisherige. Das Beispiel zeigt einen deutschen Text mit englischen
+Tripeln: der Graph ist komplett englisch, polygraph extrahiert gleich so.
 """
 
 from domains.base import DomainProfile, Qualifier
@@ -14,14 +15,14 @@ from domains.base import DomainProfile, Qualifier
 QUALIFIERS = (
     Qualifier("value", "value", "Wert", description=(
         "Zahlen und Effektgroessen, die die Beziehung quantifizieren,\n"
-        "  woertlich mit Einheit (z.B. \"15 bis 20 Prozent\"). Steht nichts im Text: null.")),
+        "  mit Einheit (z.B. \"15 to 20 percent\"). Steht nichts im Text: null.")),
     Qualifier("condition", "condition", "Bedingung", description=(
         "Dosis, Menge, Haeufigkeit, Gruppe, Ort oder Zeitraum, unter\n"
-        "  denen die Aussage gilt (z.B. \"1-2 Einheiten pro Woche, Erwachsene\",\n"
-        "  \"Maerz 2022, USA\"). Sonst: null.")),
+        "  denen die Aussage gilt (z.B. \"1-2 units per week, adults\",\n"
+        "  \"March 2022, USA\"). Sonst: null.")),
     Qualifier("evidence_level", "evidence", "Evidenz", description=(
         "Art des Belegs, nur falls im Text genannt (z.B. \"RCT\",\n"
-        "  \"Kohortenstudie\", \"Meta-Analyse\", \"Beobachtungsstudie\", \"Analystenschaetzung\").\n"
+        "  \"cohort study\", \"meta-analysis\", \"observational study\", \"analyst estimate\").\n"
         "  Sonst: null. Nicht raten.")),
 )
 
@@ -45,14 +46,14 @@ EXAMPLE_TEXT = (
 EXAMPLE_OUTPUT = (
     {"subject": "Metformin", "subject_type": "substance", "subject_type_is_new": False,
      "relation": "reduces_risk_of", "relation_is_new": True,
-     "object": "Typ-II-Diabetes", "object_type": "disease", "object_type_is_new": True,
-     "value": "31 Prozent", "condition": "850 mg zweimal taeglich, Erwachsene mit Praediabetes",
+     "object": "type 2 diabetes", "object_type": "disease", "object_type_is_new": True,
+     "value": "31 percent", "condition": "850 mg twice daily, adults with prediabetes",
      "evidence_level": "RCT", "confidence": 0.95},
-    {"subject": "Zinserhoehung der Fed", "subject_type": "event", "subject_type_is_new": False,
+    {"subject": "Fed rate hike", "subject_type": "event", "subject_type_is_new": False,
      "relation": "reduces", "relation_is_new": False,
-     "object": "Aktienkurse im Tech-Sektor", "object_type": "metric", "object_type_is_new": False,
-     "value": "durchschnittlich 8 Prozent", "condition": "Maerz 2022",
-     "evidence_level": "Analystenschaetzung", "confidence": 0.8},
+     "object": "tech sector stock prices", "object_type": "metric", "object_type_is_new": False,
+     "value": "8 percent on average", "condition": "March 2022",
+     "evidence_level": "analyst estimate", "confidence": 0.8},
 )
 
 PROFILE = DomainProfile("generic", QUALIFIERS, ENTITY_TYPES, RELATION_TYPES,

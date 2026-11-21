@@ -31,7 +31,8 @@ gespeichert.
 
 **Sprache:** Alles im Graphen ist **Englisch** - Knotennamen, die
 Angaben an den Kanten (`value`, `condition`, `evidence_level`) und die
-Knotentypen; beim Import wird uebersetzt (`graph/translate.py`). Fragen,
+Knotentypen. polygraph extrahiert Namen, Angaben und Typen schon englisch
+(auch aus deutschen Texten); der Import uebersetzt nichts. Fragen,
 Antworten, Vorschlaege und Erklaerungen gibt es in einer frei waehlbaren
 Sprache (`language`, z.B. `"Deutsch"`, `"Englisch"`, `"Tuerkisch"`;
 Standard `"Deutsch"`). Relationen kommen schon englisch aus polygraph und
@@ -79,8 +80,8 @@ cp llm.example.json llm.json   # dann den Key eintragen
 - `chat`: welcher Anbieter alle Aufgaben bekommt. Ein `model` hier geht dem
   Modell des Anbieters vor (dann beim Umschalten mit aendern).
 - `tasks`: optional pro Aufgabe ein anderer Anbieter, z.B.
-  `"translate": {"provider": "ollama"}`. Aufgaben: hier `ask`, `suggest`,
-  `translate`, `localize`, `normalize`, `dedupe`; polygraph `extract`,
+  `"suggest": {"provider": "ollama"}`. Aufgaben: hier `ask`, `suggest`,
+  `localize`, `normalize`, `dedupe`; polygraph `extract`,
   `classify`, `vocabulary`; Argos `check`.
 - `embed`: Embeddings fuer die Normalisierung (`bge-m3` ueber Ollama). Ein
   anderes Modell verschiebt die Aehnlichkeitswerte (`CANDIDATE_THRESHOLD`).
@@ -229,29 +230,6 @@ Tripel-Schema (wie von einer Extraktions-Pipeline erzeugt, z.B. `polygraph`):
   `dedupe.py --auto` vor dem Zusammenfuehren auf). Zurueckholen: Service
   stoppen, beide Dateien zurueckkopieren, Service starten.
 
-## Bestand auf Englisch umstellen
-
-Einmalig, bei laufendem Service mit dem neuen Code (~1 Std. fuer 2.800
-Knoten und ~1.700 Kanten-Angaben):
-
-```bash
-python3 translate_graph.py plan
-```
-
-schreibt `data/<fachgebiet>/translate_review.json` mit drei Listen: `knoten` (alt ->
-neu, `zusammenfuehren`, `freigegeben`), `kanten` (`feld`, alt -> neu,
-`freigegeben`) und `typen` (wie `knoten`, umbenannt ueber
-`POST /vocabulary/rename`). Mit `--nur typen` (bzw. `knoten`, `kanten`)
-wird nur ein Teil geprueft. Durchsehen, falsche Eintraege korrigieren oder
-auf `"freigegeben": false` setzen, dann:
-
-```bash
-python3 translate_graph.py apply
-```
-
-legt vorher ueber `POST /graph/backup` ein Backup im Datenordner an.
-Fuer eine andere Instanz: `--url http://localhost:8060`.
-
 ## Projektstruktur
 
 ```
@@ -261,10 +239,8 @@ polygraph-service/
 ├── graph/
 │   ├── store.py        # NetworkX-Wrapper, to_json()/from_json() fuer die API
 │   ├── normalize.py    # Synonyme zusammenfuehren (bge-m3-Embedding + gemma4:26b-Pruefung)
-│   ├── translate.py    # Knotennamen, Kanten-Angaben + Typen ins Englische (gemma4:26b, paketweise, gecacht)
 │   └── ask.py           # GraphRAG: Knoten waehlen -> Kanten holen -> Agent antwortet (laedt bei Bedarf nach)
 ├── prompts/             # ask_select.md, ask_answer.md, normalize_judge.md
-├── translate_graph.py   # einmalige Umstellung des Bestands auf Englisch
 ├── test/                # Unit-Tests + Live-Test fuer den Normalisierungs-Richter
 └── data/<fachgebiet>/   # Graph, Hierarchie, Backups, labels/ pro Instanz (git-ignoriert)
 ```

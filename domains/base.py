@@ -17,8 +17,9 @@ class Qualifier:
     Eine Angabe an der Kante neben relation, confidence und origin.
     label: Kurzname in den Prompts von /ask ("evidence"), label_de: in den
     Prompts der Fragevorschlaege ("Evidenz"). translate: Freitext aus dem
-    Quelltext, der beim Import ins Englische uebersetzt wird (graph/translate.py)
-    - ein Waehrungscode braucht das nicht. description: Regel fuer die
+    Quelltext (POST /edges/rewrite darf ihn ersetzen); ein Waehrungscode oder
+    "ja" bei negated ist keiner. Uebersetzt wird beim Import nichts mehr,
+    polygraph extrahiert englisch (2026-11-18). description: Regel fuer die
     Extraktion in polygraph (GET /profile), steht dort woertlich als
     '- "<name>": <description>' im Prompt - Zeilenumbrueche mit zwei
     Leerzeichen Einzug wie in polygraph prompts/extract.md. pattern: Regex,

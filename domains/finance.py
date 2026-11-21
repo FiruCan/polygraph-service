@@ -14,23 +14,23 @@ from domains.base import DomainProfile, Qualifier, Variant
 QUALIFIERS = (
     Qualifier("value", "value", "Wert", description=(
         "Zahlen, Betraege und Veraenderungen, die die Beziehung quantifizieren,\n"
-        "  woertlich mit Einheit (z.B. \"4,25 Prozent\", \"minus 12 Prozent\", \"3,8 Milliarden\").\n"
+        "  mit Einheit (z.B. \"4.25 percent\", \"minus 12 percent\", \"3.8 billion\").\n"
         "  Steht nichts im Text: null.")),
     Qualifier("condition", "condition", "Bedingung", description=(
         "Markt, Region, Segment oder Szenario, unter denen die Aussage gilt\n"
-        "  (z.B. \"Euroraum\", \"Segment Elektroautos\"). Zeitangaben gehoeren in \"as_of\".\n"
+        "  (z.B. \"euro area\", \"electric vehicle segment\"). Zeitangaben gehoeren in \"as_of\".\n"
         "  Sonst: null.")),
     Qualifier("evidence_level", "evidence", "Belegart", description=(
-        "Art des Belegs, nur falls im Text genannt (z.B. \"Geschaeftsbericht\",\n"
-        "  \"Quartalsbericht\", \"Analystenschaetzung\", \"Prognose\", \"Ankuendigung\").\n"
+        "Art des Belegs, nur falls im Text genannt (z.B. \"annual report\",\n"
+        "  \"quarterly report\", \"analyst estimate\", \"forecast\", \"announcement\").\n"
         "  Sonst: null. Nicht raten.")),
     Qualifier("as_of", "as of", "Stichtag", description=(
         "Zeitpunkt oder Zeitraum, auf den sich die Aussage bezieht, aus dem Text\n"
-        "  (z.B. \"Juli 2023\", \"zweites Quartal 2024\", \"2021\"). Ist die Angabe relativ (\"heute\",\n"
+        "  (z.B. \"July 2023\", \"Q2 fiscal 2024\", \"2021\"). Ist die Angabe relativ (\"heute\",\n"
         "  \"gestern\", \"seit Jahresbeginn\", \"drittes Quartal\" ohne Jahr) und steht unten ein\n"
         "  Erscheinungsdatum, ergaenze damit Datum bzw. Jahr (bei Erscheinungsdatum 2025-03-14:\n"
-        "  \"heute\" -> \"14.03.2025\", \"seit Jahresbeginn\" -> \"seit Jahresbeginn 2025\").\n"
-        "  Ohne Erscheinungsdatum woertlich lassen. Nennt der Text keine Zeit: null - das\n"
+        "  \"heute\" -> \"2025-03-14\", \"seit Jahresbeginn\" -> \"since the start of 2025\").\n"
+        "  Ohne Erscheinungsdatum nur uebersetzen (\"today\"). Nennt der Text keine Zeit: null - das\n"
         "  Erscheinungsdatum dann nicht einsetzen.")),
     Qualifier("currency", "currency", "Waehrung", translate=False, description=(
         "Waehrung eines Betrags in \"value\" als ISO-Code (z.B. \"EUR\" fuer Euro,\n"
@@ -39,7 +39,7 @@ QUALIFIERS = (
     # Ein Tripel kann nur etwas behaupten: "hob die Prognose nicht an" blieb sonst dem Zufall ueberlassen
     # (2026-11-09: 4 von 2320 Kanten mit Verneinung, und nur als Wort im value)
     Qualifier("negated", "negated", "verneint", translate=False, description=(
-        "Nur \"ja\", wenn der Text die Aussage des Tripels verneint oder dementiert\n"
+        "Nur \"ja\" (fester Wert, nicht uebersetzen), wenn der Text die Aussage des Tripels verneint oder dementiert\n"
         "  (\"hob die Prognose nicht an\", \"dementierte die Uebernahme\"). Sonst: null."),
               pattern="^ja$"),
 )
@@ -128,27 +128,27 @@ PROMPT_NOTES = {
     # Schaetzungen hingen unter "analysts", "Wall Street consensus estimates",
     # "TIKR's October 19 consensus snapshot" ..., fast nie mit der Firma
     "extract": (
-        "- Subjekt einer Kennzahl (Umsatz, EBIT, Marge, Dividende, Kurs, Rendite) ist das\n"
+        "- Subjekt einer Kennzahl (revenue, EBIT, margin, dividend, stock price, yield) ist das\n"
         "  Unternehmen, der Markt oder das Wertpapier, dem sie gehoert - nie die Kennzahl selbst.\n"
-        "  \"Der Umsatz sank um 8 Prozent\" in einem Text ueber Henkel ergibt Henkel --reports--> Umsatz.\n"
+        "  \"Der Umsatz sank um 8 Prozent\" in einem Text ueber Henkel ergibt Henkel --reports--> revenue.\n"
         "  Ebenso Aktienkurs und Boersenwert: \"Die Aktie von Henkel stieg um 2 Prozent auf 80 Euro\"\n"
-        "  ergibt Henkel --reports--> Aktienkurs (value \"plus 2 Prozent auf 80 Euro\"), nicht\n"
-        "  Aktie --> Kurs und nicht Henkel --increases--> Aktie.\n"
+        "  ergibt Henkel --reports--> stock price (value \"up 2 percent to 80\"), nicht\n"
+        "  share --> price und nicht Henkel --increases--> share.\n"
         "- Nennt der Text fuer dieselbe Kennzahl Werte zu mehreren Zeitpunkten (aktuell und\n"
         "  Vorjahr, alte und neue Prognose), erzeuge je Zeitpunkt ein eigenes Tripel mit eigenem\n"
         "  \"as_of\". Ein relativer Zeitpunkt (\"Vorjahresquartal\") wird ausgeschrieben, wenn der\n"
-        "  Text ihn eindeutig macht (\"drittes Quartal 2023\" neben \"drittes Quartal 2024\").\n"
+        "  Text ihn eindeutig macht (\"Q3 2023\" neben \"Q3 2024\").\n"
         "- Wirkt etwas auf eine andere Groesse (Zinsen auf Kurse, Nachfrage auf Gewinn), gehoert\n"
         "  die Richtung in die Relation: \"increases\" bzw. \"decreases\" statt \"affects_metric\"\n"
         "  oder \"influences\". Veraendert sich eine eigene Kennzahl des Subjekts (\"Henkel verlor\n"
-        "  8 Prozent Umsatz\"), ist das \"reports\" mit der Richtung im \"value\" (\"minus 8 Prozent\").\n"
+        "  8 Prozent Umsatz\"), ist das \"reports\" mit der Richtung im \"value\" (\"minus 8 percent\").\n"
         "- Ein Vergleich mit einem frueheren Wert derselben Kennzahl (\"6 Prozent mehr als im\n"
         "  Vorjahr\", \"stieg auf 610 von 540 Millionen\") ist kein \"increases\"/\"decreases\"\n"
         "  zwischen zwei Kennzahlen oder zu einem Zeitpunkt: Unternehmen --reports--> Kennzahl\n"
         "  je Zeitpunkt (siehe oben), die Veraenderung steht im \"value\".\n"
         "- Kennzahlen sind keine Relationen (nicht \"growth\", \"valuation\", \"P/E\"): das\n"
         "  Unternehmen --reports--> die Kennzahl, der Wert steht in \"value\".\n"
-        "- Angaben je Aktie oder je Einheit bleiben im \"value\" (\"2,10 je Aktie\"), auch wenn\n"
+        "- Angaben je Aktie oder je Einheit bleiben im \"value\" (\"2.10 per share\"), auch wenn\n"
         "  die Waehrung in \"currency\" steht.\n"
         "- Tabellen: Die Zeilen stehen als \"Name | Wert | Wert\". Einheit und Zeitraum stehen im\n"
         "  Tabellenkopf (\"In millions\", \"Three Months Ended July 26, 2026\") und gehoeren in jedes\n"
@@ -156,37 +156,37 @@ PROMPT_NOTES = {
         "  nicht aendern (\"9,115\" unter \"In millions\" ergibt \"9,115 million\", nie \"9.115\"),\n"
         "  \"as_of\" mit dem Zeitraum der Spalte. Jede Spalte ist ein eigenes Tripel. Prozentzeilen und Angaben je\n"
         "  Aktie haben keine Millionen-Einheit. Ist die Spalte nicht eindeutig: Zeile weglassen.\n"
-        "- Feste Namen fuer Kennzahlen: Gewinn je Aktie heisst \"Gewinn je Aktie\", die bereinigte\n"
-        "  Zahl (non-GAAP, adjusted, normalized) \"bereinigter Gewinn je Aktie\" - nie nur \"Gewinn\",\n"
-        "  auch wenn der Text das kurz so sagt. Umsatz heisst \"Umsatz\".\n"
-        "- Zeitraeume stehen nie im Namen von Subjekt oder Objekt (nicht \"Umsatz Geschaeftsjahr\n"
-        "  2027\", \"Schaetzungen fuer 2026\"), sondern in \"as_of\": Objekt \"Umsatz\", \"as_of\"\n"
-        "  \"Geschaeftsjahr 2027\".\n"
-        "- \"as_of\" nennt immer das Jahr, Quartale mit Geschaeftsjahr (\"Q3 Geschaeftsjahr 2026\").\n"
-        "  Ein ganzes Geschaeftsjahr (\"full year\", \"twelve months ended ...\", \"fiscal 2025\") heisst\n"
-        "  \"Geschaeftsjahr 2025\"; sechs oder neun Monate heissen so (\"erste neun Monate\n"
-        "  Geschaeftsjahr 2026\") - nie nur das Jahr, sonst gilt ein Neunmonatswert als Jahreswert.\n"
+        "- Feste Namen fuer Kennzahlen: Gewinn je Aktie heisst \"earnings per share\", die bereinigte\n"
+        "  Zahl (non-GAAP, adjusted, normalized) \"adjusted earnings per share\" - nie nur \"earnings\",\n"
+        "  auch wenn der Text das kurz so sagt. Umsatz (sales, net sales) heisst \"revenue\", der\n"
+        "  Aktienkurs \"stock price\".\n"
+        "- Zeitraeume stehen nie im Namen von Subjekt oder Objekt (nicht \"revenue fiscal 2027\",\n"
+        "  \"estimates for 2026\"), sondern in \"as_of\": Objekt \"revenue\", \"as_of\" \"fiscal 2027\".\n"
+        "- \"as_of\" nennt immer das Jahr, Quartale mit Geschaeftsjahr (\"Q3 fiscal 2026\").\n"
+        "  Ein ganzes Geschaeftsjahr (\"Geschaeftsjahr 2025\", \"full year\", \"twelve months ended ...\")\n"
+        "  heisst \"fiscal 2025\"; sechs oder neun Monate heissen so (\"first nine months of fiscal\n"
+        "  2026\") - nie nur das Jahr, sonst gilt ein Neunmonatswert als Jahreswert.\n"
         "- Prognosen und Schaetzungen sind kein Bericht: Zahlen fuer die Zukunft oder von Analysten\n"
         "  ergeben \"forecasts\" (Wer schaetzt --forecasts--> Kennzahl), nicht \"reports\", mit\n"
-        "  \"evidence_level\" Prognose oder Analystenschaetzung. \"condition\" nennt immer die Firma,\n"
-        "  fuer die geschaetzt wird (\"fuer Henkel\"), auch wenn sie nur im Satz davor steht. Der\n"
+        "  \"evidence_level\" \"forecast\" oder \"analyst estimate\". \"condition\" nennt immer die Firma,\n"
+        "  fuer die geschaetzt wird (\"for Henkel\"), auch wenn sie nur im Satz davor steht. Der\n"
         "  Durchschnitt vieler Analysten (Konsens, \"Wall Street erwartet\", consensus estimate) heisst\n"
-        "  immer \"Analystenkonsens\", ein Datendienst, der ihn liefert, steht in \"evidence_level\".\n"
+        "  immer \"analyst consensus\", ein Datendienst, der ihn liefert, steht in \"evidence_level\".\n"
         "- \"acquires\" nur fuer eine vollstaendige Uebernahme. Der Kauf von Anteilen ist\n"
         "  \"holds_stake_in\" mit der Hoehe in \"value\"; ist er nur geplant, \"plans\".\n"
         "- Verkauft oder reduziert jemand Anteile: Verkaeufer --sells_stake_in--> Firma, die Hoehe\n"
-        "  in \"value\" (\"gesamte Beteiligung\", \"von 5 auf 3 Prozent\"), den genannten Grund in\n"
+        "  in \"value\" (\"entire stake\", \"from 5 to 3 percent\"), den genannten Grund in\n"
         "  \"condition\". Ein Verkauf ist nie \"holds_stake_in\".\n"
         "- Verneinte oder dementierte Aussagen: \"hob die Prognose nicht an\" ergibt Firma\n"
-        "  --forecasts--> Prognose mit \"negated\": \"ja\". Nie als positive Aussage ablegen.\n"
-        "- Nennt jemand eine eigene Verkaufsregel: Investor --plans--> Verkauf von Aktien, die\n"
+        "  --forecasts--> forecast mit \"negated\": \"ja\". Nie als positive Aussage ablegen.\n"
+        "- Nennt jemand eine eigene Verkaufsregel: Investor --plans--> sale of shares, die\n"
         "  Bedingung in \"condition\".\n"
         "- Zentralbanken sind \"central_bank\", Ratingagenturen \"rating_agency\", nicht\n"
         "  \"company\". Setzt eine Zentralbank einen Zins fest oder laesst ihn unveraendert:\n"
-        "  Zentralbank --sets--> Leitzins mit dem Stand in \"value\". Ein Rating: Agentur\n"
-        "  --rates--> Bewertetes, Note und Richtung in \"value\" (\"BBB+, hochgestuft\").\n"
+        "  Zentralbank --sets--> key interest rate mit dem Stand in \"value\". Ein Rating: Agentur\n"
+        "  --rates--> Bewertetes, Note und Richtung in \"value\" (\"BBB+, upgraded\").\n"
         "- Eine Person mit Funktion (\"Finanzvorstand Jan Weber\") ergibt Person\n"
-        "  --employed_by--> Unternehmen, die Funktion in \"value\".\n"
+        "  --employed_by--> Unternehmen, die Funktion in \"value\" (\"chief financial officer\").\n"
         "- Nur Relationen aus der Liste der bekannten Relationen, keine neuen. Passt keine,\n"
         "  lass die Aussage weg, statt eine unpassende zu waehlen.\n"
         "- Typen: Aktienindizes (Dax, S&P 500, Nasdaq) sind \"index\"; ETFs, Investmentfonds und\n"
@@ -215,14 +215,15 @@ def _triple(subject, subject_type, relation, obj, object_type, confidence=0.9, *
 
 # Wie die Regeln oben: Quartal mit Geschaeftsjahr, die Richtung in "decreases" statt
 # triggers_decline_of, der Sektor in "condition" statt im Namen. Das Modell folgte dem
-# Beispiel ("zweites Quartal 2024") eher als der Regel.
+# Beispiel ("zweites Quartal 2024") eher als der Regel. Deutscher Text, englische
+# Tripel: der Graph ist komplett englisch, polygraph extrahiert gleich so (2026-11-18).
 EXAMPLE_OUTPUT = (
-    _triple("Allianz", "company", "reports", "operativer Gewinn", "financial_metric", 0.95,
-            value="3,8 Milliarden", evidence_level="Quartalsbericht", as_of="Q2 Geschaeftsjahr 2024",
+    _triple("Allianz", "company", "reports", "operating profit", "financial_metric", 0.95,
+            value="3.8 billion", evidence_level="quarterly report", as_of="Q2 fiscal 2024",
             currency="EUR"),
-    _triple("Zinserhoehung der Fed", "event", "decreases", "Aktienkurse", "financial_metric", 0.8,
-            value="durchschnittlich 8 Prozent", condition="Tech-Sektor", evidence_level="Analystenschaetzung",
-            as_of="Maerz 2022"),
+    _triple("Fed rate hike", "event", "decreases", "stock prices", "financial_metric", 0.8,
+            value="8 percent on average", condition="tech sector", evidence_level="analyst estimate",
+            as_of="March 2022"),
 )
 
 
@@ -274,12 +275,13 @@ NEWS = Variant(
         "awarded_to", "awarded_for", "increases", "decreases", "influences",
     ),
     extract_notes=(
-        "- Ein Ereignis heisst nach Art, Ort und Jahr (\"Erdbeben in Taiwan 2026\",\n"
-        "  \"Bundestagswahl 2025\"), das genaue Datum steht in \"as_of\". So trifft ein spaeterer\n"
-        "  Artikel ueber dasselbe Ereignis denselben Namen.\n"
+        "- Ein Ereignis heisst nach Art, Ort und Jahr (\"earthquake in Taiwan 2026\",\n"
+        "  \"German federal election 2025\", \"ransomware attack on Nordhafen 2026\"), das genaue\n"
+        "  Datum steht in \"as_of\". So trifft ein spaeterer Artikel ueber dasselbe Ereignis, in\n"
+        "  welcher Sprache auch immer, denselben Namen.\n"
         "- Wer beteiligt ist: X --involved_in--> Ereignis, die Rolle in \"condition\"\n"
-        "  (\"Angreifer\", \"Kandidat\", \"Klaeger\", \"Gastgeber\").\n"
-        "- Folgen mit Zahl in \"value\": Ereignis --affected--> Betroffene, value \"14 Tote\".\n"
+        "  (\"attacker\", \"candidate\", \"plaintiff\", \"host\").\n"
+        "- Folgen mit Zahl in \"value\": Ereignis --affected--> Betroffene, value \"14 dead\".\n"
         "  Ursachen: \"caused\"; Reaktionen: X --responded_to--> Ereignis, value = die Massnahme.\n"
         "- Beschluesse: Regierung, Parlament oder Gericht --enacted--> Gesetz, Sanktion oder\n"
         "  Urteil (Typ \"regulation\"); Gesetz --applies_to--> wen es betrifft.\n"
@@ -295,12 +297,12 @@ NEWS = Variant(
         "Ein Erdbeben der Staerke 6,8 erschuetterte am 3. Maerz 2025 den Norden Chiles. Die "
         "Regierung rief den Notstand aus; mehrere Kupferminen stellten den Betrieb vorerst ein."),
     example_output=(
-        _triple("Erdbeben in Chile 2025", "event", "occurred_in", "Chile", "country", 0.95,
-                value="Staerke 6,8", condition="Norden", as_of="3. Maerz 2025"),
-        _triple("Regierung von Chile", "organization", "responded_to", "Erdbeben in Chile 2025", "event",
-                value="Notstand ausgerufen", as_of="Maerz 2025"),
-        _triple("Erdbeben in Chile 2025", "event", "affected", "Kupferminen in Chile", "sector", 0.85,
-                value="Betrieb vorerst eingestellt", as_of="Maerz 2025"),
+        _triple("earthquake in Chile 2025", "event", "occurred_in", "Chile", "country", 0.95,
+                value="magnitude 6.8", condition="north", as_of="2025-03-03"),
+        _triple("government of Chile", "organization", "responded_to", "earthquake in Chile 2025", "event",
+                value="declared a state of emergency", as_of="March 2025"),
+        _triple("earthquake in Chile 2025", "event", "affected", "copper mines in Chile", "sector", 0.85,
+                value="operations suspended for now", as_of="March 2025"),
     ),
 )
 
@@ -325,12 +327,12 @@ SCIENCE = Variant(
         "- Erklaerungen sind Tripel: \"A, weil B\" ergibt B --causes/enables--> A. Nur was der\n"
         "  Text als Zusammenhang sagt, nicht jedes Fachwort einzeln.\n"
         "- Wovon etwas abhaengt: X --increases/decreases--> Groesse, die Zahl in \"value\"\n"
-        "  (\"um das Zehnfache\"), die Bedingung in \"condition\" (\"bei Raumtemperatur\").\n"
+        "  (\"tenfold\"), die Bedingung in \"condition\" (\"at room temperature\").\n"
         "- Aufbau: X --consists_of--> Bestandteil; Teil --part_of--> Ganzes.\n"
         "- Wer etwas entwickelt oder entdeckt hat: X --developed_by--> Person oder Organisation,\n"
         "  das Jahr in \"as_of\"; Person --employed_by--> Institut.\n"
         "- Anwendung: Technik --used_for--> Anwendung (Typ \"application\").\n"
-        "- \"evidence_level\": Experiment, Simulation, Theorie, Uebersichtsartikel - nur wenn\n"
+        "- \"evidence_level\": experiment, simulation, theory, review - nur wenn\n"
         "  der Text es sagt.\n"
         "- Techniken und Verfahren sind \"technology\" oder \"process\", Stoffe \"material\",\n"
         "  beobachtbare Effekte und Eigenschaften \"phenomenon\", Geraete \"instrument\"."),
@@ -339,13 +341,13 @@ SCIENCE = Variant(
         "ohne Widerstand bewegen, eignet es sich fuer sehr schnelle Transistoren. Andre Geim und "
         "Konstantin Novoselov isolierten es 2004 an der Universitaet Manchester."),
     example_output=(
-        _triple("Graphen", "material", "consists_of", "Kohlenstoffatome", "material", 0.95,
-                condition="eine einzige Lage"),
-        _triple("Graphen", "material", "enables", "schnelle Transistoren", "application", 0.85,
-                condition="Elektronen bewegen sich fast ohne Widerstand"),
-        _triple("Graphen", "material", "developed_by", "Andre Geim", "person", 0.9, as_of="2004",
-                value="isoliert"),
-        _triple("Andre Geim", "person", "employed_by", "Universitaet Manchester", "organization", 0.85,
+        _triple("graphene", "material", "consists_of", "carbon atoms", "material", 0.95,
+                condition="a single layer"),
+        _triple("graphene", "material", "enables", "fast transistors", "application", 0.85,
+                condition="electrons move almost without resistance"),
+        _triple("graphene", "material", "developed_by", "Andre Geim", "person", 0.9, as_of="2004",
+                value="isolated"),
+        _triple("Andre Geim", "person", "employed_by", "University of Manchester", "organization", 0.85,
                 as_of="2004"),
     ),
 )

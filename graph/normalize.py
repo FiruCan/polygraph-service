@@ -31,9 +31,7 @@ from typing import Optional
 
 import numpy as np
 
-from domains import generic
 from graph import llm
-from graph.translate import detail_to_english, to_english
 
 CANDIDATE_THRESHOLD = 0.55
 # Hinweis-Schwelle fuer similar_entities(): bewusst niedrig, weil das
@@ -230,13 +228,11 @@ def fixed_name(names, aliases: dict) -> Optional[str]:
 
 
 def normalize_triple(triple: dict, known_entities: list, known_relations: list,
-                     detail_fields: tuple = generic.PROFILE.detail_fields,
                      aliases: dict = None, fixed_relations=()) -> dict:
     """
     Ersetzt subject/object/relation im Tripel durch den kanonischen,
     bereits bekannten Begriff, falls das LLM sie als identisch bestaetigt.
-    Subjekt und Objekt werden vorher ins Englische uebersetzt, ebenso die
-    Kanten-Angaben in detail_fields (DomainProfile.detail_fields).
+    Uebersetzt wird nichts: polygraph extrahiert schon englisch (2026-11-18).
     Feste Namen (aliases) und feste Relationen (fixed_relations) des Profils
     gehen nicht durch den Richter: er hielt sonst "adjusted EPS" fuer
     "earnings per share" oder sells_stake_in fuer holds_stake_in, und beim
@@ -244,17 +240,10 @@ def normalize_triple(triple: dict, known_entities: list, known_relations: list,
     Modifiziert eine Kopie, nicht das Original.
     """
     normalized = dict(triple)
-    known = set(known_entities)
     for field in ("subject", "object"):
-        # Knoten sind immer englisch (graph/translate.py): erst uebersetzen,
-        # dann gegen die (englischen) bekannten Knoten abgleichen. Ein
-        # exakt bekannter Name braucht keinen LLM-Aufruf.
-        term = triple[field] if triple[field] in known else to_english(triple[field])
-        normalized[field] = (fixed_name((triple[field], term), aliases or {})
+        term = triple[field]
+        normalized[field] = (fixed_name((term,), aliases or {})
                              or find_match(term, known_entities) or term)
-    for field in detail_fields:
-        if isinstance(triple.get(field), str) and triple[field].strip():
-            normalized[field] = detail_to_english(triple[field])
     relation = triple["relation"]
     normalized["relation"] = (relation if relation in fixed_relations
                               else find_match(relation, known_relations) or relation)
@@ -275,12 +264,11 @@ def prejudge(triples: list, known_entities: list, known_relations: list, aliases
     """
     if workers <= 1:
         return 0
-    known = set(known_entities)
     questions = set()
     for triple in triples:
         for field in ("subject", "object"):
-            term = triple[field] if triple[field] in known else to_english(triple[field])
-            if fixed_name((triple[field], term), aliases or {}) or _direct_match(term, known_entities):
+            term = triple[field]
+            if fixed_name((term,), aliases or {}) or _direct_match(term, known_entities):
                 continue
             candidates = _candidates(term, known_entities)
             if candidates:

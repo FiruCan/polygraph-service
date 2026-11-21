@@ -48,7 +48,7 @@ def test_medicine_has_own_fields_for_group_model_dose_duration():
     medicine = get_profile("medicine")
     fields = ("value", "population", "model", "dose", "duration", "condition", "evidence_level")
     assert medicine.qualifier_fields == fields
-    assert medicine.detail_fields == fields  # alles Freitext, wird uebersetzt
+    assert medicine.detail_fields == fields  # alles Freitext
     assert all(q.description for q in medicine.qualifiers)
     assert all(set(t) >= set(fields) for t in medicine.example_output)
 
@@ -159,11 +159,9 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(app_module, "DATA_PATH", str(tmp_path / "graph.gml"))
     monkeypatch.setattr(app_module, "store", GraphStore())
     monkeypatch.setitem(domains.PROFILES, TEST_PROFILE.name, TEST_PROFILE)
-    with patch("app.normalize_triple", side_effect=lambda t, e, r, **kw: dict(t)) as normalize, \
-         patch("app.translate_names"), patch("app.translate_details") as details, \
-         patch("app.translate_types", side_effect=lambda types, topics="": {t: t for t in types}):
+    with patch("app.normalize_triple", side_effect=lambda t, e, r, **kw: dict(t)) as normalize:
         client = TestClient(app_module.app)
-        client.normalize, client.translate_details = normalize, details
+        client.normalize = normalize
         yield client
 
 
@@ -176,14 +174,6 @@ def test_get_profile_endpoint(client):
     assign_profile(app_module.store.graph, "medicine")
     data = client.get("/profile").json()
     assert data["name"] == "medicine" and data["fixed"] is True
-
-
-def test_import_translates_only_free_text_qualifiers(client):
-    assign_profile(app_module.store.graph, TEST_PROFILE.name)
-    client.post("/triples", json={"triples": [{"subject": "ACME", "relation": "reports", "object": "revenue",
-                                               "value": "1,2 Mrd.", "currency": "EUR"}]})
-    assert client.translate_details.call_args.args[0] == ["1,2 Mrd."]
-    assert client.normalize.call_args.kwargs["detail_fields"] == ("value",)
 
 
 def test_edges_rewrite_only_profile_fields(client):
@@ -201,7 +191,7 @@ def test_edges_rewrite_only_profile_fields(client):
 def test_finance_profile_has_date_and_currency():
     finance = get_profile("finance")
     assert finance.qualifier_fields == ("value", "condition", "evidence_level", "as_of", "currency", "negated")
-    assert "currency" not in finance.detail_fields  # Waehrungscode wird nicht uebersetzt
+    assert "currency" not in finance.detail_fields  # Waehrungscode ist kein Freitext
     assert "as_of" in finance.detail_fields
     assert "company" in finance.entity_types and "acquires" in finance.relation_types
     assert all(q.description for q in finance.qualifiers)
@@ -301,7 +291,20 @@ def test_finance_example_follows_its_own_rules():
         assert t["relation"] in profile.relation_types and t["relation"] != "triggers_decline_of"
         assert t["subject_type"] in profile.entity_types and t["object_type"] in profile.entity_types
     quarter = profile.example_output[0]["as_of"]
-    assert "Geschaeftsjahr" in quarter and "2024" in quarter
+    assert quarter == "Q2 fiscal 2024"
+
+
+def test_examples_extract_english_from_german_text():
+    """Der Graph ist komplett englisch: deutscher Beispieltext, englische Tripel."""
+    for name in ("finance", "medicine", "generic"):
+        profile = get_profile(name)
+        assert "senkte" in profile.example_text or "steigerte" in profile.example_text
+        names = {t[f] for t in profile.example_output for f in ("subject", "object")}
+        assert not any(c in "".join(names) for c in "äöüß") and "Typ-II-Diabetes" not in names, names
+    finance = get_profile("finance")
+    assert {t["object"] for t in finance.example_output} == {"operating profit", "stock prices"}
+    assert finance.variants["news"].example_output[0]["subject"] == "earthquake in Chile 2025"
+    assert finance.variants["science"].example_output[0]["subject"] == "graphene"
 
 
 def test_finance_import_passes_fixed_names_and_relations(client):
@@ -418,8 +421,9 @@ def test_finance_notes_name_estimates_and_fiscal_years():
 def test_finance_extraction_names_consensus_firm_periods_and_funds():
     profile = get_profile("finance")
     notes = profile.prompt_notes["extract"]
-    assert "\"Analystenkonsens\"" in notes and "nennt immer die Firma" in notes
-    assert "\"Geschaeftsjahr 2025\"" in notes and "erste neun Monate" in notes
+    assert "\"analyst consensus\"" in notes and "nennt immer die Firma" in notes
+    assert "\"fiscal 2025\"" in notes and "first nine months of fiscal" in notes
+    assert "\"earnings per share\"" in notes and "\"revenue\"" in notes
     assert "fund" in profile.entity_types and "\"fund\"" in notes
     assert "Zeitraeume stehen nie im Namen" in notes
     for name in ("Zacks", "TIKR", "SOXX", "Applied Materials"):  # kein Name aus den Testfaellen
